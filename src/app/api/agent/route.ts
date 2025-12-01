@@ -706,8 +706,9 @@ export async function POST(req: Request) {
         }
 
         if (!process.env.OPENROUTER_API_KEY) {
+            console.error('[API/Agent] OPENROUTER_API_KEY not found in environment');
             return NextResponse.json({
-                error: 'OpenRouter API Key is missing. Please add OPENROUTER_API_KEY to your .env file.'
+                error: 'OpenRouter API Key is missing. Please configure OPENROUTER_API_KEY in your deployment environment variables.'
             }, { status: 500 });
         }
 

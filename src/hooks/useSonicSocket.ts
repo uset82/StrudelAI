@@ -132,8 +132,11 @@ export function useSonicSocket() {
         socket.on('connect_error', (err) => {
             console.error('[SonicSocket] Connect error:', err.message);
             setIsConnected(false);
+            // On deployed platforms (Netlify, Vercel), socket won't connect - that's OK
+            // The app works in standalone mode using API routes for AI
             if (!socketErrorNotifiedRef.current) {
-                setMessages(prev => [...prev, `System: Connection error - ${err.message}. Ensure server.ts is running.`]);
+                // Only show warning once, then silently continue
+                console.log('[SonicSocket] Running in standalone mode (no WebSocket server)');
                 socketErrorNotifiedRef.current = true;
             }
         });
