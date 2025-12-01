@@ -53,7 +53,7 @@ export async function getSampleAudioContext(): Promise<AudioContext> {
         const ctx = getAudioContext();
         if (ctx) {
             sampleAudioContext = ctx;
-            return sampleAudioContext;
+            return ctx;  // Return ctx directly since we just verified it's not null
         }
         throw new Error('Strudel AudioContext not available');
     } catch {

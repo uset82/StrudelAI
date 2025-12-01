@@ -44,6 +44,8 @@ const LANE_ICON_MAP: Record<Lane['type'], typeof Music> = {
     melody: Music,
     fx: Sparkles,
     voice: Mic,
+    synth: Music,
+    audio: Mic,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
