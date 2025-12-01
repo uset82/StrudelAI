@@ -1,8 +1,9 @@
 import OpenAI from 'openai';
+import 'dotenv/config';
 
 const client = new OpenAI({
     baseURL: 'https://openrouter.ai/api/v1',
-    apiKey: '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',
+    apiKey: process.env.OPENROUTER_API_KEY || '',
     defaultHeaders: {
         'HTTP-Referer': 'http://localhost:3000',
         'X-Title': 'Aether Sonic Interface',

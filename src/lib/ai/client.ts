@@ -1,12 +1,13 @@
 import OpenAI from 'openai';
 
-// if (!process.env.OPENROUTER_API_KEY) {
-//     throw new Error('OPENROUTER_API_KEY is not defined');
-// }
+// API key must be set via environment variable
+if (!process.env.OPENROUTER_API_KEY) {
+    console.warn('OPENROUTER_API_KEY is not defined - AI features will not work');
+}
 
 export const openai = new OpenAI({
     baseURL: 'https://openrouter.ai/api/v1',
-    apiKey: process.env.OPENROUTER_API_KEY || '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',
+    apiKey: process.env.OPENROUTER_API_KEY || '',
     defaultHeaders: {
         'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
         'X-Title': 'Aether Sonic',
