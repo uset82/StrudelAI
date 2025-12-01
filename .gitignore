@@ -39,3 +39,26 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# IDE/Editor
+.vs/
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Generated audio files
+*.wav
+*.mp3
+generated_samples/
+
+# Temporary/Session files
+live-session.json
+_workletData.txt
+
+# Word docs (use markdown instead)
+*.docx

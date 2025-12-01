@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Socket Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .log {
+            background: #f8f9fa;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Socket Connection Test</h1>
+    <div id="status" class="status disconnected">Disconnected</div>
+
+    <div>
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+        <button onclick="testCommand()">Test Command</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div id="log" class="log"></div>
+
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script>
+        let socket;
+        const logEl = document.getElementById('log');
+        const statusEl = document.getElementById('status');
+
+        function log(message) {
+            const time = new Date().toLocaleTimeString();
+            logEl.innerHTML += `<div>[${time}] ${message}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(message);
+        }
+
+        function updateStatus(connected) {
+            if (connected) {
+                statusEl.textContent = 'Connected';
+                statusEl.className = 'status connected';
+            } else {
+                statusEl.textContent = 'Disconnected';
+                statusEl.className = 'status disconnected';
+            }
+        }
+
+        function connect() {
+            log('Attempting to connect...');
+            socket = io('http://localhost:3000', {
+                transports: ['websocket', 'polling'],
+                reconnection: true,
+                reconnectionDelay: 1000,
+                reconnectionAttempts: 5
+            });
+
+            socket.on('connect', () => {
+                log('✅ Connected to server');
+                updateStatus(true);
+            });
+
+            socket.on('disconnect', () => {
+                log('❌ Disconnected from server');
+                updateStatus(false);
+            });
+
+            socket.on('connect_error', (err) => {
+                log(`❌ Connection error: ${err.message}`);
+                updateStatus(false);
+            });
+
+            socket.on('sonic:state', (state) => {
+                log(`📡 Received state: BPM=${state.bpm}, Playing=${state.isPlaying}`);
+            });
+
+            socket.on('sonic:message', (msg) => {
+                log(`🤖 AI: ${msg}`);
+            });
+
+            socket.on('sonic:error', (err) => {
+                log(`❌ Server error: ${err}`);
+            });
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                log('🔌 Manually disconnected');
+            }
+        }
+
+        function testCommand() {
+            if (socket && socket.connected) {
+                log('🎤 Sending test command: "drums: bd ~ sn ~"');
+                socket.emit('sonic:command', 'drums: bd ~ sn ~');
+            } else {
+                log('❌ Socket not connected');
+            }
+        }
+
+        function clearLog() {
+            logEl.innerHTML = '';
+        }
+
+        // Auto-connect on load
+        window.onload = () => {
+            log('🚀 Test page loaded');
+            connect();
+        };
+    </script>
+</body>
+
+</html>

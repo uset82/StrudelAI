@@ -1,0 +1,14 @@
+[
+  {
+    "audio": "techno_beat_01.wav",
+    "description": "energetic techno beat, 128 bpm, punchy kick, crisp hi-hats, dark atmosphere"
+  },
+  {
+    "audio": "ambient_pad_01.wav",
+    "description": "ethereal ambient pad, slow evolving texture, dreamy, reverb-heavy"
+  },
+  {
+    "audio": "bass_loop_01.wav",
+    "description": "deep dubstep bass, wobble bass, aggressive, 140 bpm"
+  }
+]

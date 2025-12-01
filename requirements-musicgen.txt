@@ -1,0 +1,17 @@
+# MusicGen Server Requirements
+# Install with: pip install -r requirements-musicgen.txt
+
+# Core
+torch>=2.0.0
+transformers>=4.31.0
+scipy>=1.10.0
+
+# Server
+flask>=2.3.0
+flask-cors>=4.0.0
+
+# Optional - for faster audio processing
+numpy>=1.24.0
+
+# Note: For GPU support, install PyTorch with CUDA:
+# pip install torch --index-url https://download.pytorch.org/whl/cu118
