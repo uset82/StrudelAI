@@ -19,9 +19,9 @@
 ## 🛠️ Technology Stack
 
 ### Frontend Framework
-- **Next.js 15.x**: React-based framework for server-side rendering and API routes
+- **Next.js 16.0.3 (Turbopack)**: React-based framework for server-side rendering and API routes
 - **TypeScript**: Type-safe development throughout the codebase
-- **React 19**: Latest React features for state management and hooks
+- **React 19.2.0**: Latest React features for state management and hooks
 
 ### Audio Engine
 - **Strudel**: JavaScript port of TidalCycles for live coding music
@@ -136,6 +136,16 @@
 - **Key Detection**: Determines musical key via chroma analysis
 - **Pattern Extraction**: Detects drum, bass, and melody patterns
 - **Code Generation**: Creates playable Strudel patterns
+
+### 8. DJ Controller / DJ Mixer Mode (NEW)
+- **Two Decks**: Mix synthetic Strudel patterns with uploaded audio tracks (WebAudio `AudioBuffer`)
+- **Mixer Controls**: 3-band EQ, filter, channel faders, crossfader, master volume, master pitch
+- **Performance Pads**:
+  - **Hot Cue / Pitch Play**: Jump to cues; Shift enables pitch-play behavior
+  - **Loop (Bounce Loop)**: Hold 1/2/4/8 beat loops (quantized when beatgrid/downbeat is provided)
+  - **FX (Slicer)**: Beat-jump/slicer workflow for uploaded tracks
+  - **Neural Mix (Sampler)**: Trigger synth/percussion one-shots (MVP; captured loops next)
+- **Sync Tools**: Tempo Sync (latching), AI Beat Match (tempo + phase alignment when beatgrid exists)
 
 ---
 
@@ -448,6 +458,15 @@ GOOGLE_API_KEY=AIzaSy...  # For Gemini fallback
 
 ## 📝 Development Log
 
+### 2025-12-15
+- **DJ Controller MVP**: Controller-style mixer + performance workflow
+  - FLX4-inspired DJ mixer UI with scale-to-fit layout (no overlap at 100% zoom)
+  - WebAudio uploaded decks (`AudioBuffer`) + beatgrid JSON import
+  - Fixed Deck 2 load/play issues when audio init happens after selecting tracks
+  - Added per-deck Tempo Sync (latching), Shift, and pad modes: Hot Cue/Pitch Play, Loop (Bounce Loop), FX (Slicer), Neural Mix (Sampler)
+  - Synplant "Quick Build-Ups / Drops" now forces audio init so presets actually play
+  - Verified `npm run build` passes
+
 ### 2025-12-01
 - **Evening**: YouTube-to-Strudel Integration (Continued)
   - Fixed FFmpeg PATH issues for audio extraction
@@ -571,6 +590,6 @@ note("e4 g4 a4 b4").s("triangle").decay(0.3).sustain(0.4).delay(0.2).gain(0.5)
 
 ---
 
-**Last Updated**: 2025-12-01 19:30 CET  
+**Last Updated**: 2025-12-15  
 **Version**: 0.6.0-alpha (Pre-release)  
 **Status**: 🟢 Active Development
