@@ -1,8 +1,8 @@
-# 🎵 Aether Sonic Interface
+# 🎵 StrudelAI - Aether Sonic Interface
 
-**Voice-Controlled AI Live Coding Music Assistant** powered by Strudel and Grok-4.1-fast (via OpenRouter).
+**AI-Powered Live Coding Music System** with Voice Control, Synplant Genetic Sound Design, and Professional DJ Tools.
 
-Built for **live coding festivals** - create music layer-by-layer with natural language commands, voice control, and AI-powered pattern generation.
+Built for **live coding festivals**, music producers, and creative technologists - create music layer-by-layer with natural language commands, voice control, genetic sound evolution, and AI-powered pattern generation.
 
 ---
 
@@ -10,15 +10,44 @@ Built for **live coding festivals** - create music layer-by-layer with natural l
 
 ### Core Features
 - **🎤 Voice Control:** Speak natural language commands to create music
-- **🤖 AI-Powered:** Uses Grok-4.1-fast (via OpenRouter) to interpret musical intent
+- **🤖 AI-Powered:** Uses Gemini/Grok models to interpret musical intent
 - **🎹 Live Coding Engine:** Generates Strudel (TidalCycles) patterns in real-time
 - **📊 Real-Time Analysis:** FFT spectrum analyzer with frequency band visualization
 - **🎚️ Track Layering:** Ableton-style 5-track system (Drums, Bass, Melody, Voice, FX)
 
-### New Features (December 2025)
-- **🎬 YouTube-to-Strudel:** Paste a YouTube link and get playable Strudel code that approximates the song
-- **🧠 MusicGen Integration:** Generate real AI audio samples using Facebook's MusicGen model
-- **👁️ Frequency Awareness:** AI analyzes current audio to avoid frequency clashing
+### 🌱 Synplant Garden (NEW - December 2025)
+Grow and evolve sounds using genetic algorithms, inspired by Sonic Charge's Synplant:
+- **Genetic Sound Design:** Seeds that grow into unique instrument sounds
+- **3-Tab Interface:** Grow / Tweak / DJ modes for different workflows
+- **Forest Grid:** 3x3 seed visualization with mutation controls
+- **Parent Seed System:** Evolve sounds from a parent seed
+- **Garden Shelf:** Save and organize your favorite sound seeds
+- **Mutation Depths:** Gentle → Wild → Chaotic → Extreme mutations
+- **FX Options:** Filter, Reverb, Delay, and Neuro effects per seed
+- **Build-up/Drop Presets:** Riser, Sweep, Tension, Pitch Rise for transitions
+
+### 🎛️ DJ Mixer View (NEW)
+Professional dual-deck DJ interface with:
+- **Dual Decks (A/B):** Load and mix synthetic or uploaded tracks
+- **EQ Controls:** 3-band EQ (Low, Mid, High) per deck
+- **Filter Knob:** Resonant filter sweep for DJ transitions
+- **Crossfader:** Smooth mixing between decks
+- **Pad Performance:** 8 pads per deck with FX (Reverb, Echo, Roll, Filter)
+- **Track Library:** Built-in Techno and Acid presets
+- **Audio Upload:** Load your own audio files with BPM detection
+- **Beatgrid Import:** Sync BPM and downbeat across decks
+
+### 🎬 YouTube-to-Strudel
+- Paste a YouTube link and get playable Strudel code that approximates the song
+- Automatic BPM, key, drum, bass, and melody detection
+
+### 🧠 MusicGen Integration
+- Generate real AI audio samples using Facebook's MusicGen model
+- Create drums, bass, melody, and FX with natural language prompts
+
+### 👁️ Frequency Awareness
+- AI analyzes current audio to avoid frequency clashing
+- Smart layering recommendations
 
 ---
 
@@ -35,13 +64,13 @@ npm install
 Create a `.env.local` file:
 
 ```env
-# Required
+# Required (choose at least one)
+GOOGLE_API_KEY=your_gemini_api_key_here
 OPENROUTER_API_KEY=your_openrouter_api_key_here
 
 # Optional
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 MODEL_NAME=x-ai/grok-4.1-fast
-GOOGLE_API_KEY=your_google_api_key  # For Gemini fallback
 ```
 
 ### 3. Run Development Server
@@ -54,9 +83,47 @@ Open [http://localhost:3000](http://localhost:3000)
 
 ---
 
-## 🎬 YouTube-to-Strudel Setup (Optional)
+## 🎮 Usage Guide
 
-This feature lets you paste a YouTube link and generate Strudel code that matches the song's rhythm, bass, and melody.
+### Main Views
+
+The app has multiple views accessible from the navigation:
+
+1. **🎹 Sonic Interface** - Main AI-powered music creation
+2. **🌱 Synplant Garden** - Genetic sound design and evolution
+3. **🎛️ DJ Mixer** - Professional dual-deck mixing
+4. **📝 Strudel Code** - Direct code editing with live preview
+
+### Synplant Garden Workflow
+
+1. **Grow Tab:** Watch seeds evolve into sounds
+2. **Tweak Tab:** Fine-tune parameters (Attack, Decay, Filter, etc.)
+3. **DJ Tab:** Access build-ups, drops, and transition tools
+4. Click any seed to hear it, long-press to apply to a track
+
+### DJ Mixer Workflow
+
+1. Load tracks to Deck A and Deck B
+2. Use EQ and filter to shape each deck
+3. Use the crossfader to mix between decks
+4. Trigger pads for live effects and sounds
+
+### Voice/Text Commands
+
+**Creating Music:**
+- "Start a techno beat at 130 BPM"
+- "Add a dark bassline"
+- "Create an ethereal melody"
+- "Add some atmospheric FX"
+
+**Controlling Playback:**
+- "Stop" or "Silence"
+- "Clear all tracks"
+- "Mute the melody"
+
+---
+
+## 🎬 YouTube-to-Strudel Setup (Optional)
 
 ### Requirements
 
@@ -72,9 +139,6 @@ winget install Gyan.FFmpeg
 # Or on macOS
 brew install ffmpeg
 
-# Or on Linux
-sudo apt install ffmpeg
-
 # Install Python dependencies
 pip install yt-dlp librosa flask flask-cors numpy scipy
 ```
@@ -82,29 +146,12 @@ pip install yt-dlp librosa flask flask-cors numpy scipy
 ### Running the YouTube Server
 
 ```bash
-# Start the YouTube-to-Strudel server (port 5002)
 python tools/youtube_to_strudel.py --server
 ```
-
-### Usage
-
-1. Make sure the YouTube server is running on port 5002
-2. Paste a YouTube URL in the chat: `https://youtu.be/dQw4w9WgXcQ`
-3. Wait 10-30 seconds for analysis
-4. The AI will generate drums, bass, and melody patterns based on the song
-
-### How It Works
-
-1. **Download**: yt-dlp fetches audio from YouTube
-2. **Convert**: FFmpeg converts to WAV format
-3. **Analyze**: librosa detects BPM, key, drum hits, bass notes, melody
-4. **Generate**: Creates Strudel code with synthesized sounds
 
 ---
 
 ## 🧠 MusicGen Setup (Optional - Requires GPU)
-
-Generate real AI audio samples using **Meta's MusicGen** model (from Facebook AI Research / Audiocraft).
 
 ### Requirements
 
@@ -130,71 +177,18 @@ pip install transformers accelerate flask flask-cors
 ### Running the MusicGen Server
 
 ```bash
-# Start the MusicGen server (port 5001)
 python tools/musicgen_server.py
 ```
-
-### Usage
-
-Say commands like:
-- "Generate real drums"
-- "Create AI bass"
-- "MusicGen melody"
-
----
-
-## 🎮 Usage Guide
-
-### Starting a Session
-
-1. Open [http://localhost:3000](http://localhost:3000)
-2. Click **INITIALIZE SESSION** to start the audio engine
-3. Use the text input or microphone to send commands
-
-### Voice/Text Commands
-
-**Creating Music:**
-- "Start a techno beat at 130 BPM"
-- "Add a dark bassline"
-- "Create an ethereal melody"
-- "Add some atmospheric FX"
-- "Make the drums more complex"
-
-**Controlling Playback:**
-- "Stop" or "Silence"
-- "Clear all tracks"
-- "Mute the melody"
-- "Solo the drums"
-
-**YouTube Integration:**
-- Just paste a YouTube URL: `https://youtu.be/...`
-
-**MusicGen (if server running):**
-- "Generate real drums"
-- "AI bass sample"
-
-### Track System
-
-The app uses 5 independent tracks:
-- 🥁 **Drums**: Kicks, snares, hi-hats
-- 🎸 **Bass**: Sub-bass and basslines
-- 🎹 **Melody**: Lead synths, chords, arpeggios
-- 🎤 **Voice**: Vocal synthesis, speech effects
-- ✨ **FX**: Atmosphere, risers, impacts
-
-Each track can be:
-- Muted/unmuted independently
-- Soloed to hear in isolation
-- Volume adjusted
 
 ---
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **Next.js 15** - React framework with App Router
+- **Next.js 16** - React framework with App Router
+- **React 19** - Latest React with concurrent features
 - **TypeScript** - Type-safe development
-- **Tailwind CSS** - Utility-first styling
+- **Tailwind CSS 4** - Modern utility-first styling
 - **Lucide React** - Icon library
 
 ### Backend
@@ -202,15 +196,16 @@ Each track can be:
 - **Socket.IO** - Real-time WebSocket communication
 
 ### AI
-- **Grok-4.1-fast** - Primary AI model (via OpenRouter)
-- **MusicGen** - Meta's AI audio generation via Audiocraft (optional)
+- **Google Gemini** - Primary AI model
+- **Grok** - Alternative AI (via OpenRouter)
+- **MusicGen** - Meta's AI audio generation (optional)
 
 ### Audio
 - **Strudel** - JavaScript port of TidalCycles
 - **Superdough** - Audio synthesis engine
 - **Web Audio API** - Browser audio processing
 
-### Audio Analysis (Python)
+### Analysis Tools (Python)
 - **librosa** - Audio analysis library
 - **yt-dlp** - YouTube downloader
 - **FFmpeg** - Audio conversion
@@ -220,37 +215,52 @@ Each track can be:
 ## 📁 Project Structure
 
 ```
-musicAPP/
+StrudelAI/
 ├── src/
 │   ├── app/
 │   │   ├── api/
 │   │   │   ├── agent/route.ts    # AI music generation + YouTube
 │   │   │   └── complete/route.ts # Code autocomplete
-│   │   ├── page.tsx              # Main app
-│   │   └── globals.css           # Styles
+│   │   ├── page.tsx              # Main app entry
+│   │   └── globals.css           # Global styles
 │   ├── components/
-│   │   ├── SonicInterface.tsx    # Main UI
+│   │   ├── SonicInterface.tsx    # Main AI music UI
+│   │   ├── SynplantGarden.tsx    # Genetic sound design
+│   │   ├── DJMixerView.tsx       # Dual-deck DJ interface
+│   │   ├── StrudelCodeView.tsx   # Live code editor
 │   │   ├── SpectrumAnalyzer.tsx  # FFT visualization
 │   │   ├── TrackStrip.tsx        # Track controls
 │   │   └── ArrangementView.tsx   # Timeline view
 │   ├── hooks/
-│   │   └── useSonicSocket.ts     # WebSocket + state
-│   └── lib/
-│       └── strudel/engine.ts     # Audio engine
+│   │   └── useSonicSocket.ts     # WebSocket + state management
+│   ├── lib/
+│   │   ├── strudel/engine.ts     # Audio engine with layer system
+│   │   ├── synplant/genome.ts    # Genetic sound algorithms
+│   │   ├── dj/audio-deck.ts      # DJ deck audio processing
+│   │   ├── gemini/client.ts      # Gemini AI client
+│   │   └── musicgen/client.ts    # MusicGen AI client
+│   └── types/
+│       └── sonic.ts              # TypeScript interfaces
 ├── tools/
-│   ├── youtube_to_strudel.py     # YouTube analyzer
-│   └── musicgen_server.py        # AI audio server
-├── knowledge.md                   # Strudel reference for AI
-└── .env.local                     # API keys
+│   ├── youtube_to_strudel.py     # YouTube audio analyzer
+│   ├── musicgen_server.py        # AI audio generation server
+│   └── musicgen_batch.py         # Batch audio generation
+├── server.ts                     # Custom Socket.IO server
+├── package.json
+└── .env.local                    # API keys (create this)
 ```
 
 ---
 
 ## 🔧 Troubleshooting
 
+### "No audio playing"
+1. Click the **Play** button to start playback
+2. Make sure your browser allows audio autoplay
+3. Check browser console for errors
+
 ### "YouTube server not running"
 ```bash
-# Make sure the server is running:
 python tools/youtube_to_strudel.py --server
 ```
 
@@ -258,18 +268,11 @@ python tools/youtube_to_strudel.py --server
 ```bash
 # Windows - refresh PATH after installing FFmpeg:
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-
-# Then restart the YouTube server
 ```
 
-### "No audio playing"
-1. Click the **Play** button to start playback
-2. Make sure your browser allows audio autoplay
-3. Check browser console for errors
-
 ### "Rate limited"
-- OpenRouter has rate limits. Wait a moment and try again.
-- Consider upgrading your OpenRouter plan for higher limits.
+- API rate limits apply. Wait a moment and try again.
+- Consider upgrading your API plan for higher limits.
 
 ---
 
@@ -283,5 +286,7 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 - [Strudel](https://strudel.cc/) - Live coding music framework
 - [TidalCycles](https://tidalcycles.org/) - Original live coding language
+- [Synplant](https://soniccharge.com/synplant) - Inspiration for genetic sound design
+- [Google Gemini](https://ai.google.dev/) - AI language model
 - [OpenRouter](https://openrouter.ai/) - AI model gateway
 - [MusicGen / Audiocraft](https://github.com/facebookresearch/audiocraft) - Meta's AI audio generation
