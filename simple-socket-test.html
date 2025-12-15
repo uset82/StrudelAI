@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Simple Socket Test</title>
+</head>
+
+<body>
+    <h1>Simple Socket Connection Test</h1>
+    <div id="status">Connecting...</div>
+    <div id="messages"></div>
+
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script>
+        const statusEl = document.getElementById('status');
+        const messagesEl = document.getElementById('messages');
+
+        function log(message) {
+            const div = document.createElement('div');
+            div.textContent = new Date().toLocaleTimeString() + ': ' + message;
+            messagesEl.appendChild(div);
+        }
+
+        const socket = io('http://localhost:3000', {
+            transports: ['websocket', 'polling']
+        });
+
+        socket.on('connect', () => {
+            statusEl.textContent = 'Connected!';
+            statusEl.style.color = 'green';
+            log('✅ Connected to server');
+        });
+
+        socket.on('disconnect', () => {
+            statusEl.textContent = 'Disconnected!';
+            statusEl.style.color = 'red';
+            log('❌ Disconnected from server');
+        });
+
+        socket.on('connect_error', (err) => {
+            log('❌ Connection error: ' + err.message);
+        });
+
+        socket.on('sonic:state', (state) => {
+            log('📡 State received: BPM=' + state.bpm + ', Playing=' + state.isPlaying);
+        });
+
+        socket.on('sonic:message', (msg) => {
+            log('🤖 AI: ' + msg);
+        });
+
+        socket.on('sonic:error', (err) => {
+            log('❌ Error: ' + err);
+        });
+
+        // Send test command after 2 seconds
+        setTimeout(() => {
+            log('🎤 Sending test command...');
+            socket.emit('sonic:command', 'drums: bd ~ sn ~');
+        }, 2000);
+    </script>
+</body>
+
+</html>

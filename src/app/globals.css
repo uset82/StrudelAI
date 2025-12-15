@@ -1,0 +1,240 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.strudel-track-card {
+  --strudel-track-color: #22d3ee;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.55);
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.12);
+}
+
+.strudel-track-card--drums {
+  --strudel-track-color: #f97316;
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.25);
+}
+
+.strudel-track-card--bass {
+  --strudel-track-color: #6366f1;
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.22);
+}
+
+.strudel-track-card--melody {
+  --strudel-track-color: #22d3ee;
+  box-shadow: 0 0 20px rgba(34, 211, 238, 0.24);
+}
+
+.strudel-track-card--fx {
+  --strudel-track-color: #a855f7;
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.24);
+}
+
+.strudel-track-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  margin-bottom: 0.35rem;
+  color: var(--strudel-track-color);
+}
+
+.strudel-note-chip {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 9999px;
+  border: 1px solid var(--strudel-track-color);
+  color: var(--strudel-track-color);
+  font-size: 0.85rem;
+  animation-name: strudelPulse;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+  text-shadow: 0 0 18px var(--strudel-track-color);
+  opacity: 0.85;
+}
+
+.strudel-note-chip:nth-child(2n) {
+  animation-delay: 0.12s;
+}
+
+.strudel-note-chip:nth-child(3n) {
+  animation-delay: 0.2s;
+}
+
+.animate-running {
+  animation-play-state: running;
+}
+
+.animate-paused {
+  animation-play-state: paused;
+}
+
+.strudel-intensity-low .strudel-note-chip {
+  animation-duration: 0.9s;
+  transform: scale(1.02);
+}
+
+.strudel-intensity-mid .strudel-note-chip {
+  animation-duration: 0.6s;
+  transform: scale(1.08);
+  text-shadow: 0 0 24px var(--strudel-track-color);
+}
+
+.strudel-intensity-high .strudel-note-chip {
+  animation-duration: 0.35s;
+  transform: scale(1.16);
+  text-shadow: 0 0 30px var(--strudel-track-color);
+}
+
+@keyframes strudelPulse {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-0.25rem);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+/* ArrangementView Clip Styles */
+.clip-container {
+  position: absolute;
+  height: 52px;
+  top: 0.25rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: all 150ms;
+}
+
+.clip-waveform-bar {
+  width: 0.25rem;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 0.125rem;
+}
+
+.lane-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.5rem;
+  border-bottom: 1px solid #1f2937;
+  border-right: 1px solid #1f2937;
+}
+
+.lane-track-area {
+  flex: 1;
+  position: relative;
+  border-bottom: 1px solid #1f2937;
+  background-color: rgba(17, 24, 39, 0.3);
+}
+
+.bar-grid-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left-width: 1px;
+}
+
+.bar-grid-line--major {
+  border-color: #374151;
+}
+
+.bar-grid-line--minor {
+  border-color: rgba(31, 41, 55, 0.5);
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+}
+
+.group-header:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.timeline-bar-number {
+  position: absolute;
+  top: 0;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  border-left-width: 1px;
+}
+
+.timeline-bar-number--major {
+  color: #9ca3af;
+  border-color: #4b5563;
+}
+
+.timeline-bar-number--minor {
+  color: #4b5563;
+  border-color: #1f2937;
+}
+
+.loop-region {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background-color: rgba(6, 182, 212, 0.1);
+  border-left: 2px solid #06b6d4;
+  border-right: 2px solid #06b6d4;
+}
+
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: #22d3ee;
+  z-index: 30;
+  pointer-events: none;
+}
+
+.playhead-marker {
+  position: absolute;
+  top: -0.25rem;
+  left: -0.5rem;
+  width: 1rem;
+  height: 1rem;
+  background-color: #22d3ee;
+  transform: rotate(45deg);
+}
+
+/* SpectrumAnalyzer Styles */
+.spectrum-canvas-container {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  border: 1px solid #333;
+}
