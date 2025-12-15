@@ -2,6 +2,8 @@
 
 **AI-Powered Live Coding Music System** with Voice Control, Synplant Genetic Sound Design, and Professional DJ Tools.
 
+🌐 **Live Demo:** [https://strudelai.netlify.app](https://strudelai.netlify.app)
+
 Built for **live coding festivals**, music producers, and creative technologists - create music layer-by-layer with natural language commands, voice control, genetic sound evolution, and AI-powered pattern generation.
 
 ---
@@ -10,7 +12,7 @@ Built for **live coding festivals**, music producers, and creative technologists
 
 ### Core Features
 - **🎤 Voice Control:** Speak natural language commands to create music
-- **🤖 AI-Powered:** Uses Gemini/Grok models to interpret musical intent
+- **🤖 AI-Powered:** Uses [DeepSeek V3.1 Nex N1](https://openrouter.ai/nex-agi/deepseek-v3.1-nex-n1:free) (free) via OpenRouter
 - **🎹 Live Coding Engine:** Generates Strudel (TidalCycles) patterns in real-time
 - **📊 Real-Time Analysis:** FFT spectrum analyzer with frequency band visualization
 - **🎚️ Track Layering:** Ableton-style 5-track system (Drums, Bass, Melody, Voice, FX)
@@ -64,13 +66,13 @@ npm install
 Create a `.env.local` file:
 
 ```env
-# Required (choose at least one)
-GOOGLE_API_KEY=your_gemini_api_key_here
+# Required
 OPENROUTER_API_KEY=your_openrouter_api_key_here
 
 # Optional
+GOOGLE_API_KEY=your_gemini_api_key_here
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-MODEL_NAME=x-ai/grok-4.1-fast
+MODEL_NAME=nex-agi/deepseek-v3.1-nex-n1:free
 ```
 
 ### 3. Run Development Server
