@@ -87,6 +87,13 @@ const DEPTH_LABELS: Record<MutationDepth, { label: string; icon: React.ReactNode
 };
 
 const TRACKS: InstrumentType[] = ['drums', 'bass', 'melody', 'voice', 'fx'];
+const TRACK_LABELS: Record<InstrumentType, string> = {
+    drums: 'Drums',
+    bass: 'Bass',
+    melody: 'Melody',
+    voice: 'Voice',
+    fx: 'FX',
+};
 const NOTE_RING = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const PAGE_TABS: Array<{ id: 'grow' | 'tweak' | 'dj'; label: string; icon: React.ReactNode }> = [
     { id: 'grow', label: 'Grow', icon: <Sprout className="w-3 h-3" /> },
@@ -386,6 +393,10 @@ export function SynplantGarden({ state, onApplyPattern }: SynplantGardenProps) {
 
     const parentSummary = useMemo(() => summarizeGenome(parent), [parent]);
     const currentTrackPattern = state?.tracks?.[activeTrack]?.pattern || '';
+    const selectedGenome = bulbBranches[selectedBranch] ?? parent;
+    const selectedSummary = useMemo(() => summarizeGenome(selectedGenome), [selectedGenome]);
+    const selectedGrowth = bulbGrowth[selectedBranch] ?? growthAll;
+    const activePatternPreview = currentTrackPattern.replace(/^expr:/, '');
     const activeFx = useMemo(
         () => parent.fx ?? defaultFx(parent.trackId),
         [parent.fx, parent.trackId]
@@ -398,570 +409,597 @@ export function SynplantGarden({ state, onApplyPattern }: SynplantGardenProps) {
     }, [activeFx, updateParent]);
 
     return (
-        <div className="h-full w-full p-4 flex flex-col gap-4 overflow-y-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <Sprout className="w-5 h-5 text-cyan-300" />
-                    <h3 className="text-sm font-mono tracking-widest text-cyan-200">SYNPLANT GARDEN</h3>
-                </div>
-
-                <div className="flex items-center gap-1">
-                    {TRACKS.map(t => (
-                        <button
-                            key={t}
-                            onClick={() => switchTrack(t)}
-                            className={`px-2 py-1 rounded text-[10px] font-mono uppercase border transition
-                                ${activeTrack === t
-                                    ? 'border-cyan-500/60 bg-cyan-500/10 text-cyan-200'
-                                    : 'border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-500'}`}
-                        >
-                            {t}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            {/* Main tabs */}
-            <div className="flex items-center gap-2">
-                {PAGE_TABS.map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setPage(tab.id)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-mono border transition flex items-center gap-1.5
-                            ${page === tab.id
-                                ? 'border-cyan-500/60 bg-cyan-500/15 text-cyan-200 shadow-[0_0_10px_rgba(6,182,212,0.2)]'
-                                : 'border-gray-700 text-gray-400 hover:border-gray-500 hover:text-gray-200'}`}
-                    >
-                        {tab.icon}
-                        {tab.label}
-                    </button>
-                ))}
-
-                <div className="ml-auto flex items-center gap-2">
-                    <button
-                        onClick={newSeed}
-                        className="px-3 py-1 rounded text-xs font-mono border border-gray-700 text-gray-300 hover:border-cyan-500/60 hover:text-cyan-200 flex items-center gap-1"
-                    >
-                        <Shuffle className="w-3 h-3" />
-                        New Seed
-                    </button>
-                    <button
-                        onClick={() => growForest(parent, depth)}
-                        className="px-3 py-1 rounded text-xs font-mono border border-gray-700 text-gray-300 hover:border-fuchsia-500/60 hover:text-fuchsia-200 flex items-center gap-1"
-                    >
-                        <Zap className="w-3 h-3" />
-                        Grow Forest
-                    </button>
-                    <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="px-3 py-1 rounded text-xs font-mono border border-gray-700 text-gray-300 hover:border-emerald-500/60 hover:text-emerald-200 flex items-center gap-1"
-                        title="Genopatch from audio sample"
-                    >
-                        <Upload className="w-3 h-3" />
-                        Genopatch
-                    </button>
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="audio/*"
-                        className="hidden"
-                        onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleGenopatchFile(file);
-                            e.currentTarget.value = '';
-                        }}
-                    />
-                    <button
-                        onClick={generateRealAudio}
-                        disabled={aiGenerating}
-                        className={`px-4 py-1.5 rounded text-xs font-mono border flex items-center gap-1.5 transition
-                            ${aiGenerating
-                                ? 'border-purple-500/60 bg-purple-500/20 text-purple-200 animate-pulse cursor-wait'
-                                : 'border-purple-500/50 text-purple-300 bg-purple-500/10 hover:border-purple-400 hover:bg-purple-500/20 hover:text-purple-100'}`}
-                        title="Generate real instrument audio using MusicGen AI"
-                    >
-                        <Wand2 className="w-3.5 h-3.5" />
-                        {aiGenerating ? 'Generating...' : '✨ Real Audio (AI)'}
-                    </button>
-                </div>
-            </div>
-
-            {/* AI Generation Message */}
-            {aiMessage && (
-                <div className="px-4 py-2 rounded-lg border border-purple-500/40 bg-purple-500/10 text-sm font-mono text-purple-200 flex items-center gap-2">
-                    <Music2 className="w-4 h-4 animate-pulse" />
-                    {aiMessage}
-                </div>
-            )}
-
-            {/* Depth controls */}
-            <div className="flex items-center gap-2">
-                {(Object.keys(DEPTH_LABELS) as MutationDepth[]).map(d => (
-                    <button
-                        key={d}
-                        onClick={() => changeDepth(d)}
-                        className={`px-3 py-1 rounded-full text-xs font-mono border flex items-center gap-1 transition
-                            ${depth === d ? DEPTH_LABELS[d].className : 'text-gray-400 border-gray-700 hover:border-gray-500 hover:text-gray-200'}`}
-                    >
-                        {DEPTH_LABELS[d].icon}
-                        {DEPTH_LABELS[d].label}
-                    </button>
-                ))}
-            </div>
-
-            {/* Parent seed summary */}
-            <div className="relative rounded-xl border border-cyan-900/40 bg-black/70 p-4 shadow-[0_0_40px_rgba(6,182,212,0.15)]">
-                <div className="absolute -inset-1 rounded-xl blur-lg bg-linear-to-r from-cyan-500/20 to-fuchsia-500/20 pointer-events-none" />
-                <div className="relative flex items-start justify-between gap-3">
-                    <div>
-                        <div className="text-[10px] font-mono uppercase text-cyan-400 tracking-widest">Parent Seed</div>
-                        <div className="mt-1 text-white font-semibold tracking-wide flex items-center gap-2">
-                            <Flame className="w-4 h-4 text-fuchsia-300" />
-                            {parentSummary.vibe.toUpperCase()} {parentSummary.synth.toUpperCase()}
+        <div className="studio-scrollbar h-full w-full overflow-y-auto bg-[radial-gradient(circle_at_50%_-10%,rgba(34,211,238,0.12),transparent_34%),linear-gradient(180deg,#10151c_0%,#0b0e12_100%)] p-4 text-slate-100 max-lg:p-3">
+            <div className="mx-auto flex w-full max-w-7xl flex-col gap-4">
+                <header className="flex flex-wrap items-start justify-between gap-4 border-b border-white/10 pb-4">
+                    <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-cyan-300/25 bg-cyan-300/10 text-cyan-200 shadow-[0_0_28px_rgba(34,211,238,0.12)]">
+                            <Sprout className="h-5 w-5" />
                         </div>
-                        <div className="mt-2 text-xs font-mono text-cyan-700">
-                            vowel {parentSummary.vowel} · slow {parentSummary.slow} · dens {parentSummary.density}
-                        </div>
-                        <div className="mt-1 text-xs font-mono text-cyan-700">
-                            room {parentSummary.room} · delay {parentSummary.delay} · lpf {parentSummary.lpf}
+                        <div className="min-w-0">
+                            <h3 className="text-lg font-semibold tracking-tight text-white">Synplant Garden</h3>
+                            <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Pattern genetics</p>
                         </div>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
+
+                    <div className="flex max-w-full gap-1 overflow-x-auto rounded-lg border border-white/10 bg-black/25 p-1 studio-scrollbar">
+                        {TRACKS.map(t => {
+                            const active = activeTrack === t;
+                            return (
+                                <button
+                                    key={t}
+                                    onClick={() => switchTrack(t)}
+                                    className={`h-9 shrink-0 rounded-md px-3 text-xs font-semibold uppercase tracking-[0.08em] transition-colors ${active
+                                        ? 'bg-cyan-300 text-slate-950'
+                                        : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-200'
+                                        }`}
+                                    aria-pressed={active}
+                                >
+                                    {TRACK_LABELS[t]}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </header>
+
+                <section className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap gap-2">
+                        {PAGE_TABS.map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setPage(tab.id)}
+                                className={`flex h-10 shrink-0 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors ${page === tab.id
+                                    ? 'border-cyan-300/50 bg-cyan-300/15 text-cyan-100'
+                                    : 'border-white/10 bg-white/[0.03] text-slate-400 hover:border-cyan-300/30 hover:text-cyan-100'
+                                    }`}
+                                aria-pressed={page === tab.id}
+                            >
+                                {tab.icon}
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                        {(Object.keys(DEPTH_LABELS) as MutationDepth[]).map(d => (
+                            <button
+                                key={d}
+                                onClick={() => changeDepth(d)}
+                                className={`flex h-10 shrink-0 items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors ${depth === d
+                                    ? DEPTH_LABELS[d].className
+                                    : 'border-white/10 bg-white/[0.025] text-slate-500 hover:border-white/20 hover:text-slate-200'
+                                    }`}
+                            >
+                                {DEPTH_LABELS[d].icon}
+                                {DEPTH_LABELS[d].label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="ml-auto flex flex-wrap justify-end gap-2 max-lg:ml-0">
                         <button
-                            onClick={() => toggleFavorite(parent)}
-                            className={`p-2 rounded border text-xs font-mono flex items-center gap-1 transition
-                                ${isFavorite(parent)
-                                    ? 'border-yellow-500/60 text-yellow-300 bg-yellow-500/10'
-                                    : 'border-gray-700 text-gray-300 hover:border-yellow-500/60 hover:text-yellow-200'}`}
+                            onClick={newSeed}
+                            className="flex h-10 shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 text-sm font-medium text-slate-300 transition-colors hover:border-cyan-300/35 hover:text-cyan-100"
                         >
-                            <Star className="w-3 h-3" />
-                            {isFavorite(parent) ? 'Saved' : 'Save'}
+                            <Shuffle className="h-4 w-4" />
+                            New Seed
                         </button>
                         <button
-                            onClick={() => handleBreed(parent)}
-                            className={`p-2 rounded border text-xs font-mono flex items-center gap-1 transition
-                                ${breedPick?.id === parent.id
-                                    ? 'border-fuchsia-500/60 text-fuchsia-200 bg-fuchsia-500/10'
-                                    : 'border-gray-700 text-gray-300 hover:border-fuchsia-500/60 hover:text-fuchsia-200'}`}
+                            onClick={() => growForest(parent, depth)}
+                            className="flex h-10 shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 text-sm font-medium text-slate-300 transition-colors hover:border-fuchsia-300/35 hover:text-fuchsia-100"
                         >
-                            {breedPick ? 'Breed 2nd' : 'Pick to Breed'}
+                            <Zap className="h-4 w-4" />
+                            Grow Forest
+                        </button>
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex h-10 shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 text-sm font-medium text-slate-300 transition-colors hover:border-emerald-300/35 hover:text-emerald-100"
+                            title="Genopatch from audio sample"
+                        >
+                            <Upload className="h-4 w-4" />
+                            Genopatch
+                        </button>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="audio/*"
+                            className="hidden"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleGenopatchFile(file);
+                                e.currentTarget.value = '';
+                            }}
+                        />
+                        <button
+                            onClick={generateRealAudio}
+                            disabled={aiGenerating}
+                            className={`flex h-10 shrink-0 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors ${aiGenerating
+                                ? 'cursor-wait border-violet-300/50 bg-violet-300/15 text-violet-100'
+                                : 'border-violet-300/30 bg-violet-300/10 text-violet-200 hover:border-violet-200/50 hover:bg-violet-300/15'
+                                }`}
+                            title="Generate real instrument audio using MusicGen AI"
+                        >
+                            <Wand2 className="h-4 w-4" />
+                            {aiGenerating ? 'Generating' : 'Real Audio'}
                         </button>
                     </div>
-                </div>
-                {currentTrackPattern && (
-                    <div className="relative mt-3 text-[10px] font-mono text-gray-500 truncate">
-                        current track: {currentTrackPattern}
+                </section>
+
+                {aiMessage && (
+                    <div className="flex items-center gap-2 rounded-lg border border-violet-300/30 bg-violet-300/10 px-4 py-3 text-sm font-medium text-violet-100">
+                        <Music2 className="h-4 w-4 animate-pulse" />
+                        {aiMessage}
                     </div>
                 )}
-            </div>
 
-            {/* Grow view (Bulb wheel + Forest grid) */}
-            {page === 'grow' && (
-                <div className="flex flex-col gap-4">
-                    <div className="flex items-center justify-center">
-                        <div className="relative w-[320px] h-[320px] rounded-full border border-gray-800 bg-black/60 shadow-inner">
-                            <div className="absolute inset-6 rounded-full border border-gray-900/70" />
-                            {/* Center seed */}
+                <section className="relative overflow-hidden rounded-lg border border-white/10 bg-[#0d1218] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_20%,rgba(34,211,238,0.12),transparent_26%),radial-gradient(circle_at_88%_18%,rgba(217,70,239,0.14),transparent_28%)]" />
+                    <div className="relative grid gap-4 lg:grid-cols-[1fr_auto]">
+                        <div className="min-w-0">
+                            <div className="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-300">
+                                <Flame className="h-3.5 w-3.5 text-fuchsia-300" />
+                                Parent Seed
+                            </div>
+                            <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+                                <h4 className="text-2xl font-semibold tracking-tight text-white max-sm:text-xl">
+                                    {parentSummary.vibe} {parentSummary.synth}
+                                </h4>
+                                <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium uppercase tracking-[0.12em] text-slate-400">
+                                    {TRACK_LABELS[activeTrack]}
+                                </span>
+                            </div>
+                            <div className="mt-4 grid gap-2 text-xs font-mono text-slate-400 sm:grid-cols-3">
+                                <div className="rounded-md border border-white/8 bg-black/25 px-3 py-2">
+                                    <span className="block text-slate-600">Voice</span>
+                                    vowel {parentSummary.vowel} · dens {parentSummary.density}
+                                </div>
+                                <div className="rounded-md border border-white/8 bg-black/25 px-3 py-2">
+                                    <span className="block text-slate-600">Motion</span>
+                                    slow {parentSummary.slow} · lpf {parentSummary.lpf}
+                                </div>
+                                <div className="rounded-md border border-white/8 bg-black/25 px-3 py-2">
+                                    <span className="block text-slate-600">Space</span>
+                                    room {parentSummary.room} · delay {parentSummary.delay}
+                                </div>
+                            </div>
+                            {activePatternPreview && (
+                                <div className="mt-3 truncate rounded-md border border-white/8 bg-black/25 px-3 py-2 font-mono text-[11px] text-slate-500">
+                                    {activePatternPreview}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex gap-2 lg:flex-col">
                             <button
-                                onClick={() => selectGenome(parent, activeTrack)}
-                                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full border border-cyan-500/60 bg-cyan-500/10 text-cyan-200 font-mono text-xs flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.35)]"
+                                onClick={() => toggleFavorite(parent)}
+                                className={`flex h-10 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors ${isFavorite(parent)
+                                    ? 'border-amber-300/55 bg-amber-300/15 text-amber-100'
+                                    : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-amber-300/45 hover:text-amber-100'
+                                    }`}
                             >
-                                SEED
+                                <Star className="h-4 w-4" />
+                                {isFavorite(parent) ? 'Saved' : 'Save'}
                             </button>
-
-                            {bulbBranches.map((g, idx) => {
-                                const angle = (idx / NOTE_RING.length) * Math.PI * 2 - Math.PI / 2;
-                                const radius = 135;
-                                const x = 160 + radius * Math.cos(angle);
-                                const y = 160 + radius * Math.sin(angle);
-                                const s = summarizeGenome(g);
-                                const picked = idx === selectedBranch;
-                                return (
-                                    <button
-                                        key={g.id}
-                                        onClick={() => selectBranch(idx)}
-                                        onMouseEnter={() => previewGenome(g)}
-                                        onMouseLeave={() => clearPreview(g.id)}
-                                        className={`absolute w-10 h-10 rounded-full border text-[9px] font-mono flex flex-col items-center justify-center transition
-                                            ${picked
-                                                ? 'border-fuchsia-500/80 bg-fuchsia-500/15 text-fuchsia-100 shadow-[0_0_15px_rgba(217,70,239,0.4)]'
-                                                : 'border-gray-700 bg-black/70 text-gray-300 hover:border-cyan-500/70 hover:text-cyan-100'}`}
-                                        style={{ left: x, top: y, transform: 'translate(-50%, -50%)' }}
-                                        title={`${NOTE_RING[idx]} · ${s.vibe} ${s.synth}`}
-                                    >
-                                        <div className="text-[10px]">{NOTE_RING[idx]}</div>
-                                        <div className="opacity-60">{s.vibe}</div>
-                                    </button>
-                                );
-                            })}
+                            <button
+                                onClick={() => handleBreed(parent)}
+                                className={`flex h-10 items-center justify-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors ${breedPick?.id === parent.id
+                                    ? 'border-fuchsia-300/55 bg-fuchsia-300/15 text-fuchsia-100'
+                                    : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-fuchsia-300/45 hover:text-fuchsia-100'
+                                    }`}
+                            >
+                                <Sparkles className="h-4 w-4" />
+                                {breedPick ? 'Breed 2nd' : 'Pick to Breed'}
+                            </button>
                         </div>
                     </div>
+                </section>
 
-
-                    {/* Simplified Branch Controls */}
-                    <div className="rounded-lg border border-gray-800 bg-black/60 p-3 flex flex-col gap-2">
-                        {/* Main control: Branch + Growth (always visible) */}
-                        <div className="flex items-center gap-3">
-                            <span className="text-xs font-mono text-gray-300 w-20">Branch {NOTE_RING[selectedBranch]}</span>
-                            <input
-                                type="range"
-                                min={0}
-                                max={1}
-                                step={0.01}
-                                value={bulbGrowth[selectedBranch]}
-                                onChange={(e) => setBranchGrowth(selectedBranch, parseFloat(e.currentTarget.value))}
-                                className="flex-1 accent-fuchsia-500 cursor-pointer"
-                            />
-                            <span className="text-[10px] font-mono text-gray-500 w-8 text-right">{bulbGrowth[selectedBranch].toFixed(2)}</span>
-                        </div>
-
-                        {/* Collapsible Advanced Section */}
-                        <button
-                            onClick={() => setShowAdvanced(!showAdvanced)}
-                            className="flex items-center gap-2 text-[10px] font-mono text-gray-500 hover:text-gray-300 transition py-1"
-                        >
-                            <ChevronDown className={`w-3 h-3 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
-                            Advanced Settings
-                        </button>
-
-                        {showAdvanced && (
-                            <div className="flex flex-col gap-3 pt-2 border-t border-gray-800">
-                                {/* Grow all slider */}
-                                <div className="flex items-center gap-2 text-[10px] font-mono text-gray-400">
-                                    <span>Grow all</span>
-                                    <input
-                                        type="range"
-                                        min={0}
-                                        max={1}
-                                        step={0.01}
-                                        value={growthAll}
-                                        onChange={(e) => setAllGrowth(parseFloat(e.currentTarget.value))}
-                                        className="flex-1 accent-cyan-500 cursor-pointer"
-                                    />
+                {page === 'grow' && (
+                    <div className="grid gap-4 xl:grid-cols-[minmax(340px,0.9fr)_1.1fr]">
+                        <section className="rounded-lg border border-white/10 bg-[#0d1218] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
+                            <div className="mb-4 flex items-center justify-between gap-3">
+                                <div>
+                                    <h4 className="text-sm font-semibold text-white">Branch Organism</h4>
+                                    <p className="text-xs text-slate-500">{NOTE_RING[selectedBranch]} · {selectedSummary.vibe} · growth {selectedGrowth.toFixed(2)}</p>
                                 </div>
-
-                                {/* Plant as Seed button */}
                                 <button
                                     onClick={replantSelectedBranch}
-                                    className="px-3 py-1 rounded text-xs font-mono border border-gray-700 text-gray-300 hover:border-cyan-500/60 hover:text-cyan-200 w-fit"
+                                    className="shrink-0 rounded-md border border-cyan-300/25 bg-cyan-300/10 px-3 py-2 text-xs font-semibold text-cyan-100 transition-colors hover:border-cyan-200/50"
                                 >
-                                    Plant Branch as Seed
+                                    Replant
                                 </button>
+                            </div>
 
-                                {/* Effects */}
-                                <div className="flex flex-col gap-1">
-                                    <div className="text-[9px] font-mono uppercase tracking-widest text-gray-500">Effects</div>
-                                    <div className="flex flex-wrap gap-1">
+                            <div className="flex justify-center">
+                                <div className="relative aspect-square w-full max-w-[430px] rounded-full border border-cyan-300/10 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.13),transparent_18%),radial-gradient(circle_at_center,rgba(0,0,0,0.45),rgba(2,6,23,0.9)_68%)] shadow-[inset_0_0_80px_rgba(0,0,0,0.65),0_26px_60px_rgba(0,0,0,0.35)]">
+                                    <div className="absolute inset-[10%] rounded-full border border-white/8" />
+                                    <div className="absolute inset-[25%] rounded-full border border-white/6" />
+                                    <button
+                                        onClick={() => selectGenome(parent, activeTrack)}
+                                        className="absolute left-1/2 top-1/2 z-10 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border border-cyan-300/55 bg-cyan-300/12 text-cyan-100 shadow-[0_0_34px_rgba(34,211,238,0.32)] transition-transform hover:scale-105 max-sm:h-16 max-sm:w-16"
+                                    >
+                                        <Sprout className="h-5 w-5" />
+                                        <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em]">Seed</span>
+                                    </button>
+
+                                    {bulbBranches.map((g, idx) => {
+                                        const angle = (idx / NOTE_RING.length) * Math.PI * 2 - Math.PI / 2;
+                                        const radius = 42;
+                                        const x = 50 + radius * Math.cos(angle);
+                                        const y = 50 + radius * Math.sin(angle);
+                                        const s = summarizeGenome(g);
+                                        const picked = idx === selectedBranch;
+                                        const growth = bulbGrowth[idx] ?? 0;
+                                        return (
+                                            <button
+                                                key={g.id}
+                                                onClick={() => selectBranch(idx)}
+                                                onMouseEnter={() => previewGenome(g)}
+                                                onMouseLeave={() => clearPreview(g.id)}
+                                                className={`absolute flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border text-center transition-all max-sm:h-12 max-sm:w-12 ${picked
+                                                    ? 'border-fuchsia-300 bg-fuchsia-300/16 text-fuchsia-50 shadow-[0_0_28px_rgba(217,70,239,0.42)]'
+                                                    : 'border-white/12 bg-black/55 text-slate-400 hover:border-cyan-300/50 hover:text-cyan-100'
+                                                    }`}
+                                                style={{ left: `${x}%`, top: `${y}%` }}
+                                                title={`${NOTE_RING[idx]} · ${s.vibe} ${s.synth}`}
+                                            >
+                                                <span className="text-[11px] font-semibold">{NOTE_RING[idx]}</span>
+                                                <span className="max-w-[46px] truncate text-[9px] opacity-70">{s.vibe}</span>
+                                                <span
+                                                    className="absolute -bottom-1 h-1 rounded-full bg-fuchsia-300/70"
+                                                    style={{ width: `${Math.max(10, growth * 38)}px` }}
+                                                />
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="flex flex-col gap-4 rounded-lg border border-white/10 bg-[#0d1218] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
+                            <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+                                <div>
+                                    <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-fuchsia-300">Selected Branch</div>
+                                    <h4 className="mt-1 text-xl font-semibold text-white">{NOTE_RING[selectedBranch]} · {selectedSummary.vibe} {selectedSummary.synth}</h4>
+                                    <p className="mt-1 truncate font-mono text-xs text-cyan-500">{selectedGenome.notes}</p>
+                                </div>
+                                <button
+                                    onClick={() => selectGenome(selectedGenome, activeTrack)}
+                                    className="h-10 rounded-lg border border-white/10 bg-white/[0.03] px-3 text-sm font-medium text-slate-200 transition-colors hover:border-cyan-300/40 hover:text-cyan-100"
+                                >
+                                    Apply Branch
+                                </button>
+                            </div>
+
+                            <label className="rounded-lg border border-white/8 bg-black/25 p-3">
+                                <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
+                                    Branch Growth
+                                    <span className="font-mono text-fuchsia-200">{selectedGrowth.toFixed(2)}</span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min={0}
+                                    max={1}
+                                    step={0.01}
+                                    value={selectedGrowth}
+                                    onChange={(e) => setBranchGrowth(selectedBranch, parseFloat(e.currentTarget.value))}
+                                    className="studio-range w-full accent-fuchsia-300"
+                                />
+                            </label>
+
+                            <button
+                                onClick={() => setShowAdvanced(!showAdvanced)}
+                                className="flex items-center gap-2 rounded-md px-1 py-1 text-left text-sm font-medium text-slate-500 transition-colors hover:text-slate-200"
+                            >
+                                <ChevronDown className={`h-4 w-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+                                Advanced genetics
+                            </button>
+
+                            {showAdvanced && (
+                                <div className="grid gap-3 rounded-lg border border-white/8 bg-black/20 p-3">
+                                    <label className="text-xs font-medium text-slate-400">
+                                        <div className="mb-2 flex justify-between">
+                                            <span>Grow all branches</span>
+                                            <span className="font-mono text-cyan-300">{growthAll.toFixed(2)}</span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min={0}
+                                            max={1}
+                                            step={0.01}
+                                            value={growthAll}
+                                            onChange={(e) => setAllGrowth(parseFloat(e.currentTarget.value))}
+                                            className="studio-range w-full accent-cyan-300"
+                                        />
+                                    </label>
+
+                                    <div className="flex flex-wrap gap-2">
                                         {FX_OPTIONS.map(opt => {
                                             const enabled = activeFx.includes(opt.id);
                                             return (
                                                 <button
                                                     key={opt.id}
                                                     onClick={() => toggleFx(opt.id)}
-                                                    className={`px-2 py-0.5 rounded border text-[10px] font-mono transition
-                                                        ${enabled
-                                                            ? 'border-cyan-500/70 text-cyan-200 bg-cyan-500/10'
-                                                            : 'border-gray-700 text-gray-400 hover:border-cyan-500/60 hover:text-cyan-200'}`}
+                                                    className={`rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${enabled
+                                                        ? 'border-cyan-300/55 bg-cyan-300/12 text-cyan-100'
+                                                        : 'border-white/10 bg-white/[0.03] text-slate-500 hover:border-cyan-300/35 hover:text-cyan-100'
+                                                        }`}
                                                 >
                                                     {opt.label}
                                                 </button>
                                             );
                                         })}
                                     </div>
-                                </div>
 
-                                {/* Neuro / Atonality */}
-                                <div className="flex items-center gap-2 text-[10px] font-mono text-gray-400">
-                                    <span className="whitespace-nowrap">Neuro / Atonality</span>
-                                    <input
-                                        type="range"
-                                        min={0}
-                                        max={1}
-                                        step={0.01}
-                                        value={parent.spice}
-                                        onChange={(e) => updateParent({ spice: parseFloat(e.currentTarget.value) })}
-                                        className="flex-1 accent-emerald-500 cursor-pointer"
-                                    />
-                                    <span className="text-gray-500 w-8 text-right">{parent.spice.toFixed(2)}</span>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Forest grid - Compact */}
-                    <div className="grid grid-cols-3 gap-2">
-                        {forest.map((g, idx) => {
-                            const s = summarizeGenome(g);
-                            const fav = isFavorite(g);
-                            const picked = breedPick?.id === g.id;
-                            return (
-                                <div
-                                    key={g.id}
-                                    className={`group relative rounded-lg border p-2 cursor-pointer transition
-                                        ${picked
-                                            ? 'border-fuchsia-500/70 bg-fuchsia-500/10'
-                                            : 'border-gray-800 bg-black/60 hover:border-cyan-500/60 hover:bg-cyan-500/5'}`}
-                                    onClick={() => selectGenome(g)}
-                                    onMouseEnter={() => previewGenome(g)}
-                                    onMouseLeave={() => clearPreview(g.id)}
-                                >
-                                    {/* Clean minimal view - just vibe name */}
-                                    <div className="text-sm font-medium text-white text-center py-1">
-                                        {s.vibe}
-                                    </div>
-
-                                    {/* Hover overlay with details */}
-                                    <div className="absolute inset-0 rounded-lg bg-black/95 opacity-0 group-hover:opacity-100 transition-opacity p-2 flex flex-col justify-between pointer-events-none group-hover:pointer-events-auto">
-                                        <div>
-                                            <div className="flex items-center justify-between mb-1">
-                                                <span className="text-[9px] font-mono text-gray-500">#{idx + 1}</span>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); toggleFavorite(g); }}
-                                                    className={`p-0.5 rounded transition ${fav ? 'text-yellow-400' : 'text-gray-500 hover:text-yellow-300'}`}
-                                                >
-                                                    <Star className="w-3 h-3" />
-                                                </button>
-                                            </div>
-                                            <div className="text-xs font-bold text-white">{s.vibe} · {s.synth}</div>
-                                            <div className="text-[9px] font-mono text-cyan-600 truncate mt-0.5">{g.notes}</div>
+                                    <label className="text-xs font-medium text-slate-400">
+                                        <div className="mb-2 flex justify-between">
+                                            <span>Neuro / Atonality</span>
+                                            <span className="font-mono text-emerald-300">{parent.spice.toFixed(2)}</span>
                                         </div>
-                                        <div className="flex justify-between items-center mt-1">
-                                            <div className="text-[8px] font-mono text-gray-500">
-                                                s{s.slow} d{s.density} r{s.room}
-                                            </div>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); handleBreed(g); }}
-                                                className="text-[8px] font-mono px-1.5 py-0.5 rounded border border-fuchsia-500/50 text-fuchsia-300 hover:bg-fuchsia-500/20"
-                                            >
-                                                {breedPick ? '✕' : '♥'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
-
-            {/* Tweak view (DNA Editor + Effects) */}
-            {page === 'tweak' && (
-                <div className="rounded-xl border border-gray-800 bg-black/60 p-4 flex flex-col gap-4">
-                    <div className="text-xs font-mono text-cyan-300 tracking-widest uppercase">DNA Editor</div>
-
-                    <label className="text-[10px] font-mono text-gray-400 uppercase tracking-wider">
-                        Notes (mini-notation)
-                        <textarea
-                            value={parent.notes}
-                            onChange={(e) => updateParent({ notes: e.currentTarget.value })}
-                            rows={3}
-                            className="mt-1 w-full bg-black/80 border border-gray-700 rounded p-2 text-xs font-mono text-white focus:outline-none focus:border-cyan-500/60"
-                        />
-                    </label>
-
-                    <div className="grid grid-cols-2 gap-3">
-                        <label className="text-[10px] font-mono text-gray-400 uppercase tracking-wider">
-                            Synth
-                            <select
-                                value={parent.synth}
-                                onChange={(e) => updateParent({ synth: e.currentTarget.value })}
-                                className="mt-1 w-full bg-black/80 border border-gray-700 rounded p-2 text-xs font-mono text-white focus:outline-none focus:border-cyan-500/60"
-                            >
-                                {['sine', 'triangle', 'square', 'sawtooth', 'pink'].map(s => (
-                                    <option key={s} value={s}>{s}</option>
-                                ))}
-                            </select>
-                        </label>
-
-                        {(activeTrack === 'voice' || activeTrack === 'fx') && (
-                            <label className="text-[10px] font-mono text-gray-400 uppercase tracking-wider">
-                                Vowel
-                                <select
-                                    value={parent.vowel}
-                                    onChange={(e) => updateParent({ vowel: e.currentTarget.value })}
-                                    className="mt-1 w-full bg-black/80 border border-gray-700 rounded p-2 text-xs font-mono text-white focus:outline-none focus:border-cyan-500/60"
-                                >
-                                    {['a', 'e', 'i', 'o', 'u'].map(v => (
-                                        <option key={v} value={v}>{v}</option>
-                                    ))}
-                                </select>
-                            </label>
-                        )}
-                    </div>
-
-                    {([
-                        { key: 'slow', label: 'Slow', min: 0.25, max: 8, step: 0.01 },
-                        { key: 'gain', label: 'Gain', min: 0.1, max: 1.8, step: 0.01 },
-                        { key: 'room', label: 'Reverb', min: 0, max: 1, step: 0.01 },
-                        { key: 'delay', label: 'Delay', min: 0, max: 0.95, step: 0.01 },
-                        { key: 'lpf', label: 'LPF', min: 0, max: 1, step: 0.01 },
-                    ] as const).map(({ key, label, min, max, step }) => {
-                        const value = parent[key];
-                        return (
-                            <label key={key} className="text-[10px] font-mono text-gray-400 uppercase tracking-wider">
-                                <div className="flex justify-between">
-                                    <span>{label}</span>
-                                    <span className="text-gray-500">{value.toFixed(2)}</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min={min}
-                                    max={max}
-                                    step={step}
-                                    value={value}
-                                    onChange={(e) => updateParent({ [key]: parseFloat(e.currentTarget.value) } as Partial<TrackGenome>)}
-                                    className="w-full accent-cyan-500 cursor-pointer"
-                                />
-                            </label>
-                        );
-                    })}
-
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => selectGenome(parent, activeTrack)}
-                            className="px-3 py-1 rounded text-xs font-mono border border-gray-700 text-gray-300 hover:border-cyan-500/60 hover:text-cyan-200"
-                        >
-                            Commit DNA to Seed
-                        </button>
-                        <button
-                            onClick={() => setPage('grow')}
-                            className="px-3 py-1 rounded text-xs font-mono border border-gray-700 text-gray-300 hover:border-fuchsia-500/60 hover:text-fuchsia-200"
-                        >
-                            Back to Grow
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* DJ tab (Performance tools) */}
-            {page === 'dj' && (
-                <div className="flex flex-col gap-6">
-                    {/* Quick Build-Up Actions */}
-                    <div className="rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/5 p-4">
-                        <div className="text-xs font-mono uppercase tracking-widest text-fuchsia-300 mb-3 flex items-center gap-2">
-                            <Zap className="w-4 h-4" />
-                            Quick Build-Ups / Drops
-                        </div>
-                        <div className="grid grid-cols-3 gap-2">
-                            {BUILD_UP_PRESETS.map(preset => (
-                                <button
-                                    key={preset.id}
-                                    onClick={() => onApplyPattern('fx', `expr:${preset.pattern}`)}
-                                    title={preset.description}
-                                    className="px-3 py-2 rounded-lg border text-xs font-mono flex items-center gap-2 transition
-                                        border-fuchsia-500/40 text-fuchsia-200 bg-fuchsia-500/10 hover:border-fuchsia-400 hover:bg-fuchsia-500/20 hover:text-fuchsia-100"
-                                >
-                                    {preset.icon}
-                                    <div className="text-left">
-                                        <div>{preset.label}</div>
-                                        <div className="text-[9px] text-fuchsia-400/70 truncate max-w-[120px]">{preset.description}</div>
-                                    </div>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* DJ Transition Sweep */}
-                    <div className="rounded-xl border border-orange-500/30 bg-orange-500/5 p-4">
-                        <div className="text-xs font-mono uppercase tracking-widest text-orange-300 mb-3 flex items-center gap-2">
-                            <Radio className="w-4 h-4" />
-                            DJ Transition Sweep
-                        </div>
-                        <div className="flex flex-col gap-3">
-                            <div className="flex items-center gap-3">
-                                {!sweepActive ? (
-                                    <button
-                                        onClick={() => startTransitionSweep('main', 8, state?.bpm || 128)}
-                                        title="Start HPF sweep - gradually removes bass over 8 bars"
-                                        className="px-4 py-2 rounded-lg border text-sm font-mono flex items-center gap-2 transition
-                                            border-orange-500/50 text-orange-200 bg-orange-500/15 hover:border-orange-400 hover:bg-orange-500/25 hover:text-orange-100"
-                                    >
-                                        <ArrowUp className="w-4 h-4" />
-                                        Sweep Out (8 bars)
-                                    </button>
-                                ) : (
-                                    <button
-                                        onClick={() => cancelTransitionSweep()}
-                                        title="DROP IT! Release the filter and bring back the bass!"
-                                        className="px-4 py-2 rounded-lg border text-sm font-mono font-bold flex items-center gap-2 transition animate-pulse
-                                            border-red-500/80 text-red-100 bg-red-500/40 hover:border-red-400 hover:bg-red-500/60 hover:text-white"
-                                    >
-                                        <ArrowDown className="w-4 h-4" />
-                                        💥 DROP IT!
-                                    </button>
-                                )}
-                            </div>
-
-                            {sweepActive && (
-                                <div className="flex items-center gap-3">
-                                    <div className="flex-1 h-3 bg-gray-800 rounded-full overflow-hidden border border-gray-700">
-                                        <div
-                                            className="h-full bg-gradient-to-r from-orange-500 via-red-500 to-red-600 transition-all duration-100"
-                                            style={{ width: `${sweepProgress * 100}%` }}
+                                        <input
+                                            type="range"
+                                            min={0}
+                                            max={1}
+                                            step={0.01}
+                                            value={parent.spice}
+                                            onChange={(e) => updateParent({ spice: parseFloat(e.currentTarget.value) })}
+                                            className="studio-range w-full accent-emerald-300"
                                         />
-                                    </div>
-                                    <span className="text-sm font-mono text-orange-300 w-12 tabular-nums">
-                                        {Math.round(sweepProgress * 100)}%
-                                    </span>
+                                    </label>
                                 </div>
                             )}
 
-                            <p className="text-[10px] font-mono text-gray-500">
-                                {sweepActive
-                                    ? "HPF sweeping up... The bass is fading. Hit DROP when ready!"
-                                    : "Sweep gradually removes bass over 8 bars for smooth DJ-style transitions. Hit DROP to bring back the bass with impact!"}
-                            </p>
-                        </div>
+                            <div>
+                                <div className="mb-3 flex items-center justify-between gap-3">
+                                    <h4 className="text-sm font-semibold text-white">Mutation Forest</h4>
+                                    <span className="text-xs text-slate-500">{forest.length} variants</span>
+                                </div>
+                                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                                    {forest.map((g, idx) => {
+                                        const s = summarizeGenome(g);
+                                        const fav = isFavorite(g);
+                                        const picked = breedPick?.id === g.id;
+                                        return (
+                                            <div
+                                                key={g.id}
+                                                className={`group relative cursor-pointer rounded-lg border p-3 transition-colors ${picked
+                                                    ? 'border-fuchsia-300/60 bg-fuchsia-300/12'
+                                                    : 'border-white/10 bg-black/24 hover:border-cyan-300/35 hover:bg-cyan-300/6'
+                                                    }`}
+                                                onClick={() => selectGenome(g)}
+                                                onMouseEnter={() => previewGenome(g)}
+                                                onMouseLeave={() => clearPreview(g.id)}
+                                            >
+                                                <div className="mb-3 flex items-center justify-between gap-2">
+                                                    <span className="font-mono text-[10px] text-slate-600">#{idx + 1}</span>
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); toggleFavorite(g); }}
+                                                        className={`rounded p-1 transition-colors ${fav ? 'text-amber-300' : 'text-slate-600 hover:text-amber-200'}`}
+                                                        title={fav ? 'Saved' : 'Save'}
+                                                    >
+                                                        <Star className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </div>
+                                                <div className="text-base font-semibold text-white">{s.vibe}</div>
+                                                <div className="mt-1 truncate font-mono text-[11px] text-cyan-500">{g.notes}</div>
+                                                <div className="mt-3 flex items-center justify-between gap-2 text-[10px] font-mono text-slate-500">
+                                                    <span>{s.synth}</span>
+                                                    <span>s{s.slow} d{s.density} r{s.room}</span>
+                                                </div>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleBreed(g); }}
+                                                    className="mt-3 w-full rounded-md border border-fuchsia-300/25 bg-fuchsia-300/8 py-1.5 text-xs font-medium text-fuchsia-200 opacity-0 transition-opacity hover:border-fuchsia-200/50 group-hover:opacity-100 max-lg:opacity-100"
+                                                >
+                                                    {breedPick ? 'Breed with pick' : 'Mark for breed'}
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </section>
                     </div>
+                )}
 
-                    {/* Back to Grow button */}
-                    <div className="flex justify-center">
-                        <button
-                            onClick={() => setPage('grow')}
-                            className="px-4 py-2 rounded-lg text-xs font-mono border border-gray-700 text-gray-300 hover:border-cyan-500/60 hover:text-cyan-200 flex items-center gap-2"
-                        >
-                            <Sprout className="w-3 h-3" />
-                            Back to Grow
-                        </button>
-                    </div>
-                </div>
-            )}
+                {page === 'tweak' && (
+                    <div className="grid gap-4 lg:grid-cols-[1fr_0.9fr]">
+                        <section className="rounded-lg border border-white/10 bg-[#0d1218] p-4">
+                            <div className="mb-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-300">DNA Editor</div>
+                            <label className="block text-xs font-medium text-slate-400">
+                                Notes
+                                <textarea
+                                    value={parent.notes}
+                                    onChange={(e) => updateParent({ notes: e.currentTarget.value })}
+                                    rows={5}
+                                    className="mt-2 w-full resize-none rounded-lg border border-white/10 bg-black/45 p-3 font-mono text-sm text-white outline-none transition-colors focus:border-cyan-300/45"
+                                />
+                            </label>
 
-            {/* Favorites shelf */}
-            {favorites.length > 0 && (
-                <div className="mt-2">
-                    <div className="text-[10px] font-mono uppercase tracking-widest text-cyan-500 mb-2">
-                        Garden Shelf (click to load)
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {favorites.map((g) => {
-                            const s = summarizeGenome(g);
-                            const isActive = parent.id === g.id;
-                            return (
+                            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                                <label className="text-xs font-medium text-slate-400">
+                                    Synth
+                                    <select
+                                        value={parent.synth}
+                                        onChange={(e) => updateParent({ synth: e.currentTarget.value })}
+                                        className="mt-2 w-full rounded-lg border border-white/10 bg-black/45 p-3 text-sm text-white outline-none transition-colors focus:border-cyan-300/45"
+                                    >
+                                        {['sine', 'triangle', 'square', 'sawtooth', 'pink'].map(s => (
+                                            <option key={s} value={s}>{s}</option>
+                                        ))}
+                                    </select>
+                                </label>
+
+                                {(activeTrack === 'voice' || activeTrack === 'fx') && (
+                                    <label className="text-xs font-medium text-slate-400">
+                                        Vowel
+                                        <select
+                                            value={parent.vowel}
+                                            onChange={(e) => updateParent({ vowel: e.currentTarget.value })}
+                                            className="mt-2 w-full rounded-lg border border-white/10 bg-black/45 p-3 text-sm text-white outline-none transition-colors focus:border-cyan-300/45"
+                                        >
+                                            {['a', 'e', 'i', 'o', 'u'].map(v => (
+                                                <option key={v} value={v}>{v}</option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                )}
+                            </div>
+
+                            <div className="mt-4 flex flex-wrap gap-2">
                                 <button
-                                    key={g.id}
-                                    onClick={() => selectGenome(g, g.trackId)}
-                                    onMouseEnter={() => previewGenome(g)}
-                                    onMouseLeave={() => clearPreview(g.id)}
-                                    className={`px-2 py-1 rounded border text-[10px] font-mono flex items-center gap-1 transition
-                                        ${isActive
-                                            ? 'border-cyan-500/60 text-cyan-200 bg-cyan-500/10'
-                                            : 'border-gray-700 text-gray-400 hover:border-cyan-500/60 hover:text-cyan-200'}`}
+                                    onClick={() => selectGenome(parent, activeTrack)}
+                                    className="rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm font-medium text-cyan-100 transition-colors hover:border-cyan-200/50"
                                 >
-                                    {s.vibe} {s.synth}
+                                    Commit DNA
                                 </button>
-                            );
-                        })}
-                        <button
-                            onClick={() => { setFavorites([]); saveFavorites([]); }}
-                            className="px-2 py-1 rounded border border-gray-700 text-[10px] font-mono text-gray-500 hover:text-red-300 hover:border-red-500/60"
-                        >
-                            Clear Shelf
-                        </button>
+                                <button
+                                    onClick={() => setPage('grow')}
+                                    className="rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:border-fuchsia-300/35 hover:text-fuchsia-100"
+                                >
+                                    Back to Grow
+                                </button>
+                            </div>
+                        </section>
+
+                        <section className="rounded-lg border border-white/10 bg-[#0d1218] p-4">
+                            <div className="mb-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-fuchsia-300">Macro Controls</div>
+                            <div className="grid gap-4">
+                                {([
+                                    { key: 'slow', label: 'Slow', min: 0.25, max: 8, step: 0.01 },
+                                    { key: 'gain', label: 'Gain', min: 0.1, max: 1.8, step: 0.01 },
+                                    { key: 'room', label: 'Reverb', min: 0, max: 1, step: 0.01 },
+                                    { key: 'delay', label: 'Delay', min: 0, max: 0.95, step: 0.01 },
+                                    { key: 'lpf', label: 'LPF', min: 0, max: 1, step: 0.01 },
+                                ] as const).map(({ key, label, min, max, step }) => {
+                                    const value = parent[key];
+                                    return (
+                                        <label key={key} className="text-xs font-medium text-slate-400">
+                                            <div className="mb-2 flex justify-between">
+                                                <span>{label}</span>
+                                                <span className="font-mono text-slate-500">{value.toFixed(2)}</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min={min}
+                                                max={max}
+                                                step={step}
+                                                value={value}
+                                                onChange={(e) => updateParent({ [key]: parseFloat(e.currentTarget.value) } as Partial<TrackGenome>)}
+                                                className="studio-range w-full accent-cyan-300"
+                                            />
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        </section>
                     </div>
-                </div>
-            )}
+                )}
+
+                {page === 'dj' && (
+                    <div className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
+                        <section className="rounded-lg border border-fuchsia-300/20 bg-fuchsia-300/6 p-4">
+                            <div className="mb-4 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-fuchsia-200">
+                                <Zap className="h-4 w-4" />
+                                Build-Ups / Drops
+                            </div>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                                {BUILD_UP_PRESETS.map(preset => (
+                                    <button
+                                        key={preset.id}
+                                        onClick={() => onApplyPattern('fx', `expr:${preset.pattern}`)}
+                                        title={preset.description}
+                                        className="rounded-lg border border-fuchsia-300/25 bg-black/24 p-3 text-left transition-colors hover:border-fuchsia-200/50 hover:bg-fuchsia-300/10"
+                                    >
+                                        <div className="flex items-center gap-2 text-sm font-semibold text-fuchsia-100">
+                                            {preset.icon}
+                                            {preset.label}
+                                        </div>
+                                        <div className="mt-1 text-xs text-fuchsia-200/55">{preset.description}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        </section>
+
+                        <section className="rounded-lg border border-orange-300/20 bg-orange-300/6 p-4">
+                            <div className="mb-4 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-orange-200">
+                                <Radio className="h-4 w-4" />
+                                Transition Sweep
+                            </div>
+                            {!sweepActive ? (
+                                <button
+                                    onClick={() => startTransitionSweep('main', 8, state?.bpm || 128)}
+                                    title="Start HPF sweep"
+                                    className="flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-orange-300/35 bg-orange-300/12 text-sm font-semibold text-orange-100 transition-colors hover:border-orange-200/60"
+                                >
+                                    <ArrowUp className="h-4 w-4" />
+                                    Sweep Out
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => cancelTransitionSweep()}
+                                    title="Release the filter"
+                                    className="flex h-12 w-full animate-pulse items-center justify-center gap-2 rounded-lg border border-red-300/55 bg-red-400/25 text-sm font-bold text-red-50 transition-colors hover:border-red-200/70"
+                                >
+                                    <ArrowDown className="h-4 w-4" />
+                                    Drop It
+                                </button>
+                            )}
+
+                            <div className="mt-4 flex items-center gap-3">
+                                <div className="h-3 flex-1 overflow-hidden rounded-full border border-white/10 bg-black/35">
+                                    <div
+                                        className="h-full rounded-full bg-gradient-to-r from-orange-400 via-fuchsia-400 to-red-400 transition-all duration-100"
+                                        style={{ width: `${sweepProgress * 100}%` }}
+                                    />
+                                </div>
+                                <span className="w-12 text-right font-mono text-sm text-orange-200 tabular-nums">{Math.round(sweepProgress * 100)}%</span>
+                            </div>
+
+                            <button
+                                onClick={() => setPage('grow')}
+                                className="mt-4 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:border-cyan-300/35 hover:text-cyan-100"
+                            >
+                                Back to Grow
+                            </button>
+                        </section>
+                    </div>
+                )}
+
+                {favorites.length > 0 && (
+                    <section className="rounded-lg border border-white/10 bg-[#0d1218] p-4">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-300">Garden Shelf</div>
+                            <button
+                                onClick={() => { setFavorites([]); saveFavorites([]); }}
+                                className="text-xs font-medium text-slate-500 transition-colors hover:text-rose-300"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                        <div className="flex gap-2 overflow-x-auto pb-1 studio-scrollbar">
+                            {favorites.map((g) => {
+                                const s = summarizeGenome(g);
+                                const isActive = parent.id === g.id;
+                                return (
+                                    <button
+                                        key={g.id}
+                                        onClick={() => selectGenome(g, g.trackId)}
+                                        onMouseEnter={() => previewGenome(g)}
+                                        onMouseLeave={() => clearPreview(g.id)}
+                                        className={`shrink-0 rounded-lg border px-3 py-2 text-left transition-colors ${isActive
+                                            ? 'border-cyan-300/55 bg-cyan-300/12 text-cyan-100'
+                                            : 'border-white/10 bg-white/[0.03] text-slate-400 hover:border-cyan-300/35 hover:text-cyan-100'
+                                            }`}
+                                    >
+                                        <div className="text-sm font-semibold">{s.vibe} {s.synth}</div>
+                                        <div className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-slate-600">{TRACK_LABELS[g.trackId]}</div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </section>
+                )}
+            </div>
         </div>
     );
 }
