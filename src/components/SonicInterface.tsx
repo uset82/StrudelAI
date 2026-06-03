@@ -497,7 +497,7 @@ export default function SonicInterface() {
     return (
         <div className="min-h-dvh w-full overflow-x-hidden bg-[#101216] text-slate-200 selection:bg-cyan-400/20 selection:text-cyan-50 lg:h-screen lg:overflow-hidden">
             <div className="flex min-h-dvh min-w-0 flex-col lg:h-full lg:flex-row lg:overflow-hidden">
-                <section className="order-4 flex min-w-0 flex-1 flex-col border-r border-white/10 bg-[#12161d] max-lg:w-full max-lg:border-b max-lg:border-r-0 lg:order-1 lg:h-screen">
+                <section className="order-5 flex min-w-0 flex-1 flex-col border-r border-white/10 bg-[#12161d] max-lg:w-full max-lg:border-b max-lg:border-r-0 lg:order-1 lg:h-screen">
                     <header className="flex min-h-16 shrink-0 items-center justify-between gap-5 border-b border-white/10 bg-[#171c24] px-5 max-lg:w-full max-lg:max-w-full max-lg:flex-wrap max-lg:gap-3 max-lg:px-3 max-lg:py-3">
                         <div className="flex min-w-0 items-center gap-3">
                             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-cyan-300">
@@ -761,7 +761,7 @@ export default function SonicInterface() {
                                 </section>
                             )}
 
-                            <section className="order-3 flex shrink-0 flex-col border-b border-white/10 py-5 max-lg:min-h-[430px] max-lg:w-full max-lg:flex-none max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4">
+                            <section className="order-4 flex shrink-0 flex-col border-b border-white/10 py-5 max-lg:min-h-[430px] max-lg:w-full max-lg:flex-none max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4">
                                 <div className="mb-3 flex items-center justify-between gap-3">
                                     <h2 className="text-sm font-semibold text-slate-100">Chat</h2>
                                     <span className="text-xs text-slate-500">{chatMessages.length > 0 ? `${chatMessages.length} messages` : 'Ready'}</span>
@@ -883,7 +883,7 @@ export default function SonicInterface() {
                                 </div>
                             </section>
 
-                            <section className="order-5 shrink-0 border-b border-white/10 py-5 max-lg:w-full max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4">
+                            <section className="order-3 shrink-0 border-b border-white/10 py-5 max-lg:w-full max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4">
                                 <div className="mb-3 flex items-center justify-between gap-3">
                                     <h2 className="text-sm font-semibold text-slate-100">Mixer Channels</h2>
                                     <span className="text-xs text-slate-500">{activeTrackCount} active</span>
