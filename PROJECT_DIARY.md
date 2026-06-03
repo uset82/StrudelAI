@@ -587,6 +587,7 @@ note("e4 g4 a4 b4").s("triangle").decay(0.3).sustain(0.4).delay(0.2).gain(0.5)
 6. **✅ Fault Tolerance**: Auto-fix errors, sanitize code, graceful degradation
 7. **✅ YouTube Integration**: Paste a link, get playable Strudel code
 8. **✅ MusicGen Support**: AI-generated real audio stems (when GPU available)
+9. **✅ DJ Controller Mode**: Two decks + mixer + performance pads (Tempo Sync, Hot Cue/Pitch Play, Bounce Loop, Slicer)
 
 ---
 

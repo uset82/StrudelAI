@@ -1,12 +1,21 @@
 'use client';
 
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { updateAudioLayer, initAudio, getSampleAudioContext } from '@/lib/strudel/engine';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Activity, Disc3, Gauge, Headphones, ListMusic, Pause, Play, SlidersHorizontal, Sparkles, Upload, Zap } from 'lucide-react';
 import { AudioDeck } from '@/lib/dj/audio-deck';
 
 type DeckId = 'A' | 'B';
 type PadMode = 'hotcue' | 'loop' | 'fx' | 'sampler';
 type PadFx = 'reverb' | 'echo' | 'roll' | 'filter';
+
+type StrudelEngineModule = typeof import('@/lib/strudel/engine');
+
+let strudelEnginePromise: Promise<StrudelEngineModule> | null = null;
+
+function loadStrudelEngine() {
+    strudelEnginePromise ??= import('@/lib/strudel/engine');
+    return strudelEnginePromise;
+}
 
 const PAD_FX_ORDER: PadFx[] = ['reverb', 'echo', 'roll', 'filter'];
 const PAD_FX_LABEL: Record<PadFx, string> = {
@@ -276,9 +285,6 @@ interface DJMixerViewProps {
 }
 
 export function DJMixerView({ bpm = 120 }: DJMixerViewProps) {
-    const viewportRef = useRef<HTMLDivElement | null>(null);
-    const contentRef = useRef<HTMLDivElement | null>(null);
-    const [fitScale, setFitScale] = useState(1);
     const [beatMatchStatus, setBeatMatchStatus] = useState<string | null>(null);
 
     const [crossfader, setCrossfader] = useState(0);
@@ -352,11 +358,13 @@ export function DJMixerView({ bpm = 120 }: DJMixerViewProps) {
     const beginAudioInit = useCallback(() => {
         if (audioInitPromiseRef.current) return audioInitPromiseRef.current;
 
-        const promise = initAudio().catch((err) => {
-            console.error('[DJ] Audio init error:', err);
-            audioInitPromiseRef.current = null;
-            throw err;
-        });
+        const promise = loadStrudelEngine()
+            .then(({ initAudio }) => initAudio())
+            .catch((err) => {
+                console.error('[DJ] Audio init error:', err);
+                audioInitPromiseRef.current = null;
+                throw err;
+            });
 
         audioInitPromiseRef.current = promise;
         return promise;
@@ -368,6 +376,7 @@ export function DJMixerView({ bpm = 120 }: DJMixerViewProps) {
         if (djAudioInitPromiseRef.current) return djAudioInitPromiseRef.current;
 
         const promise = (async () => {
+            const { getSampleAudioContext } = await loadStrudelEngine();
             const ctx = await getSampleAudioContext();
             const master = ctx.createGain();
             master.gain.value = 1;
@@ -609,8 +618,8 @@ export function DJMixerView({ bpm = 120 }: DJMixerViewProps) {
             pendingEvalRef.current = null;
 
             const t = (crossfader + 1) / 2; // 0..1
-            let xfA = Math.cos(t * Math.PI / 2);
-            let xfB = Math.sin(t * Math.PI / 2);
+            const xfA = Math.cos(t * Math.PI / 2);
+            const xfB = Math.sin(t * Math.PI / 2);
 
             const gainA = deckAVolume * deckAFader * masterVolume * xfA;
             const gainB = deckBVolume * deckBFader * masterVolume * xfB;
@@ -744,6 +753,7 @@ export function DJMixerView({ bpm = 120 }: DJMixerViewProps) {
                 if (latest === appliedCodeRef.current) return;
 
                 appliedCodeRef.current = latest;
+                const { updateAudioLayer } = await loadStrudelEngine();
                 updateAudioLayer('dj', latest)
                     .catch((e) => console.error('[DJ] Eval error:', e));
             };
@@ -1218,43 +1228,6 @@ export function DJMixerView({ bpm = 120 }: DJMixerViewProps) {
         ensureDjAudio,
     ]);
 
-    useLayoutEffect(() => {
-        const viewport = viewportRef.current;
-        const content = contentRef.current;
-        if (!viewport || !content) return;
-
-        const padding = 16;
-        let raf = 0;
-
-        const compute = () => {
-            raf = 0;
-            const vw = Math.max(0, viewport.clientWidth - padding * 2);
-            const vh = Math.max(0, viewport.clientHeight - padding * 2);
-            // Use untransformed layout metrics (offset*) so our scale-to-fit works even when the content is already scaled.
-            const cw = content.offsetWidth;
-            const ch = content.offsetHeight;
-            if (vw === 0 || vh === 0 || cw === 0 || ch === 0) return;
-
-            const next = Math.min(1, vw / cw, vh / ch);
-            setFitScale((prev) => (Math.abs(prev - next) < 0.01 ? prev : next));
-        };
-
-        const schedule = () => {
-            if (raf) return;
-            raf = window.requestAnimationFrame(compute);
-        };
-
-        const ro = new ResizeObserver(schedule);
-        ro.observe(viewport);
-        ro.observe(content);
-        schedule();
-
-        return () => {
-            ro.disconnect();
-            if (raf) window.cancelAnimationFrame(raf);
-        };
-    }, []);
-
     const deckAHotcueIndex = deckASource.kind === 'synthetic' ? deckASource.index : -1;
     const deckBHotcueIndex = deckBSource.kind === 'synthetic' ? deckBSource.index : -1;
 
@@ -1275,6 +1248,7 @@ export function DJMixerView({ bpm = 120 }: DJMixerViewProps) {
         const newBrowseIndex = SYNTH_LIBRARY.length + uploadedTracks.length;
         try {
             await beginAudioInit();
+            const { getSampleAudioContext } = await loadStrudelEngine();
             const ctx = await getSampleAudioContext();
             const buf = await file.arrayBuffer();
             const audioBuffer = await ctx.decodeAudioData(buf.slice(0));
@@ -1337,7 +1311,7 @@ export function DJMixerView({ bpm = 120 }: DJMixerViewProps) {
     }, [beginAudioInit, browseIndex, browseItem]);
 
     return (
-        <div ref={viewportRef} className="relative w-full h-full overflow-hidden">
+        <div className="min-h-full w-full overflow-x-hidden bg-[#0b0f14] p-4 text-slate-100 max-sm:p-3">
             <input
                 ref={importAudioRef}
                 type="file"
@@ -1360,135 +1334,143 @@ export function DJMixerView({ bpm = 120 }: DJMixerViewProps) {
                     e.currentTarget.value = '';
                 }}
             />
-            <div className="absolute inset-0 p-4 flex justify-center items-start">
-                <div
-                    ref={contentRef}
-                    className="relative inline-block w-max p-3 sm:p-4 text-zinc-900 rounded-2xl border border-zinc-300 shadow-[0_18px_45px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.6),inset_0_-18px_45px_rgba(0,0,0,0.18)] transition-transform duration-150"
-                    style={{
-                        transform: `scale(${fitScale})`,
-                        transformOrigin: 'top center',
-                        backgroundImage:
-                            'linear-gradient(180deg, #f8fafc 0%, #d1d5db 38%, #f1f5f9 100%), ' +
-                            'repeating-linear-gradient(0deg, rgba(255,255,255,0.22) 0px, rgba(255,255,255,0.22) 1px, rgba(0,0,0,0.03) 1px, rgba(0,0,0,0.03) 3px)',
-                        backgroundBlendMode: 'overlay',
-                    }}
-                >
-                    <div
-                        className="pointer-events-none absolute top-4 right-4 w-10 h-10 rounded-full border border-zinc-500 bg-gradient-to-b from-zinc-50 to-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_10px_20px_rgba(0,0,0,0.25)]"
-                        aria-hidden="true"
-                    >
-                        <div className="absolute inset-[18%] rounded-full bg-gradient-to-b from-zinc-800 to-zinc-900 shadow-[inset_0_0_16px_rgba(0,0,0,0.85)]" />
-                        <div className="absolute left-1/2 top-1/2 w-3 h-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-red-500 shadow-[0_0_16px_rgba(239,68,68,0.65)]" />
-                    </div>
-                    <div className="grid gap-4 xl:grid-cols-2 xl:gap-4 2xl:grid-cols-[minmax(0,1fr)_260px_minmax(0,1fr)] 2xl:gap-6 items-start">
-                        <div className="order-1 min-w-0">
-                            <DeckPanel
-                                deckId="A"
-                                accent="#06b6d4"
-                                rotation={deckARotation}
-                                isPlaying={deckAPlaying}
-                                bpm={bpmA}
-                                trackName={deckAName}
-                                patternIndex={deckAHotcueIndex}
-                                onTogglePlay={toggleDeckAPlay}
-                                speed={deckASpeed}
-                                onSpeedChange={setDeckASpeedFromUi}
-                                onSync={toggleTempoSyncA}
-                                onReverbExit={() => triggerReverbExit('A')}
-                                tempoSync={tempoSyncA}
-                                shift={shiftA}
-                                onToggleShift={() => setShiftA((v) => !v)}
-                                padMode={padModeA}
-                                onPadModeChange={(m) => setPadMode('A', m)}
-                                samplerPads={samplerPadsA}
-                                fxPads={fxPadsA}
-                                padFxAssign={padFxAssignA}
-                                onCyclePadFx={(i) => cyclePadFxAssign('A', i)}
-                                isUploaded={deckAIsUploaded}
-                                hotcues={hotcuesA}
-                                loopPad={loopPadA}
-                                isCueActive={cueDeck === 'A'}
-                                onToggleCue={() => setCueDeck(c => c === 'A' ? null : 'A')}
-                                onPadPress={(i) => handlePadPress('A', i)}
-                                onPadRelease={(i) => handlePadRelease('A', i)}
-                            />
-                        </div>
 
-                        <div className="order-2 xl:order-3 xl:col-span-2 2xl:order-2 2xl:col-span-1 min-w-0">
-                            <MixerPanel
-                                accentA="#06b6d4"
-                                accentB="#d946ef"
-                                trimA={deckAVolume}
-                                trimB={deckBVolume}
-                                onTrimA={setDeckAVolume}
-                                onTrimB={setDeckBVolume}
-                                faderA={deckAFader}
-                                faderB={deckBFader}
-                                onFaderA={setDeckAFader}
-                                onFaderB={setDeckBFader}
-                                eqA={{ low: deckAEqLow, mid: deckAEqMid, high: deckAEqHigh }}
-                                eqB={{ low: deckBEqLow, mid: deckBEqMid, high: deckBEqHigh }}
-                                onEqA={{ low: setDeckAEqLow, mid: setDeckAEqMid, high: setDeckAEqHigh }}
-                                onEqB={{ low: setDeckBEqLow, mid: setDeckBEqMid, high: setDeckBEqHigh }}
-                                filterA={deckAFilter}
-                                filterB={deckBFilter}
-                                onFilterA={setDeckAFilter}
-                                onFilterB={setDeckBFilter}
-                                master={masterVolume}
-                                onMaster={setMasterVolume}
-                                masterPitch={masterPitch}
-                                onMasterPitch={setMasterPitch}
-                                crossfader={crossfader}
-                                onCrossfader={setCrossfader}
-                                tempoBpm={bpm}
-                                onAiBeatMatch={aiBeatMatch}
-                                beatMatchStatus={beatMatchStatus}
-                                browseCount={browseCount}
-                                browseIndex={browseIndex}
-                                browseLabel={browseLabel}
-                                browseTrackBpm={browseTrackBpm}
-                                onBrowseIndex={setBrowseIndex}
-                                onLoadA={loadBrowseToDeckA}
-                                onLoadB={loadBrowseToDeckB}
-                                onImportAudio={openImportAudio}
-                                onImportBeatgrid={openImportBeatgrid}
-                                canImportBeatgrid={browseItem.kind === 'uploaded'}
-                            />
+            <div className="mx-auto flex w-full max-w-[1360px] flex-col gap-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
+                    <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-cyan-300/25 bg-cyan-300/10 text-cyan-200">
+                            <Disc3 className="h-5 w-5" />
                         </div>
-
-                        <div className="order-3 xl:order-2 2xl:order-3 min-w-0">
-                            <DeckPanel
-                                deckId="B"
-                                accent="#d946ef"
-                                rotation={deckBRotation}
-                                isPlaying={deckBPlaying}
-                                bpm={bpmB}
-                                trackName={deckBName}
-                                patternIndex={deckBHotcueIndex}
-                                onTogglePlay={toggleDeckBPlay}
-                                speed={deckBSpeed}
-                                onSpeedChange={setDeckBSpeedFromUi}
-                                onSync={toggleTempoSyncB}
-                                onReverbExit={() => triggerReverbExit('B')}
-                                tempoSync={tempoSyncB}
-                                shift={shiftB}
-                                onToggleShift={() => setShiftB((v) => !v)}
-                                padMode={padModeB}
-                                onPadModeChange={(m) => setPadMode('B', m)}
-                                samplerPads={samplerPadsB}
-                                fxPads={fxPadsB}
-                                padFxAssign={padFxAssignB}
-                                onCyclePadFx={(i) => cyclePadFxAssign('B', i)}
-                                isUploaded={deckBIsUploaded}
-                                hotcues={hotcuesB}
-                                loopPad={loopPadB}
-                                isCueActive={cueDeck === 'B'}
-                                onToggleCue={() => setCueDeck(c => c === 'B' ? null : 'B')}
-                                onPadPress={(i) => handlePadPress('B', i)}
-                                onPadRelease={(i) => handlePadRelease('B', i)}
-                            />
+                        <div className="min-w-0">
+                            <h2 className="truncate text-base font-semibold text-white">Performance Mixer</h2>
+                            <p className="truncate text-xs text-slate-500">
+                                Deck A: {deckAName} · Deck B: {deckBName}
+                            </p>
                         </div>
                     </div>
+
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1.5 font-medium text-slate-300">
+                            <Gauge className="h-3.5 w-3.5 text-cyan-300" />
+                            <span className="tabular-nums">{Math.round(bpm)} BPM</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1.5 font-medium text-slate-300">
+                            <ListMusic className="h-3.5 w-3.5 text-fuchsia-300" />
+                            {browseCount} tracks
+                        </span>
+                    </div>
+                </div>
+
+                <div className="grid w-full gap-4 xl:grid-cols-[minmax(280px,1fr)_minmax(340px,430px)_minmax(280px,1fr)]">
+                    <DeckPanel
+                        deckId="A"
+                        accent="#22d3ee"
+                        rotation={deckARotation}
+                        isPlaying={deckAPlaying}
+                        bpm={bpmA}
+                        trackName={deckAName}
+                        patternIndex={deckAHotcueIndex}
+                        onTogglePlay={toggleDeckAPlay}
+                        speed={deckASpeed}
+                        onSpeedChange={setDeckASpeedFromUi}
+                        onSync={toggleTempoSyncA}
+                        onReverbExit={() => triggerReverbExit('A')}
+                        tempoSync={tempoSyncA}
+                        shift={shiftA}
+                        onToggleShift={() => setShiftA((v) => !v)}
+                        padMode={padModeA}
+                        onPadModeChange={(m) => setPadMode('A', m)}
+                        samplerPads={samplerPadsA}
+                        fxPads={fxPadsA}
+                        padFxAssign={padFxAssignA}
+                        onCyclePadFx={(i) => cyclePadFxAssign('A', i)}
+                        isUploaded={deckAIsUploaded}
+                        hotcues={hotcuesA}
+                        loopPad={loopPadA}
+                        isCueActive={cueDeck === 'A'}
+                        onToggleCue={() => setCueDeck(c => c === 'A' ? null : 'A')}
+                        onPadPress={(i) => handlePadPress('A', i)}
+                        onPadRelease={(i) => handlePadRelease('A', i)}
+                    />
+
+                    <MixerPanel
+                        accentA="#22d3ee"
+                        accentB="#e879f9"
+                        deckAName={deckAName}
+                        deckBName={deckBName}
+                        deckAPlaying={deckAPlaying}
+                        deckBPlaying={deckBPlaying}
+                        cueAActive={cueDeck === 'A'}
+                        cueBActive={cueDeck === 'B'}
+                        onCueA={() => setCueDeck(c => c === 'A' ? null : 'A')}
+                        onCueB={() => setCueDeck(c => c === 'B' ? null : 'B')}
+                        trimA={deckAVolume}
+                        trimB={deckBVolume}
+                        onTrimA={setDeckAVolume}
+                        onTrimB={setDeckBVolume}
+                        faderA={deckAFader}
+                        faderB={deckBFader}
+                        onFaderA={setDeckAFader}
+                        onFaderB={setDeckBFader}
+                        eqA={{ low: deckAEqLow, mid: deckAEqMid, high: deckAEqHigh }}
+                        eqB={{ low: deckBEqLow, mid: deckBEqMid, high: deckBEqHigh }}
+                        onEqA={{ low: setDeckAEqLow, mid: setDeckAEqMid, high: setDeckAEqHigh }}
+                        onEqB={{ low: setDeckBEqLow, mid: setDeckBEqMid, high: setDeckBEqHigh }}
+                        filterA={deckAFilter}
+                        filterB={deckBFilter}
+                        onFilterA={setDeckAFilter}
+                        onFilterB={setDeckBFilter}
+                        master={masterVolume}
+                        onMaster={setMasterVolume}
+                        masterPitch={masterPitch}
+                        onMasterPitch={setMasterPitch}
+                        crossfader={crossfader}
+                        onCrossfader={setCrossfader}
+                        tempoBpm={bpm}
+                        onAiBeatMatch={aiBeatMatch}
+                        beatMatchStatus={beatMatchStatus}
+                        browseCount={browseCount}
+                        browseIndex={browseIndex}
+                        browseLabel={browseLabel}
+                        browseTrackBpm={browseTrackBpm}
+                        onBrowseIndex={setBrowseIndex}
+                        onLoadA={loadBrowseToDeckA}
+                        onLoadB={loadBrowseToDeckB}
+                        onImportAudio={openImportAudio}
+                        onImportBeatgrid={openImportBeatgrid}
+                        canImportBeatgrid={browseItem.kind === 'uploaded'}
+                    />
+
+                    <DeckPanel
+                        deckId="B"
+                        accent="#e879f9"
+                        rotation={deckBRotation}
+                        isPlaying={deckBPlaying}
+                        bpm={bpmB}
+                        trackName={deckBName}
+                        patternIndex={deckBHotcueIndex}
+                        onTogglePlay={toggleDeckBPlay}
+                        speed={deckBSpeed}
+                        onSpeedChange={setDeckBSpeedFromUi}
+                        onSync={toggleTempoSyncB}
+                        onReverbExit={() => triggerReverbExit('B')}
+                        tempoSync={tempoSyncB}
+                        shift={shiftB}
+                        onToggleShift={() => setShiftB((v) => !v)}
+                        padMode={padModeB}
+                        onPadModeChange={(m) => setPadMode('B', m)}
+                        samplerPads={samplerPadsB}
+                        fxPads={fxPadsB}
+                        padFxAssign={padFxAssignB}
+                        onCyclePadFx={(i) => cyclePadFxAssign('B', i)}
+                        isUploaded={deckBIsUploaded}
+                        hotcues={hotcuesB}
+                        loopPad={loopPadB}
+                        isCueActive={cueDeck === 'B'}
+                        onToggleCue={() => setCueDeck(c => c === 'B' ? null : 'B')}
+                        onPadPress={(i) => handlePadPress('B', i)}
+                        onPadRelease={(i) => handlePadRelease('B', i)}
+                    />
                 </div>
             </div>
         </div>
@@ -1564,10 +1546,10 @@ function DeckPanel({
             <button
                 key={mode}
                 onClick={() => onPadModeChange(mode)}
-                className={`px-2 py-1 rounded-md border text-[9px] font-mono uppercase tracking-widest transition
+                className={`min-h-8 rounded-md border px-2 py-1 text-[10px] font-semibold uppercase transition-colors
                     ${active
-                        ? 'border-zinc-900 bg-gradient-to-b from-zinc-900 to-zinc-700 text-white shadow-[0_0_14px_rgba(0,0,0,0.35)]'
-                        : 'border-zinc-400 bg-gradient-to-b from-zinc-200/80 to-zinc-100/50 text-zinc-700 hover:brightness-110'}`}
+                        ? 'border-cyan-300/45 bg-cyan-300/12 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.16)]'
+                        : 'border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-slate-100'}`}
             >
                 {label}
             </button>
@@ -1576,42 +1558,52 @@ function DeckPanel({
 
     return (
         <div
-            className="relative w-full max-w-[300px] min-w-0 mx-auto flex flex-col items-center gap-3 p-3 rounded-2xl border border-zinc-300/80 shadow-[0_16px_36px_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.7)]"
+            className="relative mx-auto flex w-full max-w-[430px] min-w-0 flex-col gap-4 rounded-xl border border-white/10 bg-[#10161d] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.04)]"
             style={{
                 backgroundImage:
-                    'linear-gradient(180deg, rgba(255,255,255,0.82) 0%, rgba(255,255,255,0.26) 100%), ' +
-                    'repeating-linear-gradient(0deg, rgba(255,255,255,0.16) 0px, rgba(255,255,255,0.16) 1px, rgba(0,0,0,0.03) 1px, rgba(0,0,0,0.03) 4px)',
+                    'linear-gradient(180deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.008) 100%), ' +
+                    'repeating-linear-gradient(90deg, rgba(255,255,255,0.018) 0px, rgba(255,255,255,0.018) 1px, transparent 1px, transparent 5px)',
                 backgroundBlendMode: 'overlay',
             }}
         >
             <div className="w-full flex items-start justify-between gap-3">
-                <div className="flex flex-col gap-1">
-                    <div className="text-[10px] font-semibold tracking-[0.28em] text-zinc-700">
-                        DECK {deckNumber}
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-[10px] font-semibold uppercase text-slate-500">
+                        <Disc3 className="h-3.5 w-3.5" style={{ color: accent }} />
+                        <span>Deck {deckNumber}</span>
+                        <span className={`h-1.5 w-1.5 rounded-full ${isPlaying ? 'bg-emerald-300' : 'bg-slate-600'}`} />
                     </div>
-                    <div className="text-[10px] font-mono text-zinc-600">
-                        BPM <span className="font-bold tabular-nums" style={{ color: accent }}>{Math.round(bpm)}</span>
-                    </div>
-                    <div className="text-[10px] font-mono text-zinc-600">
-                        TEMPO <span className="font-bold tabular-nums" style={{ color: accent }}>
-                            {tempoPercent >= 0 ? '+' : ''}{tempoPercent}%
+                    <div className="mt-1 truncate text-lg font-semibold text-white">{trackName}</div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                        <span className="tabular-nums">
+                            <span className="text-slate-400">BPM</span>{' '}
+                            <span className="font-semibold" style={{ color: accent }}>{bpm.toFixed(1)}</span>
+                        </span>
+                        <span className="tabular-nums">
+                            <span className="text-slate-400">Tempo</span>{' '}
+                            <span className="font-semibold" style={{ color: accent }}>
+                                {tempoPercent >= 0 ? '+' : ''}{tempoPercent}%
+                            </span>
+                        </span>
+                        <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase text-slate-400">
+                            {isUploaded ? 'Audio' : 'Pattern'}
                         </span>
                     </div>
                 </div>
 
                 <Knob
-                    label=""
+                    label="Pitch"
                     ariaLabel={`${deckId} tempo`}
                     accent={accent}
                     value={tempoKnob}
                     onChange={(v) => onSpeedChange(0.5 + clamp(v, 0, 1) * 1.5)}
-                    size={52}
+                    size={54}
                 />
             </div>
 
-            <div className="relative w-full flex items-center justify-center">
+            <div className="relative flex w-full items-center justify-center">
                 <div
-                    className="absolute left-3 top-3 w-2 h-2 rounded-full"
+                    className="absolute left-3 top-3 z-10 h-2 w-2 rounded-full"
                     style={{ background: accent, boxShadow: `0 0 18px ${accent}` }}
                     aria-hidden="true"
                 />
@@ -1627,18 +1619,18 @@ function DeckPanel({
                 />
             </div>
 
-            <div className="w-full max-w-[240px] rounded-xl border border-zinc-300 bg-white/45 shadow-[inset_0_0_18px_rgba(0,0,0,0.12)] p-2.5">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className="text-[9px] font-mono uppercase tracking-widest text-zinc-600">
+            <div className="w-full rounded-lg border border-white/10 bg-black/20 p-3 shadow-[inset_0_1px_18px_rgba(0,0,0,0.22)]">
+                <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="text-[10px] font-semibold uppercase text-slate-400">
                         Performance Pads
                     </span>
-                    <div className="flex items-center gap-1 flex-wrap justify-end">
+                    <div className="grid w-full grid-cols-2 gap-1.5 sm:flex sm:w-auto sm:flex-wrap sm:items-center sm:justify-end">
                         <button
                             onClick={onToggleShift}
-                            className={`px-2 py-1 rounded-md border text-[9px] font-mono uppercase tracking-widest transition
+                            className={`min-h-8 rounded-md border px-2 py-1 text-[10px] font-semibold uppercase transition-colors
                                 ${shift
-                                    ? 'border-zinc-900 bg-gradient-to-b from-zinc-900 to-zinc-700 text-white shadow-[0_0_14px_rgba(0,0,0,0.35)]'
-                                    : 'border-zinc-400 bg-gradient-to-b from-zinc-200/80 to-zinc-100/50 text-zinc-700 hover:brightness-110'}`}
+                                    ? 'border-amber-300/45 bg-amber-300/14 text-amber-100 shadow-[0_0_18px_rgba(251,191,36,0.14)]'
+                                    : 'border-white/10 bg-white/[0.03] text-slate-400 hover:border-white/20 hover:text-slate-100'}`}
                             aria-label={`${deckId} shift`}
                             title="Shift (toggle)"
                         >
@@ -1652,12 +1644,12 @@ function DeckPanel({
                 </div>
 
                 {padMode === 'fx' && !isUploaded ? (
-                    <div className="grid grid-cols-4 gap-1 mb-2">
+                    <div className="grid grid-cols-4 gap-1.5 mb-2">
                         {Array.from({ length: 4 }).map((_, i) => (
                             <button
                                 key={i}
                                 onClick={() => onCyclePadFx(i)}
-                                className="py-1 rounded border border-zinc-400 bg-gradient-to-b from-zinc-100 to-zinc-200 text-[9px] font-mono uppercase tracking-widest text-zinc-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] hover:brightness-110"
+                                className="min-h-8 rounded-md border border-white/10 bg-white/[0.04] py-1 text-[10px] font-semibold uppercase text-slate-300 transition-colors hover:border-fuchsia-300/35 hover:text-fuchsia-100"
                                 aria-label={`${deckId} pad ${i + 1} fx assignment`}
                                 title="Cycle pad effect"
                             >
@@ -1667,7 +1659,7 @@ function DeckPanel({
                     </div>
                 ) : null}
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-4 gap-2 max-sm:grid-cols-2">
                     {Array.from({ length: 4 }).map((_, i) => {
                         const active = (() => {
                             if (padMode === 'sampler') return Boolean(samplerPads[i]);
@@ -1700,14 +1692,14 @@ function DeckPanel({
                                 onPointerUp={() => onPadRelease(i)}
                                 onPointerLeave={() => onPadRelease(i)}
                                 onPointerCancel={() => onPadRelease(i)}
-                                className={`aspect-square rounded-md border-2 transition select-none
+                                className={`aspect-square rounded-md border transition-colors select-none
                                     ${active
-                                        ? 'bg-gradient-to-b from-red-500 to-red-700 border-red-900 shadow-[0_0_22px_rgba(239,68,68,0.65),inset_0_1px_0_rgba(255,255,255,0.25)]'
-                                        : 'bg-gradient-to-b from-zinc-950/90 to-zinc-900/70 border-red-600/70 shadow-[inset_0_0_18px_rgba(0,0,0,0.75)] hover:brightness-110'}`}
+                                        ? 'border-rose-300/75 bg-rose-400/20 shadow-[0_0_22px_rgba(251,113,133,0.28),inset_0_1px_0_rgba(255,255,255,0.08)]'
+                                        : 'border-white/10 bg-[#080b10] shadow-[inset_0_0_18px_rgba(0,0,0,0.62)] hover:border-rose-300/35 hover:bg-white/[0.04]'}`}
                                 aria-label={`${deckId} pad ${i + 1}`}
                                 title={hint}
                             >
-                                <span className="text-red-100/90 text-base font-black drop-shadow-[0_1px_0_rgba(0,0,0,0.8)]">
+                                <span className="text-sm font-semibold text-slate-100">
                                     {label}
                                 </span>
                             </button>
@@ -1716,38 +1708,42 @@ function DeckPanel({
                 </div>
             </div>
 
-            <div className="w-full flex items-center justify-center gap-3 pt-1">
+            <div className="grid w-full grid-cols-4 gap-2 pt-1 max-sm:grid-cols-2">
                 <button
                     onClick={onSync}
-                    className={`px-4 py-2 rounded-md border text-xs font-mono uppercase tracking-widest transition shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]
+                    className={`flex min-h-11 items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold uppercase transition-colors
                         ${tempoSync
-                            ? 'border-cyan-900 bg-gradient-to-b from-cyan-300/80 to-cyan-800/55 text-cyan-950 shadow-[0_0_18px_rgba(6,182,212,0.35),inset_0_1px_0_rgba(255,255,255,0.35)]'
-                            : 'border-cyan-700/70 bg-gradient-to-b from-cyan-200/70 to-cyan-900/35 text-cyan-950 hover:brightness-110 shadow-[0_0_18px_rgba(6,182,212,0.22)]'}`}
+                            ? 'border-cyan-300/60 bg-cyan-300/16 text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.16)]'
+                            : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-cyan-300/35 hover:text-cyan-100'}`}
                 >
-                    Tempo Sync
+                    <Zap className="h-3.5 w-3.5" />
+                    Sync
                 </button>
                 <button
                     onClick={onReverbExit}
-                    className="px-4 py-2 rounded-md border border-fuchsia-800/70 bg-gradient-to-b from-fuchsia-200/60 to-fuchsia-950/30 text-fuchsia-950 text-[11px] font-mono uppercase tracking-widest shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_0_18px_rgba(217,70,239,0.18)] hover:brightness-110"
+                    className="flex min-h-11 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold uppercase text-slate-300 transition-colors hover:border-fuchsia-300/35 hover:text-fuchsia-100"
                 >
-                    Reverb Exit
+                    <Activity className="h-3.5 w-3.5" />
+                    Echo Out
                 </button>
                 <button
                     onClick={onToggleCue}
-                    className={`px-5 py-2 rounded-md border text-xs font-mono uppercase tracking-widest transition shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]
+                    className={`flex min-h-11 items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold uppercase transition-colors
                         ${isCueActive
-                            ? 'border-amber-900 bg-gradient-to-b from-amber-400/80 to-amber-700/70 text-amber-950 shadow-[0_0_18px_rgba(245,158,11,0.35),inset_0_1px_0_rgba(255,255,255,0.3)]'
-                            : 'border-amber-700/70 bg-gradient-to-b from-amber-300/35 to-amber-900/25 text-amber-950 hover:brightness-110'}`}
+                            ? 'border-amber-300/60 bg-amber-300/16 text-amber-100 shadow-[0_0_18px_rgba(251,191,36,0.16)]'
+                            : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-amber-300/35 hover:text-amber-100'}`}
                 >
+                    <Headphones className="h-3.5 w-3.5" />
                     {isCueActive ? 'Cue On' : 'Cue'}
                 </button>
                 <button
                     onClick={onTogglePlay}
-                    className={`px-6 py-2 rounded-md border text-xs font-mono uppercase tracking-widest transition shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]
+                    className={`flex min-h-11 items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold uppercase transition-colors
                         ${isPlaying
-                            ? 'border-emerald-900 bg-gradient-to-b from-emerald-300/70 to-emerald-800/55 text-emerald-950 shadow-[0_0_18px_rgba(16,185,129,0.28)]'
-                            : 'border-emerald-700/70 bg-gradient-to-b from-emerald-200/30 to-emerald-900/20 text-emerald-950 hover:brightness-110'}`}
+                            ? 'border-emerald-300/60 bg-emerald-300/16 text-emerald-100 shadow-[0_0_18px_rgba(52,211,153,0.16)]'
+                            : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-emerald-300/35 hover:text-emerald-100'}`}
                 >
+                    {isPlaying ? <Pause className="h-3.5 w-3.5 fill-current" /> : <Play className="h-3.5 w-3.5 fill-current" />}
                     {isPlaying ? 'Pause' : 'Play'}
                 </button>
             </div>
@@ -1779,7 +1775,7 @@ function Platter({
     return (
         <div
             onClick={onTogglePlay}
-            className="relative aspect-square w-full max-w-[240px] rounded-full cursor-pointer select-none"
+            className="relative aspect-square w-full max-w-[280px] cursor-pointer select-none rounded-full"
             style={{
                 filter: isPlaying ? `drop-shadow(0 0 30px ${accent}55)` : undefined,
             }}
@@ -1789,11 +1785,11 @@ function Platter({
             <div
                 className="absolute inset-0 rounded-full"
                 style={{
-                    background: 'radial-gradient(circle at 30% 25%, #f8fafc 0%, #e5e7eb 32%, #a1a1aa 62%, #52525b 100%)',
+                    background: 'radial-gradient(circle at 30% 24%, #2b3440 0%, #161d25 34%, #080b11 68%, #020409 100%)',
                     boxShadow:
-                        'inset 0 12px 26px rgba(255,255,255,0.45), ' +
-                        'inset 0 -18px 34px rgba(0,0,0,0.45), ' +
-                        '0 16px 34px rgba(0,0,0,0.35)',
+                        'inset 0 10px 24px rgba(255,255,255,0.08), ' +
+                        'inset 0 -24px 36px rgba(0,0,0,0.75), ' +
+                        '0 18px 36px rgba(0,0,0,0.38)',
                 }}
             />
 
@@ -1802,14 +1798,20 @@ function Platter({
                 className="absolute inset-[1.5%] rounded-full opacity-55"
                 style={{
                     background:
-                        'repeating-conic-gradient(from 10deg, rgba(255,255,255,0.85) 0deg 4deg, rgba(0,0,0,0.25) 4deg 12deg)',
+                        'repeating-conic-gradient(from 10deg, rgba(255,255,255,0.16) 0deg 4deg, rgba(0,0,0,0.4) 4deg 12deg)',
                     filter: 'blur(0.25px)',
                 }}
                 aria-hidden="true"
             />
 
             {/* LED ring */}
-            <div className="absolute inset-[4%] rounded-full border-[6px] border-blue-500/60 shadow-[0_0_22px_rgba(59,130,246,0.75)]" />
+            <div
+                className="absolute inset-[4%] rounded-full border-[5px]"
+                style={{
+                    borderColor: `${accent}80`,
+                    boxShadow: `0 0 22px ${accent}44, inset 0 0 18px rgba(0,0,0,0.62)`,
+                }}
+            />
 
             {/* Rotating disc */}
             <div
@@ -1823,14 +1825,14 @@ function Platter({
                 <div
                     className="absolute inset-0 rounded-full"
                     style={{
-                        background: 'radial-gradient(circle at 35% 30%, #f9fafb 0%, #d1d5db 34%, #a1a1aa 62%, #3f3f46 100%)',
-                        boxShadow: 'inset 0 18px 30px rgba(255,255,255,0.25), inset 0 -22px 36px rgba(0,0,0,0.55)',
+                        background: 'radial-gradient(circle at 35% 30%, #27313d 0%, #121821 34%, #080b11 62%, #010204 100%)',
+                        boxShadow: 'inset 0 18px 30px rgba(255,255,255,0.055), inset 0 -22px 36px rgba(0,0,0,0.85)',
                     }}
                 />
                 <div
-                    className="absolute inset-[6%] rounded-full opacity-25"
+                    className="absolute inset-[6%] rounded-full opacity-45"
                     style={{
-                        background: 'repeating-conic-gradient(rgba(0,0,0,0.55) 0deg 1.2deg, transparent 1.2deg 5.5deg)',
+                        background: 'repeating-conic-gradient(rgba(255,255,255,0.12) 0deg 1.2deg, transparent 1.2deg 5.5deg)',
                         filter: 'blur(0.3px)',
                     }}
                 />
@@ -1838,18 +1840,18 @@ function Platter({
                     className="absolute inset-[20%] rounded-full"
                     style={{
                         background: 'radial-gradient(circle at 40% 40%, #0f172a 0%, #070a10 62%, #000 100%)',
-                        boxShadow: 'inset 0 0 30px rgba(0,0,0,0.9)',
+                        boxShadow: 'inset 0 0 30px rgba(0,0,0,0.9), 0 0 18px rgba(0,0,0,0.65)',
                     }}
                 />
             </div>
 
             {/* Decorative arcs */}
             <div
-                className="absolute top-0 right-6 w-24 h-24 rounded-full border-[6px] border-black/45 border-l-transparent border-b-transparent"
+                className="absolute right-6 top-0 h-24 w-24 rounded-full border-[5px] border-white/10 border-b-transparent border-l-transparent"
                 aria-hidden="true"
             />
             <div
-                className="absolute bottom-0 left-6 w-28 h-28 rounded-full border-[6px] border-black/45 border-r-transparent border-t-transparent"
+                className="absolute bottom-0 left-6 h-28 w-28 rounded-full border-[5px] border-white/10 border-r-transparent border-t-transparent"
                 aria-hidden="true"
             />
 
@@ -1863,14 +1865,14 @@ function Platter({
             />
 
             {/* Center screen */}
-            <div className="absolute inset-[34%] rounded-full bg-gradient-to-b from-black/95 to-black border border-zinc-700/90 shadow-[inset_0_0_18px_rgba(0,0,0,0.9)] flex flex-col items-center justify-center text-white">
-                <div className="text-[10px] font-mono text-zinc-300">{trackLabel}</div>
-                <div className="text-[9px] font-mono text-zinc-500 -mt-0.5">Track info</div>
+            <div className="absolute inset-[32%] flex flex-col items-center justify-center rounded-full border border-white/10 bg-black/90 text-white shadow-[inset_0_0_18px_rgba(0,0,0,0.9)]">
+                <div className="max-w-[72px] truncate text-[10px] font-semibold text-slate-200">{trackLabel}</div>
+                <div className="text-[9px] text-slate-600 -mt-0.5">Live deck</div>
                 <div className="mt-1">
                     <MiniWaveform accent={accent} isPlaying={isPlaying} />
                 </div>
-                <div className="mt-1 text-[10px] font-mono text-zinc-300">
-                    <span className="text-[9px] text-zinc-500 mr-1">BPM</span>
+                <div className="mt-1 text-[10px] text-slate-300">
+                    <span className="text-[9px] text-slate-600 mr-1">BPM</span>
                     <span className="font-bold tabular-nums" style={{ color: accent }}>
                         {bpm.toFixed(1)}
                     </span>
@@ -1881,7 +1883,9 @@ function Platter({
 }
 
 function MiniWaveform({ accent, isPlaying }: { accent: string; isPlaying: boolean }) {
-    const [bars, setBars] = useState<number[]>(() => Array.from({ length: 30 }, () => 0.15 + Math.random() * 0.8));
+    const [bars, setBars] = useState<number[]>(() =>
+        Array.from({ length: 30 }, (_, i) => 0.18 + Math.abs(Math.sin(i * 1.7)) * 0.7)
+    );
 
     useEffect(() => {
         if (!isPlaying) return;
@@ -1908,21 +1912,22 @@ function MiniWaveform({ accent, isPlaying }: { accent: string; isPlaying: boolea
                 {bars.map((h, i) => {
                     const amp = clamp(h, 0.05, 1);
                     const color = i % 9 === 0 ? '#ef4444' : accent;
+                    const barHeight = `${(amp * 45).toFixed(4)}%`;
                     return (
                         <div key={i} className="w-[2px] h-full flex flex-col justify-center">
                             <div
                                 className="rounded-sm"
                                 style={{
-                                    height: `${amp * 45}%`,
-                                    background: `linear-gradient(to top, ${color}, ${color}55)`,
+                                    height: barHeight,
+                                    backgroundImage: `linear-gradient(to top, ${color}, ${color}55)`,
                                 }}
                             />
                             <div className="h-[1px] bg-white/10 my-[1px]" aria-hidden="true" />
                             <div
                                 className="rounded-sm"
                                 style={{
-                                    height: `${amp * 45}%`,
-                                    background: `linear-gradient(to bottom, ${color}, ${color}55)`,
+                                    height: barHeight,
+                                    backgroundImage: `linear-gradient(to bottom, ${color}, ${color}55)`,
                                 }}
                             />
                         </div>
@@ -1936,6 +1941,14 @@ function MiniWaveform({ accent, isPlaying }: { accent: string; isPlaying: boolea
 function MixerPanel({
     accentA,
     accentB,
+    deckAName,
+    deckBName,
+    deckAPlaying,
+    deckBPlaying,
+    cueAActive,
+    cueBActive,
+    onCueA,
+    onCueB,
     trimA,
     trimB,
     onTrimA,
@@ -1974,6 +1987,14 @@ function MixerPanel({
 }: {
     accentA: string;
     accentB: string;
+    deckAName: string;
+    deckBName: string;
+    deckAPlaying: boolean;
+    deckBPlaying: boolean;
+    cueAActive: boolean;
+    cueBActive: boolean;
+    onCueA: () => void;
+    onCueB: () => void;
     trimA: number;
     trimB: number;
     onTrimA: (v: number) => void;
@@ -2012,97 +2033,114 @@ function MixerPanel({
 }) {
     const safeBrowseCount = Math.max(1, browseCount);
     const browseValue = safeBrowseCount <= 1 ? 0 : clamp(browseIndex / (safeBrowseCount - 1), 0, 1);
+    const crossfadePosition = clamp((crossfader + 1) / 2, 0, 1);
+    const crossA = Math.cos(crossfadePosition * Math.PI / 2);
+    const crossB = Math.sin(crossfadePosition * Math.PI / 2);
+    const levelA = clamp((deckAPlaying ? 0.75 : 0.18) * trimA * faderA * master * crossA, 0, 1);
+    const levelB = clamp((deckBPlaying ? 0.75 : 0.18) * trimB * faderB * master * crossB, 0, 1);
+    const masterLevel = clamp(levelA + levelB, 0, 1);
+    const semis = Math.round((masterPitch - 0.5) * 24);
 
     return (
-        <div className="relative w-full max-w-[340px] mx-auto flex flex-col items-center gap-3 p-3 rounded-2xl bg-gradient-to-b from-zinc-100 to-zinc-200 border border-zinc-300 shadow-[0_16px_34px_rgba(0,0,0,0.2),inset_0_0_22px_rgba(0,0,0,0.18)]">
-            {/* Tabs */}
-            <div className="w-full rounded-xl border border-zinc-400 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
-                <div className="grid grid-cols-2 text-[10px] font-black tracking-[0.22em] uppercase">
-                    <div className="py-1.5 text-center bg-gradient-to-b from-zinc-300 to-zinc-200 text-zinc-700">
-                        Producer
+        <section className="mx-auto flex w-full max-w-[430px] flex-col gap-4 rounded-xl border border-white/10 bg-[#0d1117] p-4 shadow-[0_18px_40px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                    <SlidersHorizontal className="h-4 w-4 text-slate-400" />
+                    <div className="min-w-0">
+                        <h3 className="text-sm font-semibold text-white">Mixer</h3>
+                        <p className="truncate text-[11px] text-slate-500">
+                            {deckAName} / {deckBName}
+                        </p>
                     </div>
-                    <div className="py-1.5 text-center bg-gradient-to-b from-zinc-200 to-zinc-100 text-zinc-950 border-l border-zinc-400 shadow-[inset_0_0_18px_rgba(0,0,0,0.12)]">
-                        DJ Mixer
-                    </div>
+                </div>
+                <div className="rounded-md border border-white/10 bg-white/[0.03] px-2.5 py-1 text-xs font-semibold tabular-nums text-slate-300">
+                    {Math.round(tempoBpm)} BPM
                 </div>
             </div>
 
-            {/* Browse / Load */}
-            <div className="w-full flex flex-col items-center gap-2 rounded-xl border border-zinc-300 bg-white/35 shadow-[inset_0_0_18px_rgba(0,0,0,0.12)] p-2.5">
-                <div className="w-full flex items-center justify-between gap-2">
-                    <div className="text-[10px] font-mono uppercase tracking-widest text-zinc-700">Browse</div>
-                    <div className="flex items-center gap-1">
+            <div className="rounded-lg border border-white/10 bg-black/22 p-3">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                        <ListMusic className="h-4 w-4 text-slate-500" />
+                        <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-slate-100">
+                                {browseLabel || `Track ${String(clamp(browseIndex, 0, safeBrowseCount - 1) + 1).padStart(2, '0')}`}
+                            </div>
+                            <div className="text-[11px] text-slate-500 tabular-nums">
+                                {Math.round(browseTrackBpm)} BPM
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
                         <button
                             type="button"
                             onClick={onImportAudio}
-                            className="px-2 py-1 rounded-md border border-zinc-400 bg-gradient-to-b from-zinc-100/80 to-zinc-200/60 text-[9px] font-mono uppercase tracking-widest text-zinc-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] hover:brightness-110"
+                            className="flex h-9 items-center gap-1.5 rounded-md border border-white/10 bg-white/[0.03] px-2.5 text-xs font-semibold text-slate-300 transition-colors hover:border-cyan-300/35 hover:text-cyan-100"
                             title="Import audio track"
                         >
-                            Import
+                            <Upload className="h-3.5 w-3.5" />
+                            Audio
                         </button>
                         <button
                             type="button"
                             onClick={onImportBeatgrid}
                             disabled={!canImportBeatgrid}
-                            className={`px-2 py-1 rounded-md border text-[9px] font-mono uppercase tracking-widest shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]
-                                ${canImportBeatgrid
-                                    ? 'border-zinc-400 bg-gradient-to-b from-zinc-100/80 to-zinc-200/60 text-zinc-800 hover:brightness-110'
-                                    : 'border-zinc-300 bg-zinc-200/40 text-zinc-500 opacity-60 cursor-not-allowed'}`}
+                            className={`h-9 rounded-md border px-2.5 text-xs font-semibold transition-colors ${canImportBeatgrid
+                                ? 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-fuchsia-300/35 hover:text-fuchsia-100'
+                                : 'cursor-not-allowed border-white/5 bg-white/[0.02] text-slate-600'}`}
                             title={canImportBeatgrid ? 'Import beatgrid JSON for selected track' : 'Select an uploaded track to import beatgrid'}
                         >
                             Grid
                         </button>
                     </div>
                 </div>
-                <Knob
-                    label=""
-                    accent="#0f172a"
-                    value={browseValue}
-                    onChange={(v) => onBrowseIndex(clamp(Math.round(v * (safeBrowseCount - 1)), 0, safeBrowseCount - 1))}
-                    size={66}
-                    ariaLabel="Browse"
-                />
-                <div className="text-center leading-tight">
-                    <div className="text-[11px] font-mono text-zinc-800 truncate max-w-[260px]">
-                        {browseLabel || `Track ${String(clamp(browseIndex, 0, safeBrowseCount - 1) + 1).padStart(2, '0')}`}
-                    </div>
-                    <div className="text-[10px] font-mono text-zinc-600 tabular-nums">
-                        {Math.round(browseTrackBpm)} BPM
-                    </div>
+
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold uppercase text-slate-600">Browse</span>
+                    <input
+                        type="range"
+                        min={0}
+                        max={Math.max(0, safeBrowseCount - 1)}
+                        step={1}
+                        value={clamp(browseIndex, 0, safeBrowseCount - 1)}
+                        disabled={safeBrowseCount <= 1}
+                        onChange={(e) => onBrowseIndex(clamp(Number(e.currentTarget.value), 0, safeBrowseCount - 1))}
+                        className="min-w-0 flex-1 accent-cyan-300"
+                        style={{ accentColor: '#22d3ee' }}
+                        aria-label="Browse library"
+                    />
+                    <span className="w-10 text-right text-[10px] font-semibold tabular-nums text-slate-500">
+                        {Math.round(browseValue * 100)}%
+                    </span>
                 </div>
-                <div className="flex items-end gap-5">
-                    <div className="flex flex-col items-center gap-1">
-                        <button
-                            onClick={onLoadA}
-                            className="w-11 h-11 rounded-full border border-zinc-600 bg-gradient-to-b from-zinc-100 to-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.65),0_10px_18px_rgba(0,0,0,0.22)] hover:brightness-110"
-                            aria-label="Load deck 1"
-                        >
-                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-black/85 text-white font-black shadow-[0_0_14px_rgba(6,182,212,0.25)]">
-                                1
-                            </span>
-                        </button>
-                        <div className="text-[9px] font-mono uppercase tracking-widest text-zinc-700">Load</div>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                        <button
-                            onClick={onLoadB}
-                            className="w-11 h-11 rounded-full border border-zinc-600 bg-gradient-to-b from-zinc-100 to-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.65),0_10px_18px_rgba(0,0,0,0.22)] hover:brightness-110"
-                            aria-label="Load deck 2"
-                        >
-                            <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-black/85 text-white font-black shadow-[0_0_14px_rgba(217,70,239,0.25)]">
-                                2
-                            </span>
-                        </button>
-                        <div className="text-[9px] font-mono uppercase tracking-widest text-zinc-700">Load</div>
-                    </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                        onClick={onLoadA}
+                        className="min-h-10 rounded-md border border-cyan-300/25 bg-cyan-300/10 text-xs font-semibold uppercase text-cyan-100 transition-colors hover:border-cyan-200/50"
+                        aria-label="Load deck A"
+                    >
+                        Load A
+                    </button>
+                    <button
+                        onClick={onLoadB}
+                        className="min-h-10 rounded-md border border-fuchsia-300/25 bg-fuchsia-300/10 text-xs font-semibold uppercase text-fuchsia-100 transition-colors hover:border-fuchsia-200/50"
+                        aria-label="Load deck B"
+                    >
+                        Load B
+                    </button>
                 </div>
             </div>
 
-            {/* Channels */}
-            <div className="grid grid-cols-2 gap-3 w-full">
+            <div className="grid grid-cols-2 gap-3">
                 <ChannelStrip
-                    label="1"
+                    label="A"
                     accent={accentA}
+                    trackName={deckAName}
+                    isPlaying={deckAPlaying}
+                    level={levelA}
+                    cueActive={cueAActive}
+                    onCue={onCueA}
                     trim={trimA}
                     onTrim={onTrimA}
                     fader={faderA}
@@ -2113,8 +2151,13 @@ function MixerPanel({
                     onFilter={onFilterA}
                 />
                 <ChannelStrip
-                    label="2"
+                    label="B"
                     accent={accentB}
+                    trackName={deckBName}
+                    isPlaying={deckBPlaying}
+                    level={levelB}
+                    cueActive={cueBActive}
+                    onCue={onCueB}
                     trim={trimB}
                     onTrim={onTrimB}
                     fader={faderB}
@@ -2126,58 +2169,60 @@ function MixerPanel({
                 />
             </div>
 
-            {/* Master / Crossfader */}
-            <div className="w-full grid grid-cols-[auto_auto_1fr] gap-3 items-end pt-1">
-                <Knob label="Main" accent="#0f172a" value={master} onChange={onMaster} size={50} />
-                <div className="flex flex-col items-center gap-1">
-                    <Knob label="Pitch" accent="#0f172a" value={masterPitch} onChange={onMasterPitch} size={50} ariaLabel="Master pitch" />
-                    <div className="text-[10px] font-mono text-zinc-700 tabular-nums -mt-1">
-                        {(() => {
-                            const semis = Math.round((masterPitch - 0.5) * 24);
-                            return `${semis >= 0 ? '+' : ''}${semis} st`;
-                        })()}
+            <div className="rounded-lg border border-white/10 bg-black/22 p-3">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                    <div>
+                        <div className="text-[10px] font-semibold uppercase text-slate-500">Master</div>
+                        <div className="mt-1 text-xs text-slate-400 tabular-nums">
+                            Pitch {semis >= 0 ? '+' : ''}{semis} st
+                        </div>
                     </div>
+                    <button
+                        type="button"
+                        onClick={onAiBeatMatch}
+                        className="flex min-h-9 items-center gap-1.5 rounded-md border border-emerald-300/25 bg-emerald-300/10 px-2.5 text-xs font-semibold text-emerald-100 transition-colors hover:border-emerald-200/50"
+                    >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Beat Match
+                    </button>
                 </div>
-                <div className="min-w-0">
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                        <div className="text-[9px] font-mono uppercase tracking-widest text-zinc-600">
-                            Crossfade Mixer
-                        </div>
-                        <div className="flex flex-col items-end gap-0.5">
-                            <button
-                                type="button"
-                                onClick={onAiBeatMatch}
-                                className="px-2.5 py-1 rounded-md border border-emerald-700/70 bg-gradient-to-b from-emerald-200/55 to-emerald-900/25 text-emerald-950 text-[10px] font-mono uppercase tracking-widest shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_0_16px_rgba(16,185,129,0.18)] hover:brightness-110"
-                            >
-                                AI Beat Match
-                            </button>
-                            {beatMatchStatus ? (
-                                <div className="text-[9px] font-mono text-emerald-900/80 tabular-nums">
-                                    {beatMatchStatus}
-                                </div>
-                            ) : null}
-                        </div>
+
+                {beatMatchStatus ? (
+                    <div className="mb-3 rounded-md border border-emerald-300/20 bg-emerald-300/8 px-2.5 py-2 text-xs font-medium text-emerald-100">
+                        {beatMatchStatus}
                     </div>
-                    <div className="flex items-center justify-between text-[10px] font-mono text-zinc-600 mb-2">
-                        <span className="uppercase tracking-widest">Tempo Lock</span>
-                        <span className="tabular-nums text-zinc-800">{Math.round(tempoBpm)} BPM</span>
+                ) : null}
+
+                <div className="grid grid-cols-[auto_auto_1fr] items-center gap-3">
+                    <Knob label="Main" accent="#22d3ee" value={master} onChange={onMaster} size={52} />
+                    <Knob label="Pitch" accent="#e879f9" value={masterPitch} onChange={onMasterPitch} size={52} ariaLabel="Master pitch" />
+                    <div className="min-w-0">
+                        <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase text-slate-500">
+                            <span>Crossfader</span>
+                            <span className="tabular-nums">Master {Math.round(masterLevel * 100)}%</span>
+                        </div>
+                        <Crossfader
+                            value={crossfader}
+                            onChange={onCrossfader}
+                            accentA={accentA}
+                            accentB={accentB}
+                            compact
+                        />
                     </div>
-                    <Crossfader
-                        value={crossfader}
-                        onChange={onCrossfader}
-                        accentA={accentA}
-                        accentB={accentB}
-                        compact
-                    />
                 </div>
             </div>
-        </div>
+        </section>
     );
 }
 
 function ChannelStrip({
     label,
     accent,
+    trackName,
+    isPlaying,
+    level,
+    cueActive,
+    onCue,
     trim,
     onTrim,
     fader,
@@ -2189,6 +2234,11 @@ function ChannelStrip({
 }: {
     label: string;
     accent: string;
+    trackName: string;
+    isPlaying: boolean;
+    level: number;
+    cueActive: boolean;
+    onCue: () => void;
     trim: number;
     onTrim: (v: number) => void;
     fader: number;
@@ -2199,30 +2249,75 @@ function ChannelStrip({
     onFilter: (v: number) => void;
 }) {
     return (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-zinc-300 bg-white/35 shadow-[inset_0_0_18px_rgba(0,0,0,0.12)] px-2 py-2.5">
-            <div className="text-[10px] font-mono text-zinc-700">CH {label}</div>
-
-            <Knob label="Level" accent={accent} value={trim} onChange={onTrim} size={36} />
-
-            <div className="flex flex-col items-center gap-2">
-                <Knob label="Treble" accent={accent} value={eq.high} onChange={onEq.high} size={34} />
-                <Knob label="Mid" accent={accent} value={eq.mid} onChange={onEq.mid} size={34} />
-                <Knob label="Bass" accent={accent} value={eq.low} onChange={onEq.low} size={34} />
+        <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-white/10 bg-[#111821] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
+            <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase text-slate-500">
+                        <span>CH {label}</span>
+                        <span className={`h-1.5 w-1.5 rounded-full ${isPlaying ? 'bg-emerald-300' : 'bg-slate-600'}`} />
+                    </div>
+                    <div className="mt-1 truncate text-xs font-semibold text-slate-200">{trackName}</div>
+                </div>
+                <LevelMeter level={level} accent={accent} />
             </div>
 
-            <Knob label="Filter" accent={accent} value={filter} onChange={onFilter} size={48} />
+            <div className="grid grid-cols-2 gap-2">
+                <Knob label="Trim" accent={accent} value={trim} onChange={onTrim} size={38} />
+                <Knob label="High" accent={accent} value={eq.high} onChange={onEq.high} size={38} />
+                <Knob label="Mid" accent={accent} value={eq.mid} onChange={onEq.mid} size={38} />
+                <Knob label="Low" accent={accent} value={eq.low} onChange={onEq.low} size={38} />
+            </div>
 
-            <VerticalFader
-                label="Fader"
-                value={fader}
-                onChange={onFader}
-                min={0}
-                max={1}
-                step={0.01}
-                accent={accent}
-                height={140}
-                ariaLabel={`Channel ${label} fader`}
-            />
+            <div className="flex items-end justify-between gap-3">
+                <div className="flex flex-col items-center gap-3">
+                    <Knob label="Filter" accent={accent} value={filter} onChange={onFilter} size={52} />
+                    <button
+                        type="button"
+                        onClick={onCue}
+                        className={`flex min-h-9 items-center gap-1.5 rounded-md border px-2.5 text-[11px] font-semibold uppercase transition-colors ${cueActive
+                            ? 'border-amber-300/55 bg-amber-300/14 text-amber-100 shadow-[0_0_18px_rgba(251,191,36,0.14)]'
+                            : 'border-white/10 bg-white/[0.03] text-slate-400 hover:border-amber-300/35 hover:text-amber-100'}`}
+                    >
+                        <Headphones className="h-3.5 w-3.5" />
+                        Cue
+                    </button>
+                </div>
+
+                <VerticalFader
+                    label="Level"
+                    value={fader}
+                    onChange={onFader}
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    accent={accent}
+                    height={150}
+                    ariaLabel={`Channel ${label} fader`}
+                />
+            </div>
+        </div>
+    );
+}
+
+function LevelMeter({ level, accent }: { level: number; accent: string }) {
+    const lit = Math.round(clamp(level, 0, 1) * 12);
+
+    return (
+        <div className="flex h-16 w-3 flex-col-reverse gap-0.5 rounded-full bg-black/40 p-0.5" aria-hidden="true">
+            {Array.from({ length: 12 }).map((_, i) => {
+                const active = i < lit;
+                const color = i > 9 ? '#fb7185' : i > 7 ? '#facc15' : accent;
+                return (
+                    <div
+                        key={i}
+                        className="h-1 flex-1 rounded-full"
+                        style={{
+                            background: active ? color : 'rgba(148,163,184,0.16)',
+                            boxShadow: active ? `0 0 8px ${color}88` : undefined,
+                        }}
+                    />
+                );
+            })}
         </div>
     );
 }
@@ -2271,7 +2366,7 @@ function Knob({
                 aria-valuemin={0}
                 aria-valuemax={1}
                 aria-valuenow={Number(value.toFixed(3))}
-                className="relative rounded-full outline-none focus:ring-2 focus:ring-black/30"
+                className="relative rounded-full outline-none focus:ring-2 focus:ring-cyan-300/35"
                 style={{ width: size, height: size, touchAction: 'none' }}
                 onDoubleClick={() => onChange(0.5)}
                 onPointerDown={(e) => {
@@ -2311,18 +2406,18 @@ function Knob({
                     className="absolute inset-0 rounded-full"
                     style={{
                         background:
-                            'radial-gradient(circle at 30% 25%, #f8fafc 0%, #e5e7eb 35%, #a1a1aa 70%, #4b5563 100%)',
+                            'radial-gradient(circle at 30% 25%, #3a4653 0%, #1d2630 35%, #0b1017 70%, #020409 100%)',
                         boxShadow:
-                            'inset 0 12px 18px rgba(255,255,255,0.35), ' +
-                            'inset 0 -18px 24px rgba(0,0,0,0.45), ' +
-                            '0 6px 12px rgba(0,0,0,0.25)',
+                            'inset 0 10px 18px rgba(255,255,255,0.07), ' +
+                            'inset 0 -18px 24px rgba(0,0,0,0.78), ' +
+                            '0 8px 16px rgba(0,0,0,0.34)',
                     }}
                 />
                 <div
-                    className="absolute inset-[10%] rounded-full opacity-60"
+                    className="absolute inset-[10%] rounded-full opacity-45"
                     style={{
                         background:
-                            'repeating-conic-gradient(from 0deg, rgba(255,255,255,0.55) 0deg 3deg, rgba(0,0,0,0.18) 3deg 9deg)',
+                            'repeating-conic-gradient(from 0deg, rgba(255,255,255,0.18) 0deg 3deg, rgba(0,0,0,0.3) 3deg 9deg)',
                         filter: 'blur(0.25px)',
                     }}
                     aria-hidden="true"
@@ -2331,7 +2426,7 @@ function Knob({
                     className="absolute inset-[18%] rounded-full"
                     style={{
                         background:
-                            'radial-gradient(circle at 35% 30%, #111827 0%, #0b0f16 60%, #020617 100%)',
+                            'radial-gradient(circle at 35% 30%, #101826 0%, #070b11 60%, #020409 100%)',
                         boxShadow: 'inset 0 0 18px rgba(0,0,0,0.85)',
                     }}
                 />
@@ -2345,7 +2440,7 @@ function Knob({
                 />
             </div>
             {label ? (
-                <div className="text-[8px] font-mono uppercase tracking-widest text-zinc-600">
+                <div className="text-[9px] font-semibold uppercase text-slate-500">
                     {label}
                 </div>
             ) : null}
@@ -2402,7 +2497,7 @@ function VerticalFader({
                 aria-valuemin={min}
                 aria-valuemax={max}
                 aria-valuenow={Number(value.toFixed(3))}
-                className="relative w-12 rounded-xl border border-zinc-500 bg-gradient-to-b from-zinc-950/70 to-zinc-900/60 shadow-[inset_0_0_18px_rgba(0,0,0,0.7)] outline-none focus:ring-2 focus:ring-black/30"
+                className="relative w-12 rounded-lg border border-white/10 bg-[#070a10] shadow-[inset_0_0_18px_rgba(0,0,0,0.76)] outline-none focus:ring-2 focus:ring-cyan-300/35"
                 style={{ height, touchAction: 'none' }}
                 onPointerDown={(e) => {
                     (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
@@ -2447,27 +2542,27 @@ function VerticalFader({
                     className="absolute inset-0 rounded-xl opacity-40"
                     style={{
                         background:
-                            'repeating-linear-gradient(0deg, rgba(255,255,255,0.22) 0px, rgba(255,255,255,0.22) 2px, transparent 2px, transparent 11px)',
+                            'repeating-linear-gradient(0deg, rgba(255,255,255,0.16) 0px, rgba(255,255,255,0.16) 1px, transparent 1px, transparent 11px)',
                     }}
                     aria-hidden="true"
                 />
                 <div
-                    className="absolute left-1/2 top-2 bottom-2 w-[10px] -translate-x-1/2 rounded-full bg-black/70 border border-zinc-700 shadow-[inset_0_0_12px_rgba(0,0,0,0.9)]"
+                    className="absolute bottom-2 left-1/2 top-2 w-[10px] -translate-x-1/2 rounded-full border border-white/10 bg-black/80 shadow-[inset_0_0_12px_rgba(0,0,0,0.9)]"
                     aria-hidden="true"
                 />
                 <div
-                    className="absolute left-1/2 w-14 h-5 -translate-x-1/2 -translate-y-1/2 rounded-md border border-zinc-400 shadow-[0_8px_16px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.65)]"
+                    className="absolute left-1/2 h-6 w-14 -translate-x-1/2 -translate-y-1/2 rounded-md border border-white/15 shadow-[0_8px_16px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.16)]"
                     style={{
                         top: `${(1 - normalized) * 100}%`,
-                        background: 'linear-gradient(180deg, #f8fafc 0%, #d1d5db 55%, #9ca3af 100%)',
+                        background: 'linear-gradient(180deg, #263241 0%, #141b25 55%, #090d13 100%)',
                     }}
                 >
                     <div
                         className="absolute inset-1 rounded"
                         style={{
                             background:
-                                'repeating-linear-gradient(90deg, rgba(0,0,0,0.22) 0px, rgba(0,0,0,0.22) 1px, transparent 1px, transparent 4px)',
-                            opacity: 0.55,
+                                'repeating-linear-gradient(90deg, rgba(255,255,255,0.18) 0px, rgba(255,255,255,0.18) 1px, transparent 1px, transparent 4px)',
+                            opacity: 0.5,
                         }}
                         aria-hidden="true"
                     />
@@ -2479,7 +2574,7 @@ function VerticalFader({
                 </div>
             </div>
             {label ? (
-                <div className="text-[8px] font-mono uppercase tracking-widest text-zinc-600">
+                <div className="text-[9px] font-semibold uppercase text-slate-500">
                     {label}
                 </div>
             ) : null}
@@ -2519,14 +2614,14 @@ function Crossfader({
     const normalized = clamp((value + 1) / 2, 0, 1);
 
     return (
-        <div className={`w-full rounded-xl border border-zinc-400 bg-white/35 shadow-[inset_0_0_14px_rgba(0,0,0,0.18)] ${compact ? 'px-3 py-2' : 'px-4 py-3'}`}>
+        <div className={`w-full rounded-lg border border-white/10 bg-black/25 shadow-[inset_0_0_14px_rgba(0,0,0,0.34)] ${compact ? 'px-3 py-2' : 'px-4 py-3'}`}>
             {compact ? null : (
-                <div className="text-[9px] font-mono uppercase tracking-widest text-zinc-600 text-center mb-2">
+                <div className="text-center mb-2 text-[10px] font-semibold uppercase text-slate-500">
                     Crossfader
                 </div>
             )}
             <div className="flex items-center gap-3">
-                <span className="text-xs font-mono font-bold tabular-nums" style={{ color: accentA }}>1</span>
+                <span className="text-xs font-bold tabular-nums" style={{ color: accentA }}>A</span>
                 <div
                     ref={trackRef}
                     role="slider"
@@ -2535,7 +2630,7 @@ function Crossfader({
                     aria-valuemin={-1}
                     aria-valuemax={1}
                     aria-valuenow={Number(value.toFixed(3))}
-                    className="relative flex-1 h-8 rounded-full border border-zinc-700 bg-gradient-to-b from-zinc-950/80 to-zinc-900/70 shadow-[inset_0_0_18px_rgba(0,0,0,0.75)] outline-none focus:ring-2 focus:ring-black/30"
+                    className="relative h-8 flex-1 rounded-full border border-white/10 bg-[#070a10] shadow-[inset_0_0_18px_rgba(0,0,0,0.78)] outline-none focus:ring-2 focus:ring-cyan-300/35"
                     style={{ touchAction: 'none' }}
                     onPointerDown={(e) => {
                         (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
@@ -2572,7 +2667,7 @@ function Crossfader({
                         className="absolute inset-0 rounded-full opacity-40"
                         style={{
                             background:
-                                'repeating-linear-gradient(90deg, rgba(255,255,255,0.2) 0px, rgba(255,255,255,0.2) 2px, transparent 2px, transparent 12px)',
+                                'repeating-linear-gradient(90deg, rgba(255,255,255,0.14) 0px, rgba(255,255,255,0.14) 1px, transparent 1px, transparent 12px)',
                         }}
                         aria-hidden="true"
                     />
@@ -2582,19 +2677,19 @@ function Crossfader({
                         style={{ left: `${normalized * 100}%`, transform: 'translate(-50%, -50%)' }}
                         aria-hidden="true"
                     >
-                        <div className="relative w-12 h-6 rounded-md border border-zinc-400 bg-gradient-to-b from-zinc-50 to-zinc-300 shadow-[0_10px_18px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.65)]">
+                        <div className="relative h-6 w-12 rounded-md border border-white/15 bg-gradient-to-b from-[#263241] via-[#141b25] to-[#090d13] shadow-[0_10px_18px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.16)]">
                             <div
                                 className="absolute inset-1 rounded"
                                 style={{
                                     background:
-                                        'repeating-linear-gradient(90deg, rgba(0,0,0,0.22) 0px, rgba(0,0,0,0.22) 1px, transparent 1px, transparent 4px)',
+                                        'repeating-linear-gradient(90deg, rgba(255,255,255,0.16) 0px, rgba(255,255,255,0.16) 1px, transparent 1px, transparent 4px)',
                                     opacity: 0.55,
                                 }}
                             />
                         </div>
                     </div>
                 </div>
-                <span className="text-xs font-mono font-bold tabular-nums" style={{ color: accentB }}>2</span>
+                <span className="text-xs font-bold tabular-nums" style={{ color: accentB }}>B</span>
             </div>
         </div>
     );
