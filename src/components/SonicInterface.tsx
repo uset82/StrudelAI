@@ -324,7 +324,7 @@ export default function SonicInterface() {
                 setIsRecording(false);
                 isRecordingRef.current = false;
                 // Focus the input so user can edit or press Enter to send
-                inputRef.current?.focus();
+                inputRef.current?.focus({ preventScroll: true });
             }
         };
 
@@ -386,13 +386,14 @@ export default function SonicInterface() {
         [messages]
     );
 
-    // Always keep chat scrolled to the latest message
+    // Always keep chat scrolled to the latest message after layout settles.
     useEffect(() => {
-        queueMicrotask(() => {
+        const frame = window.requestAnimationFrame(() => {
             const el = logRef.current;
             if (!el) return;
             el.scrollTop = el.scrollHeight;
         });
+        return () => window.cancelAnimationFrame(frame);
     }, [chatMessages.length, isThinking]);
 
     // Auto-focus input when audio becomes ready
@@ -400,7 +401,7 @@ export default function SonicInterface() {
         if (isAudioReady && inputRef.current) {
             console.log('[SonicInterface] Audio ready, focusing input');
             setTimeout(() => {
-                inputRef.current?.focus();
+                inputRef.current?.focus({ preventScroll: true });
             }, 100);
         }
     }, [isAudioReady]);
@@ -761,16 +762,19 @@ export default function SonicInterface() {
                                 </section>
                             )}
 
-                            <section className="order-4 flex shrink-0 flex-col border-b border-white/10 py-5 max-lg:min-h-[430px] max-lg:w-full max-lg:flex-none max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4">
+                            <section
+                                className="order-4 flex min-h-0 flex-1 flex-col border-b border-white/10 py-5 lg:min-h-[360px] max-lg:h-[360px] max-lg:w-full max-lg:flex-none max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4 max-sm:h-[340px]"
+                                style={{ overflowAnchor: 'none' }}
+                            >
                                 <div className="mb-3 flex items-center justify-between gap-3">
                                     <h2 className="text-sm font-semibold text-slate-100">Chat</h2>
                                     <span className="text-xs text-slate-500">{chatMessages.length > 0 ? `${chatMessages.length} messages` : 'Ready'}</span>
                                 </div>
 
-                                <div className="flex min-h-[360px] flex-col overflow-hidden rounded-lg border border-cyan-300/25 bg-[#07090c] shadow-[0_0_34px_rgba(34,211,238,0.05)] max-sm:min-h-[340px]">
+                                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-cyan-300/25 bg-[#07090c] shadow-[0_0_34px_rgba(34,211,238,0.05)]">
                                     <div
                                         ref={logRef}
-                                        className="studio-scrollbar min-h-0 flex-1 overflow-y-auto p-3"
+                                        className="studio-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain p-3"
                                     >
                                         <div className="flex flex-col gap-3">
                                             {chatMessages.length === 0 && !isThinking && (
