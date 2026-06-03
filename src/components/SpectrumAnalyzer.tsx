@@ -12,17 +12,11 @@ export const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({ analyser }) 
     const [peakHold, setPeakHold] = useState(true);
 
     useEffect(() => {
-        if (!analyser || !canvasRef.current) return;
+        if (!canvasRef.current) return;
 
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
-
-        // Initial setup
-        if (dataArrayRef.current.length !== analyser.frequencyBinCount) {
-            dataArrayRef.current = new Uint8Array(analyser.frequencyBinCount);
-            peakDataRef.current = new Array(analyser.frequencyBinCount).fill(0);
-        }
 
         // Set canvas size with device pixel ratio
         const dpr = window.devicePixelRatio || 1;
@@ -33,15 +27,94 @@ export const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({ analyser }) 
         const WIDTH = canvas.offsetWidth;
         const HEIGHT = canvas.offsetHeight;
 
+        const drawMonitorGrid = () => {
+            const bgGradient = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+            bgGradient.addColorStop(0, '#0d1117');
+            bgGradient.addColorStop(1, '#111827');
+            ctx.fillStyle = bgGradient;
+            ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.11)';
+            ctx.lineWidth = 0.5;
+
+            for (let i = 0; i <= 10; i++) {
+                const y = (HEIGHT / 10) * i;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(WIDTH, y);
+                ctx.stroke();
+            }
+
+            const musicalFreqs = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+            const sampleRate = analyser?.context.sampleRate ?? 44100;
+
+            musicalFreqs.forEach(freq => {
+                const nyquist = sampleRate / 2;
+                const logMin = Math.log10(20);
+                const logMax = Math.log10(nyquist);
+                const logFreq = Math.log10(freq);
+                const x = ((logFreq - logMin) / (logMax - logMin)) * WIDTH;
+
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, HEIGHT);
+                ctx.strokeStyle = freq % 1000 === 0 ? 'rgba(148, 163, 184, 0.18)' : 'rgba(148, 163, 184, 0.09)';
+                ctx.stroke();
+            });
+
+            ctx.fillStyle = 'rgba(148, 163, 184, 0.75)';
+            ctx.font = '9px "Geist Mono", "Courier New", monospace';
+            ctx.textAlign = 'center';
+
+            [
+                { freq: 20, label: '20' },
+                { freq: 100, label: '100' },
+                { freq: 500, label: '500' },
+                { freq: 1000, label: '1k' },
+                { freq: 2000, label: '2k' },
+                { freq: 5000, label: '5k' },
+                { freq: 10000, label: '10k' },
+                { freq: 20000, label: '20k' }
+            ].forEach(({ freq, label }) => {
+                const nyquist = sampleRate / 2;
+                const logMin = Math.log10(20);
+                const logMax = Math.log10(nyquist);
+                const logFreq = Math.log10(freq);
+                const x = ((logFreq - logMin) / (logMax - logMin)) * WIDTH;
+                ctx.fillText(label, x, HEIGHT - 8);
+            });
+
+            ctx.textAlign = 'right';
+            ['0', '-12', '-24', '-36', '-48', '-60'].forEach((label, i) => {
+                const y = (HEIGHT / 5) * i + 14;
+                ctx.fillText(label + 'dB', WIDTH - 10, y);
+            });
+        };
+
+        if (!analyser) {
+            drawMonitorGrid();
+            ctx.textAlign = 'left';
+            ctx.fillStyle = 'rgba(148, 163, 184, 0.55)';
+            ctx.font = '11px "Geist Mono", "Courier New", monospace';
+            ctx.fillText('Signal pending', 16, 24);
+            return;
+        }
+
+        // Initial setup
+        if (dataArrayRef.current.length !== analyser.frequencyBinCount) {
+            dataArrayRef.current = new Uint8Array(analyser.frequencyBinCount);
+            peakDataRef.current = new Array(analyser.frequencyBinCount).fill(0);
+        }
+
         // Frequency band definitions (like professional analyzers)
         const frequencyBands = {
-            subBass: { start: 20, end: 60, color: '#4a1a4a' },      // Deep purple
-            bass: { start: 60, end: 250, color: '#6a2a8a' },        // Purple
-            lowMid: { start: 250, end: 500, color: '#3a4a9a' },     // Blue
-            mid: { start: 500, end: 2000, color: '#aa3a3a' },       // Red
-            highMid: { start: 2000, end: 4000, color: '#ca5a2a' },  // Orange
-            presence: { start: 4000, end: 8000, color: '#4a8a3a' }, // Green
-            brilliance: { start: 8000, end: 20000, color: '#5aaa4a' } // Light green
+            subBass: { start: 20, end: 60, color: '#155e75' },
+            bass: { start: 60, end: 250, color: '#2563eb' },
+            lowMid: { start: 250, end: 500, color: '#7c3aed' },
+            mid: { start: 500, end: 2000, color: '#be123c' },
+            highMid: { start: 2000, end: 4000, color: '#c2410c' },
+            presence: { start: 4000, end: 8000, color: '#15803d' },
+            brilliance: { start: 8000, end: 20000, color: '#65a30d' }
         };
 
         const draw = () => {
@@ -74,13 +147,13 @@ export const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({ analyser }) 
 
             // Dark gradient background
             const bgGradient = ctx.createLinearGradient(0, 0, 0, HEIGHT);
-            bgGradient.addColorStop(0, '#0a0a0a');
-            bgGradient.addColorStop(1, '#1a1a1a');
+            bgGradient.addColorStop(0, '#0d1117');
+            bgGradient.addColorStop(1, '#111827');
             ctx.fillStyle = bgGradient;
             ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
             // Draw detailed grid
-            ctx.strokeStyle = '#2a2a2a';
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.11)';
             ctx.lineWidth = 0.5;
 
             // Horizontal lines (every 6dB)
@@ -107,7 +180,7 @@ export const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({ analyser }) 
                 ctx.beginPath();
                 ctx.moveTo(x, 0);
                 ctx.lineTo(x, HEIGHT);
-                ctx.strokeStyle = freq % 1000 === 0 ? '#3a3a3a' : '#2a2a2a';
+                ctx.strokeStyle = freq % 1000 === 0 ? 'rgba(148, 163, 184, 0.18)' : 'rgba(148, 163, 184, 0.09)';
                 ctx.stroke();
             });
 
@@ -172,8 +245,8 @@ export const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({ analyser }) 
 
                 // Draw peak hold line
                 if (peakHold && normalizedPeak > 0.05) {
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = 'rgba(226, 232, 240, 0.78)';
+                    ctx.lineWidth = 1;
                     ctx.beginPath();
                     ctx.moveTo(x, peakY);
                     ctx.lineTo(x + barWidth - 0.5, peakY);
@@ -183,15 +256,15 @@ export const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({ analyser }) 
                 // Add glow for prominent frequencies
                 if (normalizedValue > 0.3) {
                     ctx.shadowColor = normalizedValue > 0.7 ? '#ff4444' : barColor;
-                    ctx.shadowBlur = 6 * normalizedValue;
+                    ctx.shadowBlur = 3 * normalizedValue;
                     ctx.fillRect(x, y, barWidth - 0.5, barHeight);
                     ctx.shadowBlur = 0;
                 }
             }
 
             // Draw frequency labels
-            ctx.fillStyle = '#888';
-            ctx.font = '9px "Courier New", monospace';
+            ctx.fillStyle = 'rgba(148, 163, 184, 0.75)';
+            ctx.font = '9px "Geist Mono", "Courier New", monospace';
             ctx.textAlign = 'center';
 
             const freqLabels = [
@@ -235,16 +308,17 @@ export const SpectrumAnalyzer: React.FC<SpectrumAnalyzerProps> = ({ analyser }) 
     // Helper function to adjust color brightness (unused after inline refactor)
 
     return (
-        <div className="spectrum-container relative w-full h-full">
+        <div className="spectrum-container relative h-full w-full">
             <canvas
                 ref={canvasRef}
                 className="spectrum-canvas spectrum-canvas-container"
+                aria-label="Frequency spectrum analyzer"
             />
             <button
                 onClick={() => setPeakHold(!peakHold)}
-                className="absolute top-2 right-2 px-2 py-1 text-xs font-mono bg-black/80 border border-cyan-500/30 rounded text-cyan-400 hover:bg-cyan-900/20 transition-colors"
+                className="absolute right-3 top-3 rounded-md border border-white/10 bg-[#0b0e12]/85 px-2.5 py-1 text-xs font-medium text-slate-300 transition-colors hover:border-cyan-300/40 hover:text-cyan-100 max-sm:hidden"
             >
-                {peakHold ? 'PEAK: ON' : 'PEAK: OFF'}
+                {peakHold ? 'Peak on' : 'Peak off'}
             </button>
         </div>
     );

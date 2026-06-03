@@ -418,6 +418,23 @@ function sanitizeCodeForEval(code: string) {
     // and only fix obvious trailing commas at the end of the string.
     cleaned = cleaned.replace(/,\s*$/, '');
 
+    // Balance parentheses - common AI generation issue
+    let openCount = 0;
+    for (const ch of cleaned) {
+        if (ch === '(') openCount++;
+        if (ch === ')') openCount--;
+    }
+    // If extra closing parens, strip them from the end
+    while (openCount < 0 && cleaned.endsWith(')')) {
+        cleaned = cleaned.slice(0, -1);
+        openCount++;
+    }
+    // If extra opening parens, append closing parens
+    while (openCount > 0) {
+        cleaned += ')';
+        openCount--;
+    }
+
     // Replace missing-sample calls with synth fallbacks only when sample libraries are unavailable.
     if (!drumSamplesLoaded) {
         cleaned = replaceSampleCalls(cleaned);

@@ -89,12 +89,11 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
 
     // removed duplicate effect
 
-    // Auto-resize textarea to fit content so no inner scrollbars appear
+    // Keep the editor pinned to its workspace instead of resizing the app shell.
     const resizeTextarea = useCallback(() => {
         const el = textareaRef.current;
         if (!el) return;
-        el.style.height = 'auto';
-        el.style.height = `${el.scrollHeight}px`;
+        el.style.height = '100%';
     }, []);
 
     useEffect(() => {
@@ -319,32 +318,42 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
         console.log('[StrudelCodeView] Auto-fixed code');
     }, [editableCode, onCodeChange]);
 
+    const editorLineCount = Math.max(16, editableCode.split('\n').length + 4);
+
     return (
-        <div className="flex-1 font-mono text-sm text-cyan-100 relative">
+        <div className="relative flex h-full min-h-0 min-w-0 flex-col font-mono text-[13px] text-slate-100 max-sm:text-base">
             {runError && (
-                <div className="mb-3 flex items-center justify-between">
-                    <div className="text-xs text-red-400">{runError}</div>
+                <div className="mb-3 flex items-center justify-between rounded-md border border-rose-400/20 bg-rose-400/10 px-3 py-2">
+                    <div className="text-xs font-medium text-rose-200">{runError}</div>
                     <button
                         onClick={autoFix}
-                        className="px-3 py-1 text-xs bg-cyan-600 hover:bg-cyan-500 text-white rounded transition-colors"
+                        className="rounded-md bg-rose-200 px-3 py-1 text-xs font-semibold text-rose-950 transition-colors hover:bg-white"
                     >
                         Auto-Fix
                     </button>
                 </div>
             )}
 
-            <div className="relative w-full">
+            <div className="relative min-h-0 min-w-0 flex-1">
                 {isLoadingCompletion && (
-                    <div className="absolute top-2 right-2 z-30">
-                        <div className="w-2 h-2 bg-cyan-500 rounded-full animate-pulse"></div>
+                    <div className="absolute right-0 top-0 z-30">
+                        <div className="h-2 w-2 animate-pulse rounded-full bg-cyan-300"></div>
                     </div>
                 )}
+                <div
+                    className="pointer-events-none absolute inset-y-0 left-0 z-20 w-10 border-r border-white/10 pr-2 pt-0 text-right font-mono text-[11px] leading-6 text-slate-700 max-sm:w-8 max-sm:pr-1.5 max-sm:text-[10px] max-sm:leading-5"
+                    aria-hidden="true"
+                >
+                    {Array.from({ length: editorLineCount }).map((_, index) => (
+                        <div key={index}>{index + 1}</div>
+                    ))}
+                </div>
                 <textarea
                     ref={textareaRef}
                     id="strudel-code-editor"
                     name="strudelCode"
                     aria-label="Strudel code editor"
-                    className="w-full min-h-[300px] bg-black/40 border border-cyan-900/50 p-4 text-cyan-100 font-mono text-sm resize-none overflow-hidden cursor-text pointer-events-auto z-10 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 rounded-lg relative"
+                    className="studio-scrollbar relative z-10 h-full min-h-[260px] min-w-0 w-full cursor-text resize-none overflow-auto border-none bg-transparent py-0 pl-14 pr-2 font-mono text-[13px] leading-6 text-slate-100 caret-cyan-200 outline-none placeholder:text-slate-600 focus:outline-none max-sm:pl-11 max-sm:text-base max-sm:leading-6"
                     value={editableCode}
                     onChange={(e) => {
                         const newValue = e.target.value;
@@ -451,10 +460,10 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
                 {/* Ghost text suggestion */}
                 {suggestion && (
                     <div
-                        className="absolute top-0 left-0 w-full h-full pointer-events-none font-mono text-sm pt-[17px] pl-[17px] whitespace-pre-wrap overflow-wrap-break-word text-transparent z-0 overflow-hidden"
+                        className="pointer-events-none absolute left-0 top-0 z-0 h-full w-full overflow-hidden whitespace-pre-wrap overflow-wrap-break-word py-0 pl-14 pr-2 font-mono text-[13px] leading-6 text-transparent max-sm:pl-11 max-sm:text-base max-sm:leading-6"
                         aria-hidden="true"
                     >
-                        {editableCode}<span className="text-cyan-500/70 bg-cyan-500/10">{suggestion}</span>
+                        {editableCode}<span className="bg-cyan-300/10 text-cyan-200/70">{suggestion}</span>
                     </div>
                 )}
             </div>

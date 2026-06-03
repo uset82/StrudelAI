@@ -9,18 +9,21 @@ const MUSICGEN_URL = process.env.MUSICGEN_URL || 'http://localhost:5001';
 
 // YouTube to Strudel server URL
 const YOUTUBE_STRUDEL_URL = process.env.YOUTUBE_STRUDEL_URL || 'http://localhost:5002';
+const OPENROUTER_TIMEOUT_MS = Number(process.env.OPENROUTER_TIMEOUT_MS || 20000);
 
 // Initialize OpenRouter client (using OpenAI SDK with custom baseURL)
 const openai = new OpenAI({
     baseURL: 'https://openrouter.ai/api/v1',
     apiKey: process.env.OPENROUTER_API_KEY || '',
+    timeout: Number.isFinite(OPENROUTER_TIMEOUT_MS) ? OPENROUTER_TIMEOUT_MS : 20000,
+    maxRetries: 0,
     defaultHeaders: {
         'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
         'X-Title': 'Aether Sonic',
     },
 });
 
-const MODEL_NAME = process.env.MODEL_NAME || 'x-ai/grok-4.1-fast';
+const MODEL_NAME = process.env.MODEL_NAME || 'moonshotai/kimi-k2.6:free';
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -30,6 +33,26 @@ const corsHeaders = {
 
 function jsonWithCors(data: unknown, init: ResponseInit = {}) {
     return NextResponse.json(data, { ...init, headers: corsHeaders });
+}
+
+function isRecoverableProviderError(error: unknown) {
+    const status = (error as { status?: number })?.status;
+    if (typeof status === 'number') {
+        return status === 408 || status === 429 || status >= 500;
+    }
+
+    const code = String((error as { code?: string })?.code || '').toLowerCase();
+    const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+
+    return (
+        code.includes('timeout') ||
+        code.includes('etimedout') ||
+        code.includes('econnreset') ||
+        message.includes('timeout') ||
+        message.includes('timed out') ||
+        message.includes('fetch failed') ||
+        message.includes('network')
+    );
 }
 
 export async function OPTIONS() {
@@ -453,7 +476,7 @@ const sanitizeGeneratedCode = (input: string) => {
     // Allow sequences but filter out invalid words
     output = output.replace(/\.vowel\(\s*(["'`])([^"'`]+)\1\s*\)/gi, (_match, quote, content) => {
         // First, sanitize individual tokens within the content
-        let sanitizedTokenContent = content.replace(/[a-z]+/gi, (token: string) => {
+        const sanitizedTokenContent = content.replace(/[a-z]+/gi, (token: string) => {
             if (/^[aeiou]$/i.test(token)) return token.toLowerCase();
             const match = token.match(/[aeiou]/i);
             return match ? match[0].toLowerCase() : 'a';
@@ -570,18 +593,91 @@ const detectRequestedTracks = (prompt: string) => {
     return any ? wants : { drums: true, bass: true, melody: true, voice: true, fx: true };
 };
 
-const enforceAtLeastOne = (tracks: Record<string, string | null>) => {
+const enforceAtLeastOne = (tracks: Record<string, string | null>, prompt?: string) => {
     const hasAny = Object.values(tracks).some(v => typeof v === 'string' && v.trim());
     if (hasAny) return tracks;
-    // Default to a simple drum pulse if nothing was provided
+
+    // Genre-specific full track fallbacks when model returns empty tracks
+    const p = (prompt || '').toLowerCase();
+    if (/techno|tech|industrial|hard|dark|rave|mauro|picotto|iguana|lizard|komodo|italian/i.test(p)) {
+        return {
+            drums: "stack(s('RolandTR909_bd*4').gain(1), s('~ RolandTR909_cp ~ RolandTR909_cp').gain(0.8), s('RolandTR909_hh*16').gain(0.35), s('~ RolandTR909_oh ~ RolandTR909_oh').gain(0.22))",
+            bass: "note(m('c1 ~ c1 ~ eb1 ~ g1 ~')).s('sawtooth').att(0.01).decay(0.2).lpf(sine.range(220, 650).slow(4)).resonance(10).gain(0.7)",
+            melody: "note(m('<c4 eb4 g4> ~ ~ <c4 eb4 g4>')).s('supersaw').att(0.01).decay(0.18).lpf(2600).room(0.25).delay(0.15).gain(0.35).slow(2)",
+            voice: null,
+            fx: "s('pink').hpf(sine.range(200, 12000).slow(8)).gain(sine.range(0.1, 0.4).slow(8))"
+        };
+    }
+    if (/house|deep|groovy|warm|chord/i.test(p)) {
+        return {
+            drums: "stack(s('RolandTR808_bd*4').gain(0.95), s('~ RolandTR909_cp ~ RolandTR909_cp').gain(0.75), s('~ RolandTR909_hh ~ RolandTR909_hh').gain(0.32), s('RolandTR909_hh*8').gain(0.2))",
+            bass: "note(m('c2 ~ ~ c2 ~ g1 ~ ~')).s('triangle').att(0.01).decay(0.25).lpf(700).gain(0.7)",
+            melody: "note(m('<c4 e4 g4> ~ <d4 f4 a4> ~')).s('piano').decay(0.2).room(0.35).lpf(5000).gain(0.35).slow(2)",
+            voice: null,
+            fx: "s('pink').lpf(sine.range(500, 8000).slow(16)).gain(sine.range(0.05, 0.25).slow(16)).room(0.4)"
+        };
+    }
+    if (/ambient|atmos|chill|relax|calm|peaceful/i.test(p)) {
+        return {
+            drums: null,
+            bass: "note(m('c2 ~ ~ ~ e2 ~ ~ ~')).s('sine').lpf(300).room(0.7).slow(4).gain(0.5)",
+            melody: null,
+            voice: null,
+            fx: "note(m('<c5 e5 g5> <g4 b4 d5>')).s('sine').slow(8).room(0.95).delay(0.6).lpf(1500).gain(0.4)"
+        };
+    }
+    if (/dnb|drum.?and.?bass|jungle|breakbeat/i.test(p)) {
+        return {
+            drums: "stack(s('RolandTR909_bd ~ ~ RolandTR909_bd ~ RolandTR909_bd ~').gain(1), s('~ ~ RolandTR909_sd ~ ~ RolandTR909_sd ~ RolandTR909_sd').gain(0.9), s('RolandTR909_hh*16').gain(0.22))",
+            bass: "note(m('c1 c1 c1 ~ eb1 eb1 ~ c1')).s('sawtooth').att(0.01).decay(0.2).lpf(sine.range(200, 900).slow(2)).gain(0.8)",
+            melody: "note(m('c5 ~ eb5 ~ g5 ~ ~ ~')).s('sine').att(0.01).decay(0.12).hpf(500).room(0.25).gain(0.3)",
+            voice: null,
+            fx: null
+        };
+    }
+    if (/trance|uplift|euphoric/i.test(p)) {
+        return {
+            drums: "stack(s('RolandTR909_bd*4').gain(0.95), s('~ RolandTR909_cp ~ RolandTR909_cp').gain(0.75), s('~ RolandTR909_hh ~ RolandTR909_hh').gain(0.32), s('RolandTR909_hh*16').gain(0.18))",
+            bass: "note(m('~ a1 ~ a1 ~ a1 ~ a1')).s('sawtooth').att(0.01).decay(0.25).lpf(900).resonance(8).gain(0.7)",
+            melody: "note(m('a4 c5 e5 a5 e5 c5 a4 e4')).s('supersaw').att(0.01).decay(0.22).lpf(3200).room(0.45).delay(0.22).gain(0.45).slow(2)",
+            voice: null,
+            fx: "s('pink').hpf(sine.range(500, 15000).slow(8)).gain(sine.range(0.1, 0.35).slow(8))"
+        };
+    }
+    if (/acid|303|squelchy/i.test(p)) {
+        return {
+            drums: "stack(s('RolandTR909_bd*4').gain(1), s('~ RolandTR909_cp ~ RolandTR909_cp').gain(0.75), s('RolandTR909_hh*16').gain(0.25))",
+            bass: "note(m('a1 a2 a1 c2 a1 a2 d2 a1')).s('sawtooth').att(0.01).decay(0.18).lpf(sine.range(200, 2200).slow(1)).resonance(18).gain(0.8)",
+            melody: null,
+            voice: null,
+            fx: "note(m('<a3 c4 e4>')).s('sawtooth').lpf(sine.range(500, 3000).slow(2)).resonance(12).room(0.3).gain(0.35).slow(4)"
+        };
+    }
+    if (/minimal|hypnotic/i.test(p)) {
+        return {
+            drums: "stack(s('RolandTR909_bd ~ ~ RolandTR909_bd ~ ~ RolandTR909_bd ~').gain(0.9), s('~ ~ ~ RolandTR909_hh ~ ~ RolandTR909_hh ~').gain(0.22))",
+            bass: "note(m('c2 ~ c2 ~ c2 ~ ~ ~')).s('triangle').att(0.01).decay(0.25).lpf(420).gain(0.65)",
+            melody: null,
+            voice: null,
+            fx: null
+        };
+    }
+    // Default techno-style fallback
     return {
-        drums: 'stack(s("RolandTR909_bd*4"), s("RolandTR909_hh*8").gain(0.35))',
-        bass: null,
-        melody: null,
+        drums: "stack(s('RolandTR909_bd*4').gain(1), s('~ RolandTR909_cp ~ RolandTR909_cp').gain(0.8), s('RolandTR909_hh*16').gain(0.35))",
+        bass: "note(m('c1 ~ c1 ~ eb1 ~ g1 ~')).s('sawtooth').att(0.01).decay(0.2).lpf(sine.range(220, 650).slow(4)).gain(0.7)",
+        melody: "note(m('<c4 eb4 g4>')).s('supersaw').att(0.01).decay(0.18).lpf(2600).room(0.25).gain(0.35).slow(2)",
         voice: null,
-        fx: null,
+        fx: "s('pink').hpf(sine.range(200, 12000).slow(8)).gain(sine.range(0.1, 0.4).slow(8))"
     };
 };
+
+const buildProviderFallback = (prompt: string, thought: string) => ({
+    type: 'update_tracks',
+    bpm: extractBpmFromPrompt(prompt) ?? 128,
+    tracks: enforceAtLeastOne({ drums: null, bass: null, melody: null, voice: null, fx: null }, prompt),
+    thought,
+});
 
 const SYSTEM_PROMPT = `You are a virtuoso live-coding music assistant powered by Strudel (a port of TidalCycles to JavaScript).
 You are performing at a LIVE CODING FESTIVAL. Your goal is to BUILD UP a track layer by layer.
@@ -1000,24 +1096,70 @@ If the user mentions desync, clashing, or balance issues, analyze these values t
 ${knowledgeBase}
 `;
 
-        const completion = await openai.chat.completions.create({
-            model: MODEL_NAME,
-            messages: [
-                { role: "system", content: augmentedSystemPrompt },
-                {
-                    role: "user",
-                    content: `Current Code:
+        let completion;
+        let lastError: unknown;
+        let wasRateLimited = false;
+        try {
+            completion = await openai.chat.completions.create({
+                model: MODEL_NAME,
+                messages: [
+                    { role: "system", content: augmentedSystemPrompt },
+                    {
+                        role: "user",
+                        content: `Current Code:
 ${currentCode || '// No code yet'}${audioContext}
 
 User Request: ${prompt}`
-                }
-            ],
-            temperature: 0.7,
-            max_tokens: 1000,
-        });
+                    }
+                ],
+                temperature: 0.7,
+                max_tokens: 1500,
+            });
+        } catch (err: unknown) {
+            lastError = err;
+            const status = (err as { status?: number })?.status;
+            wasRateLimited = status === 429;
+            if (!isRecoverableProviderError(err)) {
+                throw err;
+            }
+        }
+        if (!completion) {
+            const reason = wasRateLimited
+                ? 'Rate limited by API - generating music locally based on your request.'
+                : 'OpenRouter was slow or unavailable - generating music locally based on your request.';
+            console.warn(`[API/Agent] ${reason}`, lastError);
+            return jsonWithCors({
+                ...buildProviderFallback(prompt, reason),
+                providerFallback: true,
+            });
+        }
 
         const raw = completion.choices[0].message.content?.trim() || '';
-        console.log('[API/Agent] Raw AI response:', raw);
+        console.log('[API/Agent] Raw AI response:', raw.substring(0, 500));
+
+        // Helper: extract Strudel code from markdown code blocks
+        function extractCodeFromMarkdown(text: string): string | null {
+            // Try ```strudel or ```js or ``` blocks
+            const codeBlockMatch = text.match(/```(?:strudel|js|javascript)?\s*\n?([\s\S]*?)```/);
+            if (codeBlockMatch) return codeBlockMatch[1].trim();
+            // Try indented code blocks
+            const lines = text.split('\n');
+            const codeLines = lines.filter(l => /^\s{2,}|^>\s/.test(l) || /^(stack|note|s|sound|m|silence|sample)\(/.test(l.trim()));
+            if (codeLines.length > 0) return codeLines.map(l => l.trim()).join('\n');
+            return null;
+        }
+
+        // Helper: strip markdown formatting and extract meaningful content
+        function stripMarkdown(text: string): string {
+            return text
+                .replace(/\*\*([^*]+)\*\*/g, '$1')  // bold
+                .replace(/\*([^*]+)\*/g, '$1')       // italic
+                .replace(/`([^`]+)`/g, '$1')         // inline code
+                .replace(/^#{1,6}\s+/gm, '')         // headers
+                .replace(/^\s*[-*]\s+/gm, '')        // bullets
+                .replace(/^\s*\d+\.\s+/gm, '')       // numbered lists
+                .trim();
+        }
 
         // Method 1: Try direct JSON parse
         let parsed: ParsedResponse | null = null;
@@ -1036,6 +1178,53 @@ User Request: ${prompt}`
             }
         }
 
+        // Method 2.5: Strip markdown and try again
+        if (!parsed) {
+            const stripped = stripMarkdown(raw);
+            try {
+                parsed = JSON.parse(stripped);
+                console.log('[API/Agent] Parsed after stripping markdown');
+            } catch {
+                const strippedJsonMatch = stripped.match(/\{[\s\S]*"type"[\s\S]*\}/);
+                if (strippedJsonMatch) {
+                    try {
+                        parsed = JSON.parse(strippedJsonMatch[0]);
+                        console.log('[API/Agent] Extracted JSON after stripping markdown');
+                    } catch {
+                        console.log('[API/Agent] Failed to parse stripped JSON');
+                    }
+                }
+            }
+        }
+
+        // Method 3: Extract code from markdown blocks and wrap as update_tracks
+        if (!parsed) {
+            const extractedCode = extractCodeFromMarkdown(raw);
+            if (extractedCode) {
+                console.log('[API/Agent] Extracted code from markdown blocks:', extractedCode.substring(0, 80));
+                const sanitizedCode = sanitizeGeneratedCode(extractedCode);
+                const detectedTracks: Record<string, string | null> = {
+                    drums: null, bass: null, melody: null, voice: null, fx: null
+                };
+                if (/RolandTR|bd|sd|hh|cp|kick|snare|clap|hihat/i.test(sanitizedCode)) {
+                    detectedTracks.drums = sanitizedCode;
+                } else if (/[a-g][12](?!\d)/i.test(sanitizedCode) && /sawtooth|triangle|bass/i.test(sanitizedCode)) {
+                    detectedTracks.bass = sanitizedCode;
+                } else if (/vowel|voice|choir/i.test(sanitizedCode)) {
+                    detectedTracks.voice = sanitizedCode;
+                } else if (/pink|noise|riser|sweep|room\(/i.test(sanitizedCode) && !/note\(/i.test(sanitizedCode)) {
+                    detectedTracks.fx = sanitizedCode;
+                } else {
+                    detectedTracks.melody = sanitizedCode;
+                }
+                return jsonWithCors({
+                    type: 'update_tracks',
+                    tracks: enforceAtLeastOne(detectedTracks),
+                    thought: 'Extracted pattern from AI response'
+                });
+            }
+        }
+
         // Handle parsed JSON
         if (parsed) {
             if (parsed.type === 'chat') {
@@ -1050,15 +1239,31 @@ User Request: ${prompt}`
 
             if (parsed.type === 'update_tracks' && parsed.tracks) {
                 const wants = detectRequestedTracks(prompt);
+
+                // Check if tracks look like real Strudel code (not just text descriptions)
+                const looksLikeCode = (v: string | null): boolean => {
+                    if (!v || typeof v !== 'string') return false;
+                    const trimmed = v.trim();
+                    if (trimmed.length < 3) return false;
+                    return /^(stack|note|s|sound|sample|seq|cat|silence|m)\s*\(/i.test(trimmed);
+                };
+
                 // Sanitize each track
                 const sanitizedTracks: Record<string, string | null> = {};
                 for (const [key, value] of Object.entries(parsed.tracks)) {
                     if (value && typeof value === 'string') {
-                        sanitizedTracks[key] = sanitizeGeneratedCode(value);
+                        const cleaned = sanitizeGeneratedCode(value);
+                        // Only keep if it actually looks like Strudel code, not plain text
+                        sanitizedTracks[key] = looksLikeCode(cleaned) ? cleaned.trim() : null;
                     } else {
                         sanitizedTracks[key] = null;
                     }
                 }
+
+                console.log('[API/Agent] Sanitized tracks:', JSON.stringify(Object.fromEntries(
+                    Object.entries(sanitizedTracks).map(([k, v]) => [k, v ? v.substring(0, 60) + '...' : null])
+                )));
+
                 // Enforce user intent: only keep tracks explicitly requested (unless none specified)
                 const anyIntent = wants.drums || wants.bass || wants.melody || wants.voice || wants.fx;
                 if (anyIntent) {
@@ -1069,11 +1274,15 @@ User Request: ${prompt}`
                     if (!wants.fx) sanitizedTracks.fx = null;
                 }
 
-                const bpm = coerceBpmValue(parsed.bpm) ?? extractBpmFromPrompt(prompt);
+                const enforcedTracks = enforceAtLeastOne(sanitizedTracks, prompt);
+                const bpm = coerceBpmValue(parsed.bpm) ?? extractBpmFromPrompt(prompt) ?? 128;
+                console.log('[API/Agent] Final enforced tracks:', JSON.stringify(Object.fromEntries(
+                    Object.entries(enforcedTracks).map(([k, v]) => [k, v ? v.substring(0, 60) + '...' : null])
+                )));
                 return jsonWithCors({
                     type: 'update_tracks',
-                    ...(bpm !== null ? { bpm } : {}),
-                    tracks: enforceAtLeastOne(sanitizedTracks),
+                    bpm,
+                    tracks: enforcedTracks,
                     thought: parsed.thought || ''
                 });
             }
@@ -1105,10 +1314,11 @@ User Request: ${prompt}`
         }
 
         // Check if the AI returned raw Strudel code (common model failure)
-        const looksLikeRawCode = /^(stack\(|note\(|s\(|sound\(|m\(|\(\s*\(\s*\)\s*=>)/i.test(raw.trim());
+        const strippedForCheck = stripMarkdown(raw);
+        const looksLikeRawCode = /^(stack\(|note\(|s\(|sound\(|m\(|\(\s*\(\s*\)\s*=>)/i.test(strippedForCheck.trim());
         if (looksLikeRawCode) {
             console.log('[API/Agent] Detected raw Strudel code, treating as single-track code output');
-            const sanitizedCode = sanitizeGeneratedCode(raw);
+            const sanitizedCode = sanitizeGeneratedCode(strippedForCheck);
             // Try to intelligently assign to a track based on content
             const detectedTracks: Record<string, string | null> = {
                 drums: null,
@@ -1133,7 +1343,8 @@ User Request: ${prompt}`
 
             return jsonWithCors({
                 type: 'update_tracks',
-                tracks: enforceAtLeastOne(detectedTracks),
+                bpm: extractBpmFromPrompt(prompt) ?? 128,
+                tracks: enforceAtLeastOne(detectedTracks, prompt),
                 thought: 'Generated pattern from AI response'
             });
         }
@@ -1190,7 +1401,8 @@ User Request: ${prompt}`
 
         return jsonWithCors({
             type: 'update_tracks',
-            tracks: enforceAtLeastOne(fallbackTracks),
+            bpm: extractBpmFromPrompt(prompt) ?? 128,
+            tracks: enforceAtLeastOne(fallbackTracks, prompt),
             thought
         });
 

@@ -49,6 +49,18 @@ function resolveApiUrl(path: string) {
     }
 }
 
+const AUDIO_INIT_TIMEOUT_MS = 15000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+    return new Promise((resolve, reject) => {
+        const timeout = window.setTimeout(() => {
+            reject(new Error(`${label} timed out`));
+        }, timeoutMs);
+
+        promise.then(resolve, reject).finally(() => window.clearTimeout(timeout));
+    });
+}
+
 function resolveRoomId() {
     if (typeof window === 'undefined') return 'default';
 
@@ -74,6 +86,45 @@ function resolveRoomId() {
     }
 }
 
+function createDefaultTracks(): SonicSessionState['tracks'] {
+    return {
+        drums: { id: 'drums', name: 'Drums', pattern: '', muted: false, solo: false, volume: 1 },
+        bass: { id: 'bass', name: 'Bass', pattern: '', muted: false, solo: false, volume: 1 },
+        melody: { id: 'melody', name: 'Melody', pattern: '', muted: false, solo: false, volume: 1 },
+        voice: { id: 'voice', name: 'Voice', pattern: '', muted: false, solo: false, volume: 1 },
+        fx: { id: 'fx', name: 'FX', pattern: '', muted: false, solo: false, volume: 1 },
+    };
+}
+
+function hydrateSonicState(
+    rawState: Partial<SonicSessionState> | null | undefined,
+    fallbackPlaying = true
+): SonicSessionState {
+    const tracks = createDefaultTracks();
+    const incomingTracks = rawState?.tracks ?? {};
+
+    Object.entries(incomingTracks).forEach(([key, track]) => {
+        if (key in tracks && track) {
+            const trackId = key as InstrumentType;
+            const partialTrack = track as Partial<SonicSessionState['tracks'][InstrumentType]>;
+            tracks[trackId] = {
+                ...tracks[trackId],
+                ...partialTrack,
+                id: trackId,
+                name: partialTrack.name || tracks[trackId].name,
+            };
+        }
+    });
+
+    return {
+        ...rawState,
+        bpm: typeof rawState?.bpm === 'number' && Number.isFinite(rawState.bpm) ? rawState.bpm : 120,
+        scale: rawState?.scale || 'C minor',
+        isPlaying: typeof rawState?.isPlaying === 'boolean' ? rawState.isPlaying : fallbackPlaying,
+        tracks,
+    };
+}
+
 export function useSonicSocket() {
     const [state, setState] = useState<SonicSessionState | null>(null);
     const [isConnected, setIsConnected] = useState(false);
@@ -84,6 +135,8 @@ export function useSonicSocket() {
     const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
     const [isAudioReady, setIsAudioReady] = useState(false);
     const audioInitRef = useRef(false);
+    const audioInitPromiseRef = useRef<Promise<void> | null>(null);
+    const lastDisplayedRef = useRef<string>('');
     const lastAppliedRef = useRef<string>('');
     const lastMessageTimeRef = useRef<number>(0);
     const stateRef = useRef<SonicSessionState | null>(null);
@@ -113,20 +166,29 @@ export function useSonicSocket() {
     // Helper: ensure audio is ready
     // Removed 'state' from dependency by using stateRef
     const ensureAudioReady = useCallback(async () => {
-        if (audioInitRef.current && isAudioReady) return;
+        if (isAudioReady) return;
+        if (audioInitPromiseRef.current) return audioInitPromiseRef.current;
         audioInitRef.current = true;
-        try {
-            await initAudio();
-            setIsAudioReady(true);
-            // The useEffect will handle updateStrudel when isAudioReady changes
-            import('@/lib/strudel/engine').then(async ({ getAnalyser }) => {
-                const node = await getAnalyser();
-                setAnalyser(node);
-            });
-        } catch (e) {
-            audioInitRef.current = false;
-            throw e;
-        }
+
+        const initPromise = (async () => {
+            try {
+                await withTimeout(initAudio(), AUDIO_INIT_TIMEOUT_MS, 'Audio initialization');
+                setIsAudioReady(true);
+                // The useEffect will handle updateStrudel when isAudioReady changes
+                import('@/lib/strudel/engine').then(async ({ getAnalyser }) => {
+                    const node = await getAnalyser();
+                    setAnalyser(node);
+                });
+            } catch (e) {
+                audioInitRef.current = false;
+                throw e;
+            } finally {
+                audioInitPromiseRef.current = null;
+            }
+        })();
+
+        audioInitPromiseRef.current = initPromise;
+        return initPromise;
     }, [isAudioReady]);
 
     // Effect 1: socket connection
@@ -185,7 +247,7 @@ export function useSonicSocket() {
 
         socket.on('sonic:state', (newState) => {
             console.log('[SonicSocket] 📡 Received state:', newState);
-            setState(newState);
+            setState(hydrateSonicState(newState, false));
         });
 
         socket.on('sonic:message', (msg) => {
@@ -225,25 +287,25 @@ export function useSonicSocket() {
 
         // Build code for display (but don't trigger re-renders until we need to)
         const displayCode = state.isPlaying ? buildStrudelCode(state) : '// Audio Paused';
+        const trackPatterns = Object.entries(state.tracks || {})
+            .map(([k, v]) => {
+                const fxHash = v.fx ? `${v.fx.lpf ?? 0}:${v.fx.reverb ?? 0}:${v.fx.delay ?? 0}:${v.fx.speed ?? 0.5}:${v.fx.pitch ?? 0.5}` : '0:0:0:0.5:0.5';
+                return `${k}:${v?.pattern || ''}:${v?.muted}:${v?.solo}:${v?.volume?.toFixed(2)}:${fxHash}`;
+            })
+            .sort()
+            .join('|');
+        const hash = `${state.bpm}:${state.isPlaying}:${trackPatterns}`;
+
+        if (hash !== lastDisplayedRef.current) {
+            lastDisplayedRef.current = hash;
+            setCurrentCode(displayCode);
+        }
 
         if (isAudioReady) {
             try {
-                // Create a stable hash from essential properties only
-                const trackPatterns = Object.entries(state.tracks || {})
-                    .map(([k, v]) => {
-                        const fxHash = v.fx ? `${v.fx.lpf ?? 0}:${v.fx.reverb ?? 0}:${v.fx.delay ?? 0}:${v.fx.speed ?? 0.5}:${v.fx.pitch ?? 0.5}` : '0:0:0:0.5:0.5';
-                        return `${k}:${v?.pattern || ''}:${v?.muted}:${v?.solo}:${v?.volume?.toFixed(2)}:${fxHash}`;
-                    })
-                    .sort()
-                    .join('|');
-                const hash = `${state.bpm}:${state.isPlaying}:${trackPatterns}`;
-
                 // Only update if hash changed
                 if (hash !== lastAppliedRef.current) {
                     lastAppliedRef.current = hash;
-
-                    // Update display code only when hash changes
-                    setCurrentCode(displayCode);
 
                     // Apply to Strudel engine (don't pass setCurrentCode - we already set it)
                     updateStrudel(state);
@@ -355,19 +417,7 @@ export function useSonicSocket() {
 
     // Base client state (used when socket/server state isn't available yet)
     const createBaseState = useCallback((prevState: SonicSessionState | null): SonicSessionState => {
-        if (prevState) return prevState;
-        return {
-            bpm: 120,
-            scale: 'C minor',
-            isPlaying: true,
-            tracks: {
-                drums: { id: 'drums', name: 'Drums', pattern: '', muted: false, solo: false, volume: 1 },
-                bass: { id: 'bass', name: 'Bass', pattern: '', muted: false, solo: false, volume: 1 },
-                melody: { id: 'melody', name: 'Melody', pattern: '', muted: false, solo: false, volume: 1 },
-                voice: { id: 'voice', name: 'Voice', pattern: '', muted: false, solo: false, volume: 1 },
-                fx: { id: 'fx', name: 'FX', pattern: '', muted: false, solo: false, volume: 1 },
-            },
-        };
+        return hydrateSonicState(prevState, true);
     }, []);
 
     const normalizeLocalPattern = useCallback((_trackId: InstrumentType, pattern: string) => {
@@ -387,21 +437,28 @@ export function useSonicSocket() {
         if (!trimmed) return;
         setMessages(prev => [...prev, `You: ${trimmed}`]);
 
-        // Ensure audio is ready before doing anything
-        if (!isAudioReady) {
-            console.log('[SonicSocket] Audio not ready, attempting init...');
-            try {
-                await ensureAudioReady();
-            } catch {
-                console.warn('[SonicSocket] Audio init failed before sending command');
-                // We continue anyway, as the agent might just generate code
-            }
-        }
-
         // Check if it's a direct command (track: pattern or bpm: number)
         // or if it looks like raw Strudel code (s("..."), note(...), etc.)
         const isDirectCommand = /^(drums|bass|melody|fx|voice|bpm):/i.test(trimmed);
         const isRawCode = /^(s\(|note\(|stack\(|silence|sound\(|sample\(|n\(|m\(|\(\(\)\s*=>)/.test(trimmed);
+
+        // Ensure audio is ready before doing anything
+        if (!isAudioReady) {
+            console.log('[SonicSocket] Audio not ready, attempting init...');
+            const shouldBlockForAudio = isDirectCommand || isRawCode;
+            const audioReadyPromise = ensureAudioReady().catch((err) => {
+                console.warn('[SonicSocket] Audio init failed before sending command:', err);
+                if (shouldBlockForAudio) throw err;
+            });
+
+            if (shouldBlockForAudio) {
+                try {
+                    await audioReadyPromise;
+                } catch {
+                    // Continue anyway so code can still be shown and syntax errors surfaced.
+                }
+            }
+        }
 
         if (isDirectCommand) {
             console.log('[SonicSocket] Applying direct command locally:', trimmed);
@@ -527,19 +584,7 @@ export function useSonicSocket() {
 
                 // Update local state with new tracks
                 setState(prevState => {
-                    // Initialize default state if null
-                    const baseState: SonicSessionState = prevState || {
-                        bpm: 120,
-                        scale: 'C minor',
-                        isPlaying: true,
-                        tracks: {
-                            drums: { id: 'drums', name: 'Drums', pattern: '', muted: false, solo: false, volume: 1 },
-                            bass: { id: 'bass', name: 'Bass', pattern: '', muted: false, solo: false, volume: 1 },
-                            melody: { id: 'melody', name: 'Melody', pattern: '', muted: false, solo: false, volume: 1 },
-                            voice: { id: 'voice', name: 'Voice', pattern: '', muted: false, solo: false, volume: 1 },
-                            fx: { id: 'fx', name: 'FX', pattern: '', muted: false, solo: false, volume: 1 }
-                        }
-                    };
+                    const baseState = createBaseState(prevState);
 
                     const nextState = {
                         ...baseState,
@@ -555,13 +600,14 @@ export function useSonicSocket() {
                     // Apply updates - tracks with patterns get updated, tracks with null get cleared
                     if (data.tracks) {
                         Object.entries(data.tracks).forEach(([key, pattern]) => {
-                            const trackId = key as keyof SonicSessionState['tracks'];
-                            if (nextState.tracks[trackId]) {
-                                if (pattern !== null && pattern !== undefined && pattern !== '') {
+                            if (key in nextState.tracks) {
+                                const trackId = key as InstrumentType;
+                                const patternText = typeof pattern === 'string' ? pattern : String(pattern ?? '');
+                                if (patternText.trim()) {
                                     // Update track with new pattern
                                     nextState.tracks[trackId] = {
                                         ...nextState.tracks[trackId],
-                                        pattern: pattern as string,
+                                        pattern: normalizeLocalPattern(trackId, patternText),
                                         muted: false // Unmute if updated
                                     };
                                 }

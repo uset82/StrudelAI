@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const apiKey = process.env.GOOGLE_API_KEY || 'AIzaSyCD1KP9my6r4TNLc667MlCzAk9Vm_VemPo'; // Fallback to provided key
+const apiKey = process.env.GOOGLE_API_KEY || '';
 
 if (!apiKey) {
     console.error('GOOGLE_API_KEY is not set');

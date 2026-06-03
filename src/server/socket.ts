@@ -15,18 +15,52 @@ const sessions = new Map<string, SonicSessionState>();
 // In-memory agent store
 const agents = new Map<string, AgentRuntime>();
 
-const DEFAULT_STATE: SonicSessionState = {
-    bpm: 128,
-    scale: 'C minor',
-    isPlaying: false,
-    tracks: {
+function createDefaultTracks(): SonicSessionState['tracks'] {
+    return {
         drums: { id: 'drums', name: 'Drums', pattern: '', muted: false, solo: false, volume: 1 },
         bass: { id: 'bass', name: 'Bass', pattern: '', muted: false, solo: false, volume: 1 },
         melody: { id: 'melody', name: 'Melody', pattern: '', muted: false, solo: false, volume: 1 },
         voice: { id: 'voice', name: 'Voice', pattern: '', muted: false, solo: false, volume: 1 },
         fx: { id: 'fx', name: 'FX', pattern: '', muted: false, solo: false, volume: 1 },
-    },
-};
+    };
+}
+
+function createDefaultState(): SonicSessionState {
+    return {
+        bpm: 128,
+        scale: 'C minor',
+        isPlaying: false,
+        tracks: createDefaultTracks(),
+    };
+}
+
+function hydrateSessionState(rawState: Partial<SonicSessionState> | null | undefined): SonicSessionState {
+    const defaults = createDefaultState();
+    const tracks = createDefaultTracks();
+    const incomingTracks = rawState?.tracks ?? {};
+
+    Object.entries(incomingTracks).forEach(([key, track]) => {
+        if (key in tracks && track) {
+            const trackId = key as keyof SonicSessionState['tracks'];
+            const partialTrack = track as Partial<SonicSessionState['tracks'][keyof SonicSessionState['tracks']]>;
+            tracks[trackId] = {
+                ...tracks[trackId],
+                ...partialTrack,
+                id: trackId,
+                name: partialTrack.name || tracks[trackId].name,
+            };
+        }
+    });
+
+    return {
+        ...defaults,
+        ...rawState,
+        bpm: typeof rawState?.bpm === 'number' && Number.isFinite(rawState.bpm) ? rawState.bpm : defaults.bpm,
+        scale: rawState?.scale || defaults.scale,
+        isPlaying: typeof rawState?.isPlaying === 'boolean' ? rawState.isPlaying : defaults.isPlaying,
+        tracks,
+    };
+}
 
 export function setupSocket(io: Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>) {
     const sessionFilePath = path.join(process.cwd(), 'live-session.json');
@@ -46,10 +80,10 @@ export function setupSocket(io: Server<ClientToServerEvents, ServerToClientEvent
         const sessionId = roomId;
         if (!sessions.has(sessionId)) {
             // Try to load state from live-session.json (only when creating a new room)
-            let initialState = JSON.parse(JSON.stringify(DEFAULT_STATE));
+            let initialState = createDefaultState();
             try {
                 const fileContent = fs.readFileSync(sessionFilePath, 'utf-8');
-                initialState = JSON.parse(fileContent);
+                initialState = hydrateSessionState(JSON.parse(fileContent));
                 console.log(`[Room:${sessionId}] Loaded initial state from live-session.json`);
             } catch (err) {
                 console.warn(`[Room:${sessionId}] Could not load live-session.json, using default state:`, err);
@@ -137,7 +171,7 @@ export function setupSocket(io: Server<ClientToServerEvents, ServerToClientEvent
                 try {
                     const fileContent = fs.readFileSync(sessionFilePath, 'utf-8');
                     if (!fileContent.trim()) return; // Ignore empty files
-                    const newState = JSON.parse(fileContent);
+                    const newState = hydrateSessionState(JSON.parse(fileContent));
                     console.log('[DirectLink] State updated from file. Broadcasting...');
                     sessions.set('default', newState);
                     io.to('default').emit('sonic:state', newState);

@@ -22,6 +22,40 @@ const UI_STORAGE_KEYS = {
     rightPanelCollapsed: 'aether:rightPanelCollapsed',
 } as const;
 
+type ViewMode = 'simple' | 'arrangement' | 'garden' | 'djmixer';
+
+const VIEW_MODE_META: Record<ViewMode, {
+    label: string;
+    title: string;
+    subtitle: string;
+    Icon: React.ComponentType<{ className?: string }>;
+}> = {
+    simple: {
+        label: 'Code',
+        title: 'Strudel Engine',
+        subtitle: 'Live pattern workspace',
+        Icon: LayoutGrid,
+    },
+    arrangement: {
+        label: 'Arrange',
+        title: 'Arrangement',
+        subtitle: 'Timeline and clips',
+        Icon: Layers,
+    },
+    garden: {
+        label: 'Garden',
+        title: 'Synplant Garden',
+        subtitle: 'Pattern shaping',
+        Icon: Sprout,
+    },
+    djmixer: {
+        label: 'DJ',
+        title: 'DJ Mixer',
+        subtitle: 'Decks and performance',
+        Icon: Disc3,
+    },
+};
+
 function clampNumber(value: number, min: number, max: number) {
     return Math.max(min, Math.min(max, value));
 }
@@ -94,9 +128,10 @@ export default function SonicInterface() {
     const inputRef = useRef<HTMLInputElement | null>(null);
 
     // View mode: 'simple' (tracks), 'arrangement' (Ableton-style), 'garden' (Synplant), or 'djmixer' (DJ mode)
-    const [viewMode, setViewMode] = useState<'simple' | 'arrangement' | 'garden' | 'djmixer'>('simple');
+    const [viewMode, setViewMode] = useState<ViewMode>('simple');
     const [arrangement, setArrangement] = useState<ArrangementState>(() => createDefaultArrangement());
     const [isHelpOpen, setIsHelpOpen] = useState(false);
+    const [isCompactViewport, setIsCompactViewport] = useState(false);
     const lastLiveCodeRef = useRef<string | null>(null);
 
     const clampRightPanelWidth = useCallback((width: number) => {
@@ -138,6 +173,16 @@ export default function SonicInterface() {
         if (typeof window === 'undefined') return;
         window.localStorage.setItem(UI_STORAGE_KEYS.rightPanelCollapsed, isRightPanelCollapsed ? '1' : '0');
     }, [isRightPanelCollapsed]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const media = window.matchMedia('(max-width: 1023px)');
+        const update = () => setIsCompactViewport(media.matches);
+
+        update();
+        media.addEventListener('change', update);
+        return () => media.removeEventListener('change', update);
+    }, []);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -395,410 +440,450 @@ export default function SonicInterface() {
         rightPanelResizeRef.current = null;
     }, [isResizingRightPanel]);
 
+    const activeView = VIEW_MODE_META[viewMode];
+    const ActiveViewIcon = activeView.Icon;
+    const trackEntries = state?.tracks ? Object.entries(state.tracks) : [];
+    const activeTrackCount = trackEntries.filter(([, track]) => Boolean(track.pattern?.trim()) && !track.muted).length;
+    const isPlaying = Boolean(state?.isPlaying);
+    const bpm = state?.bpm ?? 0;
+    const shouldCollapseRightPanel = isRightPanelCollapsed && !isCompactViewport;
+
     return (
-        <div className="min-h-screen bg-black text-cyan-500 font-sans selection:bg-cyan-900 selection:text-cyan-100 overflow-hidden flex">
-            {/* LEFT PANEL: CODE & VISUALS or ARRANGEMENT */}
-            <div className="flex-1 min-w-0 h-screen flex flex-col bg-gray-900/50 backdrop-blur-sm">
-                {/* Header with View Toggle */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-800">
-                    <div className="flex items-center gap-4">
-                        <h2 className="text-lg font-bold tracking-widest text-cyan-400 flex items-center gap-2">
-                            {viewMode === 'simple' && (
-                                <>
-                                    <Code className="w-5 h-5" />
-                                    STRUDEL ENGINE
-                                </>
-                            )}
-                            {viewMode === 'arrangement' && (
-                                <>
-                                    <Layers className="w-5 h-5" />
-                                    ARRANGEMENT
-                                </>
-                            )}
-                            {viewMode === 'garden' && (
-                                <>
-                                    <Sprout className="w-5 h-5" />
-                                    SYNPLANT GARDEN
-                                </>
-                            )}
-                            {viewMode === 'djmixer' && (
-                                <>
-                                    <Disc3 className="w-5 h-5" />
-                                    DJ MIXER
-                                </>
-                            )}
-                        </h2>
+        <div className="min-h-dvh w-full overflow-x-hidden bg-[#101216] text-slate-200 selection:bg-cyan-400/20 selection:text-cyan-50 lg:h-screen lg:overflow-hidden">
+            <div className="flex min-h-dvh min-w-0 flex-col lg:h-full lg:flex-row lg:overflow-hidden">
+                <section className="order-4 flex min-w-0 flex-1 flex-col border-r border-white/10 bg-[#12161d] max-lg:w-full max-lg:border-b max-lg:border-r-0 lg:order-1 lg:h-screen">
+                    <header className="flex min-h-16 shrink-0 items-center justify-between gap-5 border-b border-white/10 bg-[#171c24] px-5 max-lg:w-full max-lg:max-w-full max-lg:flex-wrap max-lg:gap-3 max-lg:px-3 max-lg:py-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-cyan-300">
+                                <ActiveViewIcon className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                                <h2 className="truncate text-sm font-semibold tracking-wide text-slate-50">{activeView.title}</h2>
+                                <p className="truncate text-xs text-slate-500">{activeView.subtitle}</p>
+                            </div>
+                        </div>
 
-                        {/* View Toggle Buttons */}
-                        <div className="flex bg-gray-900 rounded-lg p-0.5 border border-gray-700">
+                        <div className="flex min-w-0 flex-1 items-center justify-center max-lg:order-3 max-lg:w-full max-lg:flex-none max-lg:justify-start max-lg:overflow-x-auto studio-scrollbar">
+                            <div className="flex rounded-lg border border-white/10 bg-[#0d1117] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                                {(Object.entries(VIEW_MODE_META) as Array<[ViewMode, typeof activeView]>).map(([mode, meta]) => {
+                                    const Icon = meta.Icon;
+                                    const active = viewMode === mode;
+                                    return (
+                                        <button
+                                            key={mode}
+                                            type="button"
+                                            onClick={() => setViewMode(mode)}
+                                            className={`flex h-8 shrink-0 items-center gap-2 rounded-md px-3 text-xs font-medium transition-colors ${active
+                                                ? 'bg-slate-100 text-slate-950 shadow-sm'
+                                                : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-200'
+                                                }`}
+                                            aria-pressed={active}
+                                        >
+                                            <Icon className="h-3.5 w-3.5" />
+                                            {meta.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 max-lg:hidden">
+                            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">
+                                <div className={`h-2 w-2 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-rose-500'}`} />
+                                <span className="text-xs font-medium text-slate-400">{isConnected ? 'Linked' : 'Offline'}</span>
+                            </div>
                             <button
-                                onClick={() => setViewMode('simple')}
-                                className={`px-3 py-1 rounded text-xs font-mono transition-all flex items-center gap-1
-                                    ${viewMode === 'simple'
-                                        ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
-                                        : 'text-gray-500 hover:text-gray-300'}`}
+                                type="button"
+                                onClick={() => setIsRightPanelCollapsed((v) => !v)}
+                                className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-slate-400 transition-colors hover:border-cyan-400/40 hover:text-cyan-200"
+                                aria-label={isRightPanelCollapsed ? 'Show control panel' : 'Hide control panel'}
+                                title={isRightPanelCollapsed ? 'Show control panel' : 'Hide control panel'}
                             >
-                                <LayoutGrid className="w-3 h-3" />
-                                Simple
-                            </button>
-                            <button
-                                onClick={() => setViewMode('arrangement')}
-                                className={`px-3 py-1 rounded text-xs font-mono transition-all flex items-center gap-1
-                                    ${viewMode === 'arrangement'
-                                        ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50'
-                                        : 'text-gray-500 hover:text-gray-300'}`}
-                            >
-                                <Layers className="w-3 h-3" />
-                                Arrange
-                            </button>
-                            <button
-                                onClick={() => setViewMode('garden')}
-                                className={`px-3 py-1 rounded text-xs font-mono transition-all flex items-center gap-1
-                                    ${viewMode === 'garden'
-                                        ? 'bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/50'
-                                        : 'text-gray-500 hover:text-gray-300'}`}
-                            >
-                                <Sprout className="w-3 h-3" />
-                                Garden
-                            </button>
-                            <button
-                                onClick={() => setViewMode('djmixer')}
-                                className={`px-3 py-1 rounded text-xs font-mono transition-all flex items-center gap-1
-                                    ${viewMode === 'djmixer'
-                                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50'
-                                        : 'text-gray-500 hover:text-gray-300'}`}
-                            >
-                                <Disc3 className="w-3 h-3" />
-                                DJ
+                                {isRightPanelCollapsed ? (
+                                    <ChevronLeft className="h-4 w-4" />
+                                ) : (
+                                    <ChevronRight className="h-4 w-4" />
+                                )}
                             </button>
                         </div>
-                    </div>
+                    </header>
 
-                    <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-red-500'}`} />
-                        <span className="text-xs font-mono text-cyan-700">{isConnected ? 'LINKED' : 'OFFLINE'}</span>
-                        <button
-                            type="button"
-                            onClick={() => setIsRightPanelCollapsed((v) => !v)}
-                            className="ml-2 p-1.5 rounded-md border border-gray-800 bg-black/30 text-gray-400 hover:text-cyan-200 hover:border-cyan-900/60 transition-all"
-                            aria-label={isRightPanelCollapsed ? 'Show control panel' : 'Hide control panel'}
-                            title={isRightPanelCollapsed ? 'Show control panel' : 'Hide control panel'}
-                        >
-                            {isRightPanelCollapsed ? (
-                                <ChevronLeft className="w-4 h-4" />
-                            ) : (
-                                <ChevronRight className="w-4 h-4" />
-                            )}
-                        </button>
-                    </div>
-                </div>
+                    <div className="min-h-0 bg-[#11151b] max-lg:w-full max-lg:max-w-full lg:flex-1">
+                        <div className={`min-h-0 flex-col gap-4 p-5 max-lg:w-full max-lg:max-w-full max-lg:p-3 lg:h-full ${viewMode === 'simple' ? 'flex' : 'hidden'}`}>
+                            <section className="flex min-h-[320px] min-w-0 flex-col overflow-hidden rounded-lg border border-white/10 bg-[#0e1218] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] max-lg:h-[430px] max-lg:w-full max-lg:max-w-full max-sm:h-[390px] lg:flex-1">
+                                <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
+                                    <div className="flex items-center gap-2">
+                                        <Code className="h-4 w-4 text-cyan-300" />
+                                        <div>
+                                            <h3 className="text-sm font-semibold text-slate-100">Code Workspace</h3>
+                                            <p className="text-xs text-slate-500">Live Strudel pattern</p>
+                                        </div>
+                                    </div>
+                                    <div className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-xs text-slate-400 max-sm:hidden">
+                                        {isConnected ? 'Socket linked' : 'Standalone mode'}
+                                    </div>
+                                </div>
+                                <div className="min-h-0 flex-1 p-4 max-sm:p-3">
+                                    <StrudelCodeView
+                                        code={currentCode}
+                                        tracks={state?.tracks}
+                                        isConnected={isConnected}
+                                        onCodeChange={setCurrentCode}
+                                        onRun={handleRunCode}
+                                    />
+                                </div>
+                            </section>
 
-                {/* Content Area */}
-                {/* Content Area - All views are mounted but hidden to persist state */}
-
-                {/* Simple / Strudel Engine View */}
-                <div className={`flex-1 flex flex-col p-4 overflow-hidden ${viewMode === 'simple' ? '' : 'hidden'}`}>
-                    <StrudelCodeView
-                        code={currentCode}
-                        tracks={state?.tracks}
-                        isConnected={isConnected}
-                        onCodeChange={setCurrentCode}
-                        onRun={handleRunCode}
-                    />
-
-                    {/* Spectrum Analyzer Area */}
-                    <div className="h-1/3 mt-4 bg-black/60 rounded-lg border border-cyan-900/30 relative overflow-hidden">
-                        <div className="absolute top-2 left-2 z-10">
-                            <span className="text-xs font-mono text-cyan-400 bg-black/80 px-2 py-1 rounded border border-cyan-500/30">
-                                FREQUENCY SPECTRUM
-                            </span>
-                        </div>
-                        <SpectrumAnalyzer analyser={analyser} />
-                    </div>
-                </div>
-
-                {/* Arrangement View */}
-                <div className={`flex-1 overflow-hidden ${viewMode === 'arrangement' ? '' : 'hidden'}`}>
-                    <ArrangementView
-                        arrangement={arrangement}
-                        onUpdate={handleArrangementUpdate}
-                        onBuildCode={buildArrangementCode}
-                    />
-                </div>
-
-                {/* Garden View */}
-                <div className={`flex-1 overflow-hidden ${viewMode === 'garden' ? '' : 'hidden'}`}>
-                    <SynplantGarden
-                        state={state}
-                        onApplyPattern={setTrackPattern}
-                    />
-                </div>
-                
-                {/* DJ Mixer View */}
-                <div className={`flex-1 overflow-y-auto overflow-x-hidden ${viewMode === 'djmixer' ? '' : 'hidden'}`}>
-                    <DJMixerView bpm={state?.bpm ?? 120} />
-                </div>
-            </div>
-
-            {/* Splitter */}
-            <div
-                role="separator"
-                aria-orientation="vertical"
-                aria-label="Resize control panel"
-                className={`relative shrink-0 h-screen cursor-col-resize select-none group ${isRightPanelCollapsed ? 'bg-black/60' : 'bg-black/40'} hover:bg-black/60`}
-                style={{ width: SPLITTER_WIDTH, touchAction: 'none' }}
-                onPointerDown={beginResizeRightPanel}
-                onPointerMove={updateResizeRightPanel}
-                onPointerUp={endResizeRightPanel}
-                onPointerCancel={endResizeRightPanel}
-                onDoubleClick={() => {
-                    setIsRightPanelCollapsed(false);
-                    setRightPanelWidth(clampRightPanelWidth(RIGHT_PANEL_DEFAULT_WIDTH));
-                }}
-            >
-                <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-cyan-900/40" aria-hidden="true" />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-md border border-cyan-900/30 bg-black/50 px-0.5 py-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                    <GripVertical className="w-4 h-4 text-cyan-700" />
-                </div>
-            </div>
-
-            {/* RIGHT PANEL: CONTROLS & CHAT */}
-            <div
-                className={`h-screen flex flex-col relative bg-black/90 transition-[width] duration-200 ease-out ${isRightPanelCollapsed ? 'p-0 overflow-hidden' : 'p-6 overflow-y-auto'}`}
-                style={{ width: isRightPanelCollapsed ? RIGHT_PANEL_COLLAPSED_WIDTH : rightPanelWidth }}
-            >
-                {isRightPanelCollapsed ? (
-                    <button
-                        type="button"
-                        className="h-full w-full flex items-center justify-center text-cyan-700 hover:text-cyan-300 transition-colors"
-                        onClick={() => setIsRightPanelCollapsed(false)}
-                        aria-label="Show control panel"
-                        title="Show control panel"
-                    >
-                        <ChevronLeft className="w-6 h-6" />
-                    </button>
-                ) : (
-                    <>
-                {/* Header */}
-                <header className="flex justify-between items-center mb-8">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-cyan-900/20 rounded-lg border border-cyan-500/30">
-                            <Mic className="w-6 h-6 text-cyan-400" />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-tighter text-white">AETHER</h1>
-                            <p className="text-xs text-cyan-600 tracking-widest">SONIC INTERFACE</p>
-                            {/* Track description removed as it appears in chat */}
-                        </div>
-                    </div>
-                    <div className="text-right flex flex-col items-end">
-                        <p className="text-xs text-cyan-700 uppercase tracking-widest mb-1">System Status</p>
-                        <div className="flex items-center gap-4">
-                            <button
-                                onClick={() => setIsHelpOpen(true)}
-                                className="text-xs text-cyan-500 hover:text-cyan-300 mr-4 underline"
-                            >
-                                Voice Effects Guide
-                            </button>
-                            <button
-                                onClick={togglePlayback}
-                                className={`p-2 rounded-full border transition-all ${state?.isPlaying
-                                    ? 'bg-cyan-500/20 border-cyan-500 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.3)]'
-                                    : 'bg-gray-900 border-gray-700 text-gray-500 hover:border-cyan-700 hover:text-cyan-600'
-                                    }`}
-                            >
-                                {state?.isPlaying ? <Square className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
-                            </button>
-                            <div className="flex items-center gap-2 text-sm font-mono text-cyan-400">
-                                <span>{state?.isPlaying ? 'PLAYING' : 'IDLE'} - </span>
-                                <div
-                                    className="flex items-center gap-1 cursor-ew-resize select-none group bg-cyan-900/20 px-2 py-0.5 rounded hover:bg-cyan-900/40 border border-transparent hover:border-cyan-500/30 transition-all"
-                                    onWheel={(e) => {
-                                        if (state?.bpm) {
-                                            const delta = e.deltaY > 0 ? -5 : 5; // +/- 5 BPM per scroll
-                                            setBpm(Math.max(60, Math.min(240, state.bpm + delta)));
-                                        }
-                                    }}
-                                    title="Scroll to change BPM"
-                                >
-                                    <span className="group-hover:text-white transition-colors font-bold">
-                                        {state?.bpm || 0} BPM
+                            <section className="flex h-[32%] min-h-[220px] min-w-0 flex-col overflow-hidden rounded-lg border border-white/10 bg-[#0e1218] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] max-lg:h-[180px] max-lg:min-h-0 max-lg:w-full max-lg:max-w-full max-lg:flex-none max-sm:h-[150px]">
+                                <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
+                                    <div>
+                                        <h3 className="text-sm font-semibold text-slate-100">Frequency Spectrum</h3>
+                                        <p className="text-xs text-slate-500">Output monitor</p>
+                                    </div>
+                                    <span className="rounded-full bg-cyan-400/10 px-2.5 py-1 text-xs font-medium text-cyan-200 max-sm:hidden">
+                                        Analyzer
                                     </span>
                                 </div>
-                            </div>
+                                <div className="min-h-0 flex-1">
+                                    <SpectrumAnalyzer analyser={analyser} />
+                                </div>
+                            </section>
                         </div>
-                        <button onClick={testAudio} className="mt-2 text-[10px] text-cyan-600 hover:text-cyan-300 underline">
-                            Test System Audio
-                        </button>
-                    </div>
-                </header>
 
-                {/* Compact Track Controls - Horizontal Row */}
-                <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-                    {state && Object.values(state.tracks).map((track) => (
-                        <TrackStrip
-                            key={track.id}
-                            track={track}
-                            onMute={toggleMute}
-                            onSolo={toggleSoloTrack}
-                            onVolumeChange={setVolume}
-                            onTrackFx={setTrackFx}
-                        />
-                    ))}
-                </div>
-
-                {/* Chat / Log Area */}
-                <div className="flex-1 bg-black/40 rounded-2xl border border-cyan-900/30 p-4 mb-6 overflow-hidden flex flex-col backdrop-blur-md">
-                    <div
-                        ref={logRef}
-                        className="flex-1 overflow-y-auto space-y-2 scrollbar-thin scrollbar-thumb-cyan-900"
-                    >
-                        {messages.map((msg, i) => (
-                            <div key={i} className="text-sm font-mono border-l-2 border-cyan-800 pl-3 py-1 animate-fade-in">
-                                <span className="text-cyan-600 text-xs mr-2">[{new Date().toLocaleTimeString()}]</span>
-                                <span className="text-cyan-100">{msg}</span>
-                            </div>
-                        ))}
-                        {isThinking && (
-                            <div className="text-sm font-mono border-l-2 border-purple-500 pl-3 py-1 animate-pulse">
-                                <span className="text-purple-400 text-xs mr-2">[{new Date().toLocaleTimeString()}]</span>
-                                <span className="text-purple-300">AI: Thinking...</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Input Area */}
-                <div className="relative group z-10">
-                    <div className={`absolute -inset-1 rounded-lg blur transition duration-1000 pointer-events-none ${isAudioReady ? 'bg-linear-to-r from-cyan-600 to-blue-600 opacity-20 group-hover:opacity-40' : 'bg-gray-600 opacity-10'}`}></div>
-                    <div className={`relative bg-black border rounded-lg p-4 flex items-center gap-4 shadow-2xl ${isAudioReady ? 'border-cyan-800/50' : 'border-gray-800/50'}`}>
-                        <button
-                            onClick={() => toggleRecording()}
-                            disabled={!isAudioReady}
-                            className={`p-3 rounded-full transition-all duration-300 ${isRecording ? 'bg-red-500/20 text-red-500 animate-pulse' : 'bg-cyan-900/20 text-cyan-400 hover:bg-cyan-900/40'} ${!isAudioReady ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                            {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-                        </button>
-
-                        <div className="flex-1 relative">
-                            {isRecording && (
-                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-cyan-400 animate-pulse text-xs">🎤 Listening...</span>
-                            )}
-                            <input
-                                ref={inputRef}
-                                id="command-input"
-                                name="command"
-                                type="text"
-                                autoComplete="off"
-                                disabled={!isAudioReady}
-                                aria-label="Voice command input"
-                                aria-describedby="command-hint"
-                                className="bg-transparent border-none focus:ring-0 text-white w-full font-mono text-sm placeholder-cyan-700 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
-                                placeholder={isAudioReady ? 'Type command or use mic, then press Enter to send' : 'Initialize audio first...'}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        console.log('[Input] Enter pressed, sending:', e.currentTarget.value);
-                                        const value = e.currentTarget.value.trim();
-                                        if (value) {
-                                            sendCommand(value);
-                                            e.currentTarget.value = '';
-                                        }
-                                    }
-                                }}
-                                onFocus={() => console.log('[Input] Focused')}
-                                onChange={(e) => console.log('[Input] Changed:', e.target.value)}
-                                onClick={() => console.log('[Input] Clicked')}
+                        <div className={`min-h-[620px] overflow-hidden lg:h-full lg:min-h-0 ${viewMode === 'arrangement' ? '' : 'hidden'}`}>
+                            <ArrangementView
+                                arrangement={arrangement}
+                                onUpdate={handleArrangementUpdate}
+                                onBuildCode={buildArrangementCode}
                             />
                         </div>
-                        <div id="command-hint" className="hidden group-hover:block text-[10px] text-cyan-700 font-mono absolute right-4 top-2 pointer-events-none">
-                            PRESS ENTER
+
+                        <div className={`min-h-[620px] overflow-hidden lg:h-full lg:min-h-0 ${viewMode === 'garden' ? '' : 'hidden'}`}>
+                            <SynplantGarden
+                                state={state}
+                                onApplyPattern={setTrackPattern}
+                            />
+                        </div>
+
+                        <div className={`min-h-[620px] overflow-y-auto overflow-x-hidden lg:h-full lg:min-h-0 ${viewMode === 'djmixer' ? '' : 'hidden'}`}>
+                            <DJMixerView bpm={bpm || 120} />
                         </div>
                     </div>
-                </div>
-                {speechError && (
-                    <p className="mt-3 text-xs text-red-400 font-mono">{speechError}</p>
-                )}
-                {isAudioReady && (
-                    <p className="mt-3 text-xs text-cyan-600 font-mono text-center">
-                        Audio engine ready - Type commands and press Enter
-                    </p>
-                )}
+                </section>
 
-                {/* Initialization Overlay */}
-                {!isAudioReady && (
-                    <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-50 flex flex-col items-center justify-center">
-                        <button
-                            onClick={() => {
-                                startSession();
-                            }}
-                            className="px-8 py-4 bg-cyan-600 hover:bg-cyan-500 text-white rounded-none border border-cyan-400 font-mono tracking-[0.2em] transition-all hover:shadow-[0_0_30px_rgba(6,182,212,0.5)]"
-                        >
-                            INITIALIZE SESSION
-                        </button>
-                        <p className="mt-4 text-cyan-800 text-xs font-mono">CLICK TO START AUDIO ENGINE</p>
-                        <button onClick={testAudio} className="mt-8 px-4 py-2 text-xs text-cyan-600 border border-cyan-900 hover:bg-cyan-900/20">
-                            TEST SYSTEM AUDIO (BEEP)
-                        </button>
+                <div
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label="Resize control panel"
+                    className="group relative h-screen shrink-0 cursor-col-resize select-none border-x border-white/10 bg-[#0b0e12] transition-colors hover:bg-[#151a21] max-lg:hidden"
+                    style={{ width: SPLITTER_WIDTH, touchAction: 'none' }}
+                    onPointerDown={beginResizeRightPanel}
+                    onPointerMove={updateResizeRightPanel}
+                    onPointerUp={endResizeRightPanel}
+                    onPointerCancel={endResizeRightPanel}
+                    onDoubleClick={() => {
+                        setIsRightPanelCollapsed(false);
+                        setRightPanelWidth(clampRightPanelWidth(RIGHT_PANEL_DEFAULT_WIDTH));
+                    }}
+                >
+                    <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-white/10" aria-hidden="true" />
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-md border border-white/10 bg-[#171c24] px-0.5 py-2 opacity-60 transition-opacity group-hover:opacity-100">
+                        <GripVertical className="h-4 w-4 text-slate-500" />
                     </div>
-                )}
+                </div>
 
-                {/* Help Modal */}
-                {isHelpOpen && (
-                    <div className="absolute inset-0 bg-black/95 backdrop-blur-xl z-50 p-8 overflow-y-auto">
-                        <div className="max-w-2xl mx-auto">
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl font-bold text-cyan-400">Voice Effects Guide</h2>
-                                <button onClick={() => setIsHelpOpen(false)} className="text-cyan-600 hover:text-white">CLOSE</button>
-                            </div>
-
-                            <div className="space-y-6 text-sm font-mono text-cyan-100">
-                                <section>
-                                    <h3 className="text-lg text-cyan-300 mb-2">🗣️ Voice Synthesis</h3>
-                                    <ul className="list-disc pl-5 space-y-2">
-                                        <li><strong className="text-white">Formant Vowels:</strong> Add vowel sounds (uses .vowel(&quot;a e i o u&quot;))</li>
-                                        <li><strong className="text-white">Robot Voice:</strong> Make it sound like a robot (uses .crush(4).vowel(&quot;o&quot;))</li>
-                                        <li><strong className="text-white">Vocoder:</strong> Add a vocoder effect (uses .bandf(sine.range(400, 2000)))</li>
-                                    </ul>
-                                </section>
-
-                                <section>
-                                    <h3 className="text-lg text-cyan-300 mb-2">🎛️ Effects</h3>
-                                    <ul className="list-disc pl-5 space-y-2">
-                                        <li><strong className="text-white">Filters:</strong> Low pass filter, High pass filter, Band pass</li>
-                                        <li><strong className="text-white">Distortion:</strong> Bit crush, Distort, Lo-fi</li>
-                                        <li><strong className="text-white">Spatial:</strong> Add reverb, Add delay, Pan it around</li>
-                                        <li><strong className="text-white">Modulation:</strong> Phaser, Chorus, Tremolo</li>
-                                    </ul>
-                                </section>
-
-                                <section>
-                                    <h3 className="text-lg text-cyan-300 mb-2">🎵 Style Presets</h3>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="bg-cyan-900/20 p-3 rounded border border-cyan-800">
-                                            <strong className="block text-cyan-400 mb-1">Robot Voice</strong>
-                                            Add a robot voice melody
+                <aside
+                    className={`relative order-1 flex shrink-0 flex-col border-l border-white/10 bg-[#0b0e12] transition-[width] duration-200 ease-out max-lg:contents lg:order-2 lg:h-screen ${shouldCollapseRightPanel ? 'overflow-hidden p-0' : 'p-5 lg:overflow-hidden'}`}
+                    style={{
+                        width: shouldCollapseRightPanel
+                            ? RIGHT_PANEL_COLLAPSED_WIDTH
+                            : isCompactViewport
+                                ? '100%'
+                                : `min(${rightPanelWidth}px, 100vw)`,
+                    }}
+                >
+                    {shouldCollapseRightPanel ? (
+                        <button
+                            type="button"
+                            className="flex h-full w-full items-center justify-center text-slate-500 transition-colors hover:text-cyan-200"
+                            onClick={() => setIsRightPanelCollapsed(false)}
+                            aria-label="Show control panel"
+                            title="Show control panel"
+                        >
+                            <ChevronLeft className="h-6 w-6" />
+                        </button>
+                    ) : (
+                        <>
+                            <header className="order-1 shrink-0 border-b border-white/10 pb-5 max-lg:w-full max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:pt-3 max-lg:pb-4">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex min-w-0 items-center gap-3">
+                                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-cyan-300/20 bg-cyan-300/10 text-cyan-200 max-sm:h-10 max-sm:w-10">
+                                            <Mic className="h-5 w-5" />
                                         </div>
-                                        <div className="bg-cyan-900/20 p-3 rounded border border-cyan-800">
-                                            <strong className="block text-cyan-400 mb-1">Space Pad</strong>
-                                            Add a space pad with reverb
+                                        <div className="min-w-0">
+                                            <h1 className="truncate text-2xl font-semibold tracking-tight text-white max-sm:text-xl">Aether</h1>
+                                            <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500 max-sm:text-[10px]">Sonic workstation</p>
                                         </div>
-                                        <div className="bg-cyan-900/20 p-3 rounded border border-cyan-800">
-                                            <strong className="block text-cyan-400 mb-1">Acid Bass</strong>
-                                            Make an acid bassline
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsHelpOpen(true)}
+                                        className="shrink-0 rounded-md border border-white/10 px-2.5 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:border-cyan-300/30 hover:text-cyan-100 max-sm:hidden"
+                                    >
+                                        Voice guide
+                                    </button>
+                                </div>
+
+                                <div className="mt-5 grid grid-cols-3 gap-2 max-lg:mt-4 max-sm:gap-1.5">
+                                    <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 max-sm:px-2">
+                                        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">System</p>
+                                        <div className="mt-1 flex items-center gap-2">
+                                            <span className={`h-2 w-2 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-rose-500'}`} />
+                                            <span className="text-sm font-medium text-slate-200 max-sm:text-xs">{isConnected ? 'Linked' : 'Offline'}</span>
                                         </div>
-                                        <div className="bg-cyan-900/20 p-3 rounded border border-cyan-800">
-                                            <strong className="block text-cyan-400 mb-1">Lo-Fi Drums</strong>
-                                            Make the drums lo-fi
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={togglePlayback}
+                                        className={`rounded-lg border px-3 py-2 text-left transition-colors max-sm:px-2 ${isPlaying
+                                            ? 'border-cyan-300/40 bg-cyan-300/10 text-cyan-100'
+                                            : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-cyan-300/30 hover:text-cyan-100'
+                                            }`}
+                                        aria-label={isPlaying ? 'Stop playback' : 'Start playback'}
+                                    >
+                                        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">Transport</p>
+                                        <div className="mt-1 flex items-center gap-2 text-sm font-medium max-sm:text-xs">
+                                            {isPlaying ? <Square className="h-3.5 w-3.5 fill-current" /> : <Play className="h-3.5 w-3.5 fill-current" />}
+                                            {isPlaying ? 'Playing' : 'Idle'}
+                                        </div>
+                                    </button>
+                                    <div
+                                        className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 max-sm:px-2"
+                                        onWheel={(e) => {
+                                            if (state?.bpm) {
+                                                const delta = e.deltaY > 0 ? -5 : 5;
+                                                setBpm(Math.max(60, Math.min(240, state.bpm + delta)));
+                                            }
+                                        }}
+                                        title="Scroll to change BPM"
+                                    >
+                                        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">Tempo</p>
+                                        <p className="mt-1 text-sm font-semibold tabular-nums text-slate-100 max-sm:text-xs">{bpm} BPM</p>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={testAudio}
+                                    className="mt-3 text-xs font-medium text-slate-500 transition-colors hover:text-cyan-200"
+                                >
+                                    Test system audio
+                                </button>
+                            </header>
+
+                            {!isAudioReady && (
+                                <section className="order-2 shrink-0 border-b border-white/10 py-5 max-lg:w-full max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4">
+                                    <div className="rounded-lg border border-cyan-300/20 bg-cyan-300/10 p-4 max-sm:p-3">
+                                        <div className="flex items-start gap-3">
+                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cyan-300/15 text-cyan-100 max-sm:h-9 max-sm:w-9">
+                                                <Mic className="h-5 w-5" />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <h2 className="text-sm font-semibold text-white">Start audio engine</h2>
+                                                <p className="mt-1 text-sm leading-5 text-slate-400 max-sm:text-xs">Enable playback, voice input, and live code evaluation.</p>
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 grid grid-cols-[1fr_auto] gap-2 max-sm:grid-cols-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    startSession();
+                                                }}
+                                                className="min-h-11 rounded-lg bg-cyan-300 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-200"
+                                            >
+                                                Initialize session
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={testAudio}
+                                                className="min-h-11 rounded-lg border border-white/10 px-3 py-2.5 text-xs font-medium text-slate-400 transition-colors hover:text-cyan-100"
+                                            >
+                                                Test
+                                            </button>
                                         </div>
                                     </div>
                                 </section>
+                            )}
+
+                            <section className="order-5 shrink-0 border-b border-white/10 py-5 max-lg:w-full max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4">
+                                <div className="mb-3 flex items-center justify-between gap-3">
+                                    <h2 className="text-sm font-semibold text-slate-100">Mixer Channels</h2>
+                                    <span className="text-xs text-slate-500">{activeTrackCount} active</span>
+                                </div>
+                                {trackEntries.length > 0 ? (
+                                    <div className="-mx-3 flex snap-x gap-3 overflow-x-auto px-3 pb-2 studio-scrollbar">
+                                        {trackEntries.map(([trackId, track]) => (
+                                            <TrackStrip
+                                                key={trackId}
+                                                track={track}
+                                                onMute={toggleMute}
+                                                onSolo={toggleSoloTrack}
+                                                onVolumeChange={setVolume}
+                                                onTrackFx={setTrackFx}
+                                            />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.025] px-3 py-4 text-sm text-slate-500">
+                                        Start the audio session to populate channel controls.
+                                    </div>
+                                )}
+                            </section>
+
+                            <section className="order-6 flex min-h-0 flex-1 flex-col py-5 max-lg:min-h-[260px] max-lg:w-full max-lg:flex-none max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4">
+                                <div className="mb-3 flex items-center justify-between gap-3">
+                                    <h2 className="text-sm font-semibold text-slate-100">Session Log</h2>
+                                    <span className="text-xs text-slate-500">{messages.length} events</span>
+                                </div>
+                                <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-white/10 bg-[#07090c]">
+                                    <div
+                                        ref={logRef}
+                                        className="studio-scrollbar h-full overflow-y-auto p-3"
+                                    >
+                                        <div className="space-y-2">
+                                            {messages.map((msg, i) => (
+                                                <div key={i} className="rounded-md border border-white/8 bg-white/[0.025] px-3 py-2 text-sm leading-6">
+                                                    <span className="mr-2 font-mono text-xs tabular-nums text-cyan-300/80">
+                                                        {new Date().toLocaleTimeString()}
+                                                    </span>
+                                                    <span className="font-medium text-slate-200">{msg}</span>
+                                                </div>
+                                            ))}
+                                            {isThinking && (
+                                                <div className="rounded-md border border-violet-300/20 bg-violet-300/10 px-3 py-2 text-sm leading-6 animate-pulse">
+                                                    <span className="mr-2 font-mono text-xs tabular-nums text-violet-200">
+                                                        {new Date().toLocaleTimeString()}
+                                                    </span>
+                                                    <span className="font-medium text-violet-100">AI is thinking...</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <div className="order-3 shrink-0 border-b border-t border-white/10 py-4 max-lg:sticky max-lg:top-0 max-lg:z-30 max-lg:w-full max-lg:bg-[#0b0e12]/95 max-lg:px-3 max-lg:backdrop-blur-xl">
+                                <div className={`group relative flex items-center gap-3 rounded-lg border bg-[#10151b] px-3 py-3 transition-colors ${isAudioReady ? 'border-cyan-300/25 focus-within:border-cyan-200/50' : 'border-white/10'}`}>
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleRecording()}
+                                        disabled={!isAudioReady}
+                                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors ${isRecording
+                                            ? 'bg-rose-500/15 text-rose-300'
+                                            : 'bg-white/[0.04] text-cyan-200 hover:bg-cyan-300/10'
+                                            } ${!isAudioReady ? 'cursor-not-allowed opacity-50' : ''}`}
+                                        aria-label={isRecording ? 'Stop listening' : 'Start voice input'}
+                                    >
+                                        {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                                    </button>
+
+                                    <div className="relative min-w-0 flex-1">
+                                        {isRecording && (
+                                            <span className="absolute right-0 top-1/2 -translate-y-1/2 text-xs font-medium text-rose-300">Listening...</span>
+                                        )}
+                                        <input
+                                            ref={inputRef}
+                                        id="command-input"
+                                        name="command"
+                                        type="text"
+                                        autoComplete="off"
+                                        aria-label="Voice command input"
+                                        aria-describedby="command-hint"
+                                            className="w-full border-none bg-transparent pr-20 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none max-sm:pr-8 max-sm:text-base"
+                                            placeholder={isAudioReady ? 'Describe a pattern...' : 'Type a prompt...'}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    console.log('[Input] Enter pressed, sending:', e.currentTarget.value);
+                                                    const value = e.currentTarget.value.trim();
+                                                    if (value) {
+                                                        sendCommand(value);
+                                                        e.currentTarget.value = '';
+                                                    }
+                                                }
+                                            }}
+                                            onFocus={() => console.log('[Input] Focused')}
+                                            onChange={(e) => console.log('[Input] Changed:', e.target.value)}
+                                            onClick={() => console.log('[Input] Clicked')}
+                                        />
+                                    </div>
+                                    <div id="command-hint" className="pointer-events-none hidden rounded bg-white/[0.04] px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-slate-500 group-focus-within:block max-sm:hidden">
+                                        Enter
+                                    </div>
+                                </div>
+                                {speechError && (
+                                    <p className="mt-3 text-xs font-medium text-rose-300">{speechError}</p>
+                                )}
+                                {isAudioReady && !speechError && (
+                                    <p className="mt-3 text-center text-xs text-slate-500">Audio engine ready</p>
+                                )}
                             </div>
-                        </div>
-                    </div>
-                )}
-                    </>
-                )}
+
+                            {isHelpOpen && (
+                                <div className="absolute inset-0 z-50 overflow-y-auto bg-[#0b0e12]/95 p-6 backdrop-blur-xl">
+                                    <div className="mx-auto max-w-2xl">
+                                        <div className="mb-6 flex items-center justify-between gap-4">
+                                            <div>
+                                                <h2 className="text-xl font-semibold text-white">Voice Effects Guide</h2>
+                                                <p className="text-sm text-slate-500">Useful phrases and mapped sound treatments.</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsHelpOpen(false)}
+                                                className="rounded-md border border-white/10 px-3 py-2 text-xs font-medium uppercase tracking-[0.12em] text-slate-400 transition-colors hover:text-white"
+                                            >
+                                                Close
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-5 text-sm leading-6 text-slate-300">
+                                            <section className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                                                <h3 className="mb-2 font-semibold text-slate-100">Voice Synthesis</h3>
+                                                <ul className="space-y-2">
+                                                    <li><strong className="text-white">Formant vowels:</strong> Add vowel sounds with .vowel(&quot;a e i o u&quot;).</li>
+                                                    <li><strong className="text-white">Robot voice:</strong> Combine crush and vowel shaping.</li>
+                                                    <li><strong className="text-white">Vocoder:</strong> Use moving band filters for synthetic voice color.</li>
+                                                </ul>
+                                            </section>
+
+                                            <section className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
+                                                <h3 className="mb-2 font-semibold text-slate-100">Effects</h3>
+                                                <ul className="space-y-2">
+                                                    <li><strong className="text-white">Filters:</strong> Low pass, high pass, and band pass movements.</li>
+                                                    <li><strong className="text-white">Distortion:</strong> Bit crush, lo-fi, and drive treatments.</li>
+                                                    <li><strong className="text-white">Spatial:</strong> Reverb, delay, and panning changes.</li>
+                                                    <li><strong className="text-white">Modulation:</strong> Phaser, chorus, and tremolo.</li>
+                                                </ul>
+                                            </section>
+
+                                            <section>
+                                                <h3 className="mb-3 font-semibold text-slate-100">Style Presets</h3>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    {['Robot Voice', 'Space Pad', 'Acid Bass', 'Lo-Fi Drums'].map((preset) => (
+                                                        <div key={preset} className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+                                                            <strong className="block text-slate-100">{preset}</strong>
+                                                            <span className="text-xs text-slate-500">Ready voice command</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </section>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </aside>
             </div>
-        </div >
+        </div>
     );
 }

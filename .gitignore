@@ -62,3 +62,6 @@ _workletData.txt
 
 # Word docs (use markdown instead)
 *.docx
+
+# Local Netlify folder
+.netlify
