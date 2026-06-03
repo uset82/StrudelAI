@@ -324,7 +324,7 @@ export default function SonicInterface() {
                 setIsRecording(false);
                 isRecordingRef.current = false;
                 // Focus the input so user can edit or press Enter to send
-                inputRef.current?.focus();
+                inputRef.current?.focus({ preventScroll: true });
             }
         };
 
@@ -401,7 +401,7 @@ export default function SonicInterface() {
         if (isAudioReady && inputRef.current) {
             console.log('[SonicInterface] Audio ready, focusing input');
             setTimeout(() => {
-                inputRef.current?.focus();
+                inputRef.current?.focus({ preventScroll: true });
             }, 100);
         }
     }, [isAudioReady]);
@@ -762,7 +762,10 @@ export default function SonicInterface() {
                                 </section>
                             )}
 
-                            <section className="order-4 flex min-h-0 flex-1 flex-col border-b border-white/10 py-5 lg:min-h-[360px] max-lg:h-[62dvh] max-lg:max-h-[620px] max-lg:min-h-[430px] max-lg:w-full max-lg:flex-none max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4 max-sm:min-h-[390px]">
+                            <section
+                                className="order-4 flex min-h-0 flex-1 flex-col border-b border-white/10 py-5 lg:min-h-[360px] max-lg:h-[360px] max-lg:w-full max-lg:flex-none max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4 max-sm:h-[340px]"
+                                style={{ overflowAnchor: 'none' }}
+                            >
                                 <div className="mb-3 flex items-center justify-between gap-3">
                                     <h2 className="text-sm font-semibold text-slate-100">Chat</h2>
                                     <span className="text-xs text-slate-500">{chatMessages.length > 0 ? `${chatMessages.length} messages` : 'Ready'}</span>
