@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSonicSocket } from '@/hooks/useSonicSocket';
 import { Mic, MicOff, Play, Square, Code, Layers, LayoutGrid, Sprout, Disc3, ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
 import { SpectrumAnalyzer } from './SpectrumAnalyzer';
@@ -58,6 +58,47 @@ const VIEW_MODE_META: Record<ViewMode, {
 
 function clampNumber(value: number, min: number, max: number) {
     return Math.max(min, Math.min(max, value));
+}
+
+type ChatMessage = {
+    role: 'user' | 'assistant' | 'system' | 'error';
+    label: string;
+    body: string;
+};
+
+function toChatMessage(raw: string): ChatMessage | null {
+    const text = raw.trim();
+    if (!text) return null;
+
+    if (text.startsWith('You:')) {
+        return { role: 'user', label: 'You', body: text.replace(/^You:\s*/, '') };
+    }
+
+    if (text.startsWith('AI Thought:')) {
+        return { role: 'assistant', label: 'Aether thought', body: text.replace(/^AI Thought:\s*/, '') };
+    }
+
+    if (text.startsWith('AI:')) {
+        return { role: 'assistant', label: 'Aether', body: text.replace(/^AI:\s*/, '') };
+    }
+
+    if (/^(Error:|Syntax error:|Error persists:)/.test(text)) {
+        return { role: 'error', label: 'Error', body: text.replace(/^(Error:|Syntax error:|Error persists:)\s*/, '') };
+    }
+
+    if (text.startsWith('Fixed code:')) {
+        return { role: 'assistant', label: 'Aether fix', body: text.replace(/^Fixed code:\s*/, '') };
+    }
+
+    if (text.startsWith('System:')) {
+        const body = text.replace(/^System:\s*/, '');
+        if (/^(Reconnecting|Connected|Disconnected|WebSocket unavailable|Engine applied)/.test(body)) {
+            return null;
+        }
+        return { role: 'system', label: 'Status', body };
+    }
+
+    return { role: 'system', label: 'Status', body: text };
 }
 
 type BrowserRecognitionEvent = {
@@ -340,6 +381,11 @@ export default function SonicInterface() {
         };
     }, [sendCommand]);
 
+    const chatMessages = useMemo(
+        () => messages.map(toChatMessage).filter((message): message is ChatMessage => Boolean(message)).slice(-40),
+        [messages]
+    );
+
     // Always keep chat scrolled to the latest message
     useEffect(() => {
         queueMicrotask(() => {
@@ -347,7 +393,7 @@ export default function SonicInterface() {
             if (!el) return;
             el.scrollTop = el.scrollHeight;
         });
-    }, [messages]);
+    }, [chatMessages.length, isThinking]);
 
     // Auto-focus input when audio becomes ready
     useEffect(() => {
@@ -593,7 +639,7 @@ export default function SonicInterface() {
                 </div>
 
                 <aside
-                    className={`relative order-1 flex shrink-0 flex-col border-l border-white/10 bg-[#0b0e12] transition-[width] duration-200 ease-out max-lg:contents lg:order-2 lg:h-screen ${shouldCollapseRightPanel ? 'overflow-hidden p-0' : 'p-5 lg:overflow-hidden'}`}
+                    className={`relative order-1 flex shrink-0 flex-col border-l border-white/10 bg-[#0b0e12] transition-[width] duration-200 ease-out max-lg:contents lg:order-2 lg:h-screen ${shouldCollapseRightPanel ? 'overflow-hidden p-0' : 'p-5 lg:overflow-x-hidden lg:overflow-y-auto'}`}
                     style={{
                         width: shouldCollapseRightPanel
                             ? RIGHT_PANEL_COLLAPSED_WIDTH
@@ -715,6 +761,128 @@ export default function SonicInterface() {
                                 </section>
                             )}
 
+                            <section className="order-3 flex shrink-0 flex-col border-b border-white/10 py-5 max-lg:min-h-[430px] max-lg:w-full max-lg:flex-none max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4">
+                                <div className="mb-3 flex items-center justify-between gap-3">
+                                    <h2 className="text-sm font-semibold text-slate-100">Chat</h2>
+                                    <span className="text-xs text-slate-500">{chatMessages.length > 0 ? `${chatMessages.length} messages` : 'Ready'}</span>
+                                </div>
+
+                                <div className="flex min-h-[360px] flex-col overflow-hidden rounded-lg border border-cyan-300/25 bg-[#07090c] shadow-[0_0_34px_rgba(34,211,238,0.05)] max-sm:min-h-[340px]">
+                                    <div
+                                        ref={logRef}
+                                        className="studio-scrollbar min-h-0 flex-1 overflow-y-auto p-3"
+                                    >
+                                        <div className="flex flex-col gap-3">
+                                            {chatMessages.length === 0 && !isThinking && (
+                                                <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.025] px-4 py-6 text-sm leading-6 text-slate-500">
+                                                    Ask for a groove, remix a track, or paste Strudel code.
+                                                </div>
+                                            )}
+
+                                            {chatMessages.map((message, i) => {
+                                                const isUser = message.role === 'user';
+                                                const isAssistant = message.role === 'assistant';
+                                                const isError = message.role === 'error';
+                                                return (
+                                                    <div
+                                                        key={`${message.label}-${i}`}
+                                                        className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+                                                    >
+                                                        <div className={`max-w-[88%] rounded-lg border px-3 py-2 text-sm leading-6 ${isUser
+                                                            ? 'border-cyan-300/35 bg-cyan-300/12 text-cyan-50'
+                                                            : isAssistant
+                                                                ? 'border-white/10 bg-white/[0.04] text-slate-100'
+                                                                : isError
+                                                                    ? 'border-rose-300/30 bg-rose-400/10 text-rose-100'
+                                                                    : 'border-white/8 bg-white/[0.025] text-slate-400'
+                                                            }`}
+                                                        >
+                                                            <div className={`mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${isUser
+                                                                ? 'text-cyan-200/70'
+                                                                : isAssistant
+                                                                    ? 'text-violet-200/80'
+                                                                    : isError
+                                                                        ? 'text-rose-200/80'
+                                                                        : 'text-slate-600'
+                                                                }`}
+                                                            >
+                                                                {message.label}
+                                                            </div>
+                                                            <div className="whitespace-pre-wrap break-words">{message.body}</div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+
+                                            {isThinking && (
+                                                <div className="flex justify-start">
+                                                    <div className="max-w-[88%] animate-pulse rounded-lg border border-violet-300/20 bg-violet-300/10 px-3 py-2 text-sm leading-6 text-violet-100">
+                                                        <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200/80">Aether</div>
+                                                        Thinking...
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="border-t border-white/10 p-3">
+                                        <div className={`group relative flex items-center gap-3 rounded-lg border bg-[#10151b] px-3 py-3 transition-colors ${isAudioReady ? 'border-cyan-300/25 focus-within:border-cyan-200/50' : 'border-white/10 focus-within:border-cyan-300/35'}`}>
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleRecording()}
+                                                disabled={!isAudioReady}
+                                                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors ${isRecording
+                                                    ? 'bg-rose-500/15 text-rose-300'
+                                                    : 'bg-white/[0.04] text-cyan-200 hover:bg-cyan-300/10'
+                                                    } ${!isAudioReady ? 'cursor-not-allowed opacity-50' : ''}`}
+                                                aria-label={isRecording ? 'Stop listening' : 'Start voice input'}
+                                            >
+                                                {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                                            </button>
+
+                                            <div className="relative min-w-0 flex-1">
+                                                {isRecording && (
+                                                    <span className="absolute right-0 top-1/2 -translate-y-1/2 text-xs font-medium text-rose-300">Listening...</span>
+                                                )}
+                                                <input
+                                                    ref={inputRef}
+                                                    id="command-input"
+                                                    name="command"
+                                                    type="text"
+                                                    autoComplete="off"
+                                                    aria-label="Chat command input"
+                                                    aria-describedby="command-hint"
+                                                    className="w-full border-none bg-transparent pr-20 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none max-sm:pr-8 max-sm:text-base"
+                                                    placeholder={isAudioReady ? 'Describe a pattern...' : 'Type a prompt...'}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            console.log('[Input] Enter pressed, sending:', e.currentTarget.value);
+                                                            const value = e.currentTarget.value.trim();
+                                                            if (value) {
+                                                                sendCommand(value);
+                                                                e.currentTarget.value = '';
+                                                            }
+                                                        }
+                                                    }}
+                                                    onFocus={() => console.log('[Input] Focused')}
+                                                    onChange={(e) => console.log('[Input] Changed:', e.target.value)}
+                                                    onClick={() => console.log('[Input] Clicked')}
+                                                />
+                                            </div>
+                                            <div id="command-hint" className="pointer-events-none hidden rounded bg-white/[0.04] px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-slate-500 group-focus-within:block max-sm:hidden">
+                                                Enter
+                                            </div>
+                                        </div>
+                                        {speechError && (
+                                            <p className="mt-3 text-xs font-medium text-rose-300">{speechError}</p>
+                                        )}
+                                        {isAudioReady && !speechError && (
+                                            <p className="mt-3 text-center text-xs text-slate-500">Audio engine ready</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </section>
+
                             <section className="order-5 shrink-0 border-b border-white/10 py-5 max-lg:w-full max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4">
                                 <div className="mb-3 flex items-center justify-between gap-3">
                                     <h2 className="text-sm font-semibold text-slate-100">Mixer Channels</h2>
@@ -739,94 +907,6 @@ export default function SonicInterface() {
                                     </div>
                                 )}
                             </section>
-
-                            <section className="order-6 flex min-h-0 flex-1 flex-col py-5 max-lg:min-h-[260px] max-lg:w-full max-lg:flex-none max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4">
-                                <div className="mb-3 flex items-center justify-between gap-3">
-                                    <h2 className="text-sm font-semibold text-slate-100">Session Log</h2>
-                                    <span className="text-xs text-slate-500">{messages.length} events</span>
-                                </div>
-                                <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-white/10 bg-[#07090c]">
-                                    <div
-                                        ref={logRef}
-                                        className="studio-scrollbar h-full overflow-y-auto p-3"
-                                    >
-                                        <div className="space-y-2">
-                                            {messages.map((msg, i) => (
-                                                <div key={i} className="rounded-md border border-white/8 bg-white/[0.025] px-3 py-2 text-sm leading-6">
-                                                    <span className="mr-2 font-mono text-xs tabular-nums text-cyan-300/80">
-                                                        {new Date().toLocaleTimeString()}
-                                                    </span>
-                                                    <span className="font-medium text-slate-200">{msg}</span>
-                                                </div>
-                                            ))}
-                                            {isThinking && (
-                                                <div className="rounded-md border border-violet-300/20 bg-violet-300/10 px-3 py-2 text-sm leading-6 animate-pulse">
-                                                    <span className="mr-2 font-mono text-xs tabular-nums text-violet-200">
-                                                        {new Date().toLocaleTimeString()}
-                                                    </span>
-                                                    <span className="font-medium text-violet-100">AI is thinking...</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </section>
-
-                            <div className="order-3 shrink-0 border-b border-t border-white/10 py-4 max-lg:sticky max-lg:top-0 max-lg:z-30 max-lg:w-full max-lg:bg-[#0b0e12]/95 max-lg:px-3 max-lg:backdrop-blur-xl">
-                                <div className={`group relative flex items-center gap-3 rounded-lg border bg-[#10151b] px-3 py-3 transition-colors ${isAudioReady ? 'border-cyan-300/25 focus-within:border-cyan-200/50' : 'border-white/10'}`}>
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleRecording()}
-                                        disabled={!isAudioReady}
-                                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors ${isRecording
-                                            ? 'bg-rose-500/15 text-rose-300'
-                                            : 'bg-white/[0.04] text-cyan-200 hover:bg-cyan-300/10'
-                                            } ${!isAudioReady ? 'cursor-not-allowed opacity-50' : ''}`}
-                                        aria-label={isRecording ? 'Stop listening' : 'Start voice input'}
-                                    >
-                                        {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-                                    </button>
-
-                                    <div className="relative min-w-0 flex-1">
-                                        {isRecording && (
-                                            <span className="absolute right-0 top-1/2 -translate-y-1/2 text-xs font-medium text-rose-300">Listening...</span>
-                                        )}
-                                        <input
-                                            ref={inputRef}
-                                        id="command-input"
-                                        name="command"
-                                        type="text"
-                                        autoComplete="off"
-                                        aria-label="Voice command input"
-                                        aria-describedby="command-hint"
-                                            className="w-full border-none bg-transparent pr-20 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none max-sm:pr-8 max-sm:text-base"
-                                            placeholder={isAudioReady ? 'Describe a pattern...' : 'Type a prompt...'}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    console.log('[Input] Enter pressed, sending:', e.currentTarget.value);
-                                                    const value = e.currentTarget.value.trim();
-                                                    if (value) {
-                                                        sendCommand(value);
-                                                        e.currentTarget.value = '';
-                                                    }
-                                                }
-                                            }}
-                                            onFocus={() => console.log('[Input] Focused')}
-                                            onChange={(e) => console.log('[Input] Changed:', e.target.value)}
-                                            onClick={() => console.log('[Input] Clicked')}
-                                        />
-                                    </div>
-                                    <div id="command-hint" className="pointer-events-none hidden rounded bg-white/[0.04] px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-slate-500 group-focus-within:block max-sm:hidden">
-                                        Enter
-                                    </div>
-                                </div>
-                                {speechError && (
-                                    <p className="mt-3 text-xs font-medium text-rose-300">{speechError}</p>
-                                )}
-                                {isAudioReady && !speechError && (
-                                    <p className="mt-3 text-center text-xs text-slate-500">Audio engine ready</p>
-                                )}
-                            </div>
 
                             {isHelpOpen && (
                                 <div className="absolute inset-0 z-50 overflow-y-auto bg-[#0b0e12]/95 p-6 backdrop-blur-xl">
