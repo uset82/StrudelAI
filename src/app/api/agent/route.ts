@@ -3,27 +3,26 @@ import OpenAI from 'openai';
 import fs from 'fs';
 import path from 'path';
 import { InstrumentType } from '@/types/sonic';
+import {
+    OPENROUTER_API_KEY,
+    OPENROUTER_HEADERS,
+    OPENROUTER_TIMEOUT_MS,
+    getOpenRouterModelCandidates,
+} from '@/lib/ai/openrouter-config';
 
 // MusicGen server URL
 const MUSICGEN_URL = process.env.MUSICGEN_URL || 'http://localhost:5001';
 
 // YouTube to Strudel server URL
 const YOUTUBE_STRUDEL_URL = process.env.YOUTUBE_STRUDEL_URL || 'http://localhost:5002';
-const OPENROUTER_TIMEOUT_MS = Number(process.env.OPENROUTER_TIMEOUT_MS || 20000);
-
 // Initialize OpenRouter client (using OpenAI SDK with custom baseURL)
 const openai = new OpenAI({
     baseURL: 'https://openrouter.ai/api/v1',
-    apiKey: process.env.OPENROUTER_API_KEY || '',
-    timeout: Number.isFinite(OPENROUTER_TIMEOUT_MS) ? OPENROUTER_TIMEOUT_MS : 20000,
+    apiKey: OPENROUTER_API_KEY,
+    timeout: OPENROUTER_TIMEOUT_MS,
     maxRetries: 0,
-    defaultHeaders: {
-        'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
-        'X-Title': 'Aether Sonic',
-    },
+    defaultHeaders: OPENROUTER_HEADERS,
 });
-
-const MODEL_NAME = process.env.MODEL_NAME || 'moonshotai/kimi-k2.6:free';
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -1049,7 +1048,7 @@ export async function POST(req: Request) {
             }
         }
 
-        if (!process.env.OPENROUTER_API_KEY) {
+        if (!OPENROUTER_API_KEY) {
             console.error('[API/Agent] OPENROUTER_API_KEY not found in environment');
             return jsonWithCors({
                 error: 'OpenRouter API Key is missing. Please configure OPENROUTER_API_KEY in your deployment environment variables.'
@@ -1099,38 +1098,45 @@ ${knowledgeBase}
         let completion;
         let lastError: unknown;
         let wasRateLimited = false;
-        try {
-            completion = await openai.chat.completions.create({
-                model: MODEL_NAME,
-                messages: [
-                    { role: "system", content: augmentedSystemPrompt },
-                    {
-                        role: "user",
-                        content: `Current Code:
+        const attemptedModels: string[] = [];
+        for (const model of getOpenRouterModelCandidates()) {
+            attemptedModels.push(model);
+            try {
+                completion = await openai.chat.completions.create({
+                    model,
+                    messages: [
+                        { role: "system", content: augmentedSystemPrompt },
+                        {
+                            role: "user",
+                            content: `Current Code:
 ${currentCode || '// No code yet'}${audioContext}
 
 User Request: ${prompt}`
-                    }
-                ],
-                temperature: 0.7,
-                max_tokens: 1500,
-            });
-        } catch (err: unknown) {
-            lastError = err;
-            const status = (err as { status?: number })?.status;
-            wasRateLimited = status === 429;
-            if (!isRecoverableProviderError(err)) {
-                throw err;
+                        }
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 1500,
+                });
+                break;
+            } catch (err: unknown) {
+                lastError = err;
+                const status = (err as { status?: number })?.status;
+                wasRateLimited ||= status === 429;
+                console.warn(`[API/Agent] OpenRouter model failed (${model})`, err);
+                if (!isRecoverableProviderError(err)) {
+                    throw err;
+                }
             }
         }
         if (!completion) {
             const reason = wasRateLimited
-                ? 'Rate limited by API - generating music locally based on your request.'
+                ? 'OpenRouter models were rate limited - generating music locally based on your request.'
                 : 'OpenRouter was slow or unavailable - generating music locally based on your request.';
             console.warn(`[API/Agent] ${reason}`, lastError);
             return jsonWithCors({
                 ...buildProviderFallback(prompt, reason),
                 providerFallback: true,
+                attemptedModels,
             });
         }
 
