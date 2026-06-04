@@ -1,5 +1,5 @@
 {
-  "version": "2026-06-04.3",
+  "version": "2026-06-04.4",
   "priorityGenres": ["rock-family", "contextual-drums"],
   "note": "The executable StrudelTrainingExample corpus lives in src/lib/music/trainingCorpus.ts and expands these prompts through shared GenreTemplate objects.",
   "examples": [
@@ -32,12 +32,15 @@
     { "id": "drums-002", "prompt": "double tap drums", "templateId": "double_tap_drums", "tags": ["drums", "modify-current-track", "contextual-followup"] },
     { "id": "drums-003", "prompt": "triple tap drums", "templateId": "triple_tap_drums", "tags": ["drums", "modify-current-track", "triple-tap"] },
     { "id": "drums-004", "prompt": "drums like blink182", "templateId": "pop_punk_drums", "tags": ["drums", "style-reference", "pop-punk"] },
-    { "id": "drums-005", "prompt": "pop-punk drums", "templateId": "pop_punk_drums", "tags": ["drums", "pop-punk"] },
-    { "id": "drums-006", "prompt": "punk fast hats", "templateId": "punk_fast_hats", "tags": ["drums", "punk", "fast-hats"] },
-    { "id": "drums-007", "prompt": "rock backbeat drums only", "templateId": "clean_drums", "tags": ["drums", "rock", "backbeat"] },
-    { "id": "drums-008", "prompt": "metal double-kick drums", "templateId": "metal_double_kick", "tags": ["drums", "metal", "double-kick"] },
-    { "id": "drums-009", "prompt": "hip-hop boom bap drums", "templateId": "boom_bap_drums", "tags": ["drums", "hiphop", "boom-bap"] },
-    { "id": "drums-010", "prompt": "dnb breakbeat drums", "templateId": "dnb_breakbeat", "tags": ["drums", "dnb", "breakbeat"] },
+    { "id": "drums-005", "prompt": "some blink182 drums", "templateId": "pop_punk_drums", "tags": ["drums", "style-reference", "pop-punk", "loose-reference"] },
+    { "id": "drums-006", "prompt": "i said some blink182 drums", "templateId": "pop_punk_drums", "tags": ["drums", "style-reference", "pop-punk", "correction"] },
+    { "id": "drums-007", "prompt": "pop-punk drums", "templateId": "pop_punk_drums", "tags": ["drums", "pop-punk"] },
+    { "id": "drums-008", "prompt": "punk fast hats", "templateId": "punk_fast_hats", "tags": ["drums", "punk", "fast-hats"] },
+    { "id": "drums-009", "prompt": "rock backbeat drums only", "templateId": "clean_drums", "tags": ["drums", "rock", "backbeat"] },
+    { "id": "drums-010", "prompt": "metal double-kick drums", "templateId": "metal_double_kick", "tags": ["drums", "metal", "double-kick"] },
+    { "id": "drums-011", "prompt": "hip-hop boom bap drums", "templateId": "boom_bap_drums", "tags": ["drums", "hiphop", "boom-bap"] },
+    { "id": "drums-012", "prompt": "dnb breakbeat drums", "templateId": "dnb_breakbeat", "tags": ["drums", "dnb", "breakbeat"] },
+    { "id": "drums-013", "prompt": "low", "templateId": "low_drums", "tags": ["drums", "modify-current-track", "low"] },
     { "id": "context-001", "prompt": "make it faster", "templateId": "clean_drums", "tags": ["tempo-change", "contextual-followup"] },
     { "id": "context-002", "prompt": "make it less even", "templateId": "humanized_drums", "tags": ["humanize", "contextual-followup"] },
     { "id": "context-003", "prompt": "sounds horrible", "templateId": "repaired_drums", "tags": ["repair", "drum-only", "contextual-followup"] },
@@ -46,6 +49,10 @@
     { "id": "context-006", "prompt": "more human", "templateId": "humanized_drums", "tags": ["humanize", "drum-only"] },
     { "id": "context-007", "prompt": "only drums", "templateId": "clean_drums", "tags": ["drums", "track-only", "clear-tracks"] },
     { "id": "context-008", "prompt": "remove melody", "templateId": "clean_drums", "tags": ["clear-track", "contextual-followup"] },
-    { "id": "context-009", "prompt": "i said clean drums", "templateId": "tight_clean_drums", "tags": ["correction", "clean", "drum-only"] }
+    { "id": "context-009", "prompt": "i said clean drums", "templateId": "tight_clean_drums", "tags": ["correction", "clean", "drum-only"] },
+    { "id": "context-010", "prompt": "come on", "templateId": "repaired_drums", "tags": ["complaint", "repair", "drum-only"] },
+    { "id": "context-011", "prompt": "come one", "templateId": "repaired_drums", "tags": ["complaint", "repair", "typo"] },
+    { "id": "context-012", "prompt": "techno italo 80s", "templateId": "italo_80s", "tags": ["italo", "80s", "style"] },
+    { "id": "context-013", "prompt": "techno italo 80s again", "templateId": "italo_80s_alt", "tags": ["italo", "80s", "variation"] }
   ]
 }

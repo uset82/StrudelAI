@@ -602,11 +602,11 @@ export function buildStrudelCode(state: SonicSessionState) {
     }
 
     if (tracks.length === 1) {
-        return `(${tracks[0]}).analyze(1)`;
+        return `(${tracks[0]})`;
     }
 
     // Use single-line format to avoid potential parsing issues
-    return `stack(${tracks.join(', ')}).analyze(1)`;
+    return `stack(${tracks.join(', ')})`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

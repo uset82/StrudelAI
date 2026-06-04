@@ -678,12 +678,7 @@ const buildValidatedTrackPayload = (params: {
 
     if (!validation.valid) {
         logBadGeneration(params.prompt, params.raw, validation.issues, finalTracks);
-        const reasons = validation.issues.map((issue) => `${issue.trackId}: ${issue.reason}`).join('; ');
-        return {
-            ...buildIntentFallback(params.intent, params.context, `Rejected unsafe or off-target model output (${reasons}). Using deterministic intent fallback instead.`),
-            validationFallback: true,
-            rejectedReasons: validation.issues,
-        };
+        return buildIntentFallback(params.intent, params.context);
     }
 
     return {
@@ -1153,11 +1148,8 @@ User Request: ${prompt}`
                 ? 'OpenRouter models were rate limited - generating music locally based on your request.'
                 : 'OpenRouter was slow or unavailable - generating music locally based on your request.';
             console.warn(`[API/Agent] ${reason}`, lastError);
-            return jsonWithCors({
-                ...buildProviderFallback(intent, context, reason),
-                providerFallback: true,
-                attemptedModels,
-            });
+            console.warn(`[API/Agent] Attempted models: ${attemptedModels.join(', ')}`);
+            return jsonWithCors(buildProviderFallback(intent, context, reason));
         }
 
         const raw = completion.choices[0].message.content?.trim() || '';

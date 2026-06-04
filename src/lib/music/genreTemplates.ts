@@ -14,6 +14,8 @@ export type GenreKey =
     | 'latin'
     | 'reggae'
     | 'techno'
+    | 'italo_80s'
+    | 'italo_80s_alt'
     | 'house'
     | 'ambient'
     | 'dnb'
@@ -25,6 +27,7 @@ export type GenreKey =
     | 'tight_clean_drums'
     | 'double_tap_drums'
     | 'triple_tap_drums'
+    | 'low_drums'
     | 'humanized_drums'
     | 'repaired_drums'
     | 'pop_punk_drums'
@@ -227,6 +230,40 @@ export const GENRE_TEMPLATES: Record<GenreKey, GenreTemplate> = {
         requiredTracks: ['drums', 'bass'],
         qualityNotes: ['Stable tempo', 'Four-on-floor', 'Bass/kick separated'],
     },
+    italo_80s: {
+        id: 'italo_80s',
+        aliases: ['italo 80s', 'italo disco', '80s italo techno', 'techno italo 80s'],
+        intentTags: ['italo', '80s', 'retro', 'electronic', 'arpeggio'],
+        bpm: 124,
+        key: 'C minor',
+        scale: 'C minor',
+        thought: 'Italo 80s techno: bright retro drums, octave bass motion, and a simple neon arpeggio instead of generic dark techno.',
+        tracks: tracks({
+            drums: "stack(s('RolandTR808_bd*4').gain(0.88), s('~ RolandTR909_cp ~ RolandTR909_cp').gain(0.62), s('RolandTR808_hh*8').gain(0.18).hpf(6500), s('~ ~ RolandTR909_oh ~').gain(0.12))",
+            bass: "note(m('c2 c3 c2 g1 bb1 g1 c2 g1')).s('square').att(0.005).decay(0.14).lpf(900).gain(0.66)",
+            melody: "note(m('c5 eb5 g5 bb5 g5 eb5 c5 bb4')).s('sawtooth').att(0.005).decay(0.08).lpf(3600).delay(0.18).room(0.22).gain(0.32).slow(2)",
+            fx: "s('pink').hpf(sine.range(1800, 9000).slow(8)).gain(sine.range(0.04, 0.16).slow(8))",
+        }),
+        requiredTracks: ['drums', 'bass', 'melody'],
+        qualityNotes: ['Retro octave bass', 'Bright but not harsh', 'Different from generic techno'],
+    },
+    italo_80s_alt: {
+        id: 'italo_80s_alt',
+        aliases: ['italo 80s variation', 'more italo 80s', 'techno italo 80s variation'],
+        intentTags: ['italo', '80s', 'retro', 'electronic', 'variation'],
+        bpm: 124,
+        key: 'A minor',
+        scale: 'A minor',
+        thought: 'Italo 80s variation: snappier electro drums, octave-jump bass, and a brighter arpeggio so the repeated request actually changes.',
+        tracks: tracks({
+            drums: "stack(s('RolandTR808_bd ~ RolandTR808_bd ~').gain(0.9), s('~ RolandTR909_sd ~ RolandTR909_sd').gain(0.6), s('RolandTR808_hh*16').gain(0.14).hpf(7000), s('~ RolandTR909_cp ~ ~').gain(0.18))",
+            bass: "note(m('a1 a2 e2 a2 g1 g2 e2 g2')).s('square').att(0.004).decay(0.12).lpf(980).gain(0.64)",
+            melody: "note(m('a4 c5 e5 a5 g5 e5 c5 e5')).s('sawtooth').att(0.004).decay(0.07).hpf(450).lpf(4200).delay(0.16).room(0.18).gain(0.34).slow(2)",
+            fx: "s('pink').hpf(sine.range(2500, 11000).slow(6)).gain(sine.range(0.03, 0.13).slow(6))",
+        }),
+        requiredTracks: ['drums', 'bass', 'melody'],
+        qualityNotes: ['Variation for repeated Italo prompt', 'Octave-jump bass', 'Retro electro drums'],
+    },
     house: {
         id: 'house',
         aliases: ['house', 'deep house', 'groovy house'],
@@ -413,6 +450,24 @@ export const GENRE_TEMPLATES: Record<GenreKey, GenreTemplate> = {
         requiredTracks: ['drums'],
         qualityNotes: ['Triple hits use three-note subdivisions', 'Different from double tap', 'No tonal carryover'],
     },
+    low_drums: {
+        id: 'low_drums',
+        aliases: ['low drums', 'deeper drums', 'lower drums'],
+        intentTags: ['drums', 'percussion', 'drum-only', 'low', 'deeper'],
+        bpm: 120,
+        key: 'N/A',
+        scale: 'N/A',
+        thought: 'Lower drum-only loop: deeper kick, darker snare, and quieter hats without adding bass or pads.',
+        tracks: tracks({
+            drums: "stack(note(m('c1 ~ c1 ~ c1 ~ ~ c1')).s('square').decay(0.11).lpf(95).gain(0.82), note(m('~ ~ c3 ~ ~ ~ c3 ~')).s('pink').decay(0.045).hpf(520).lpf(2400).gain(0.18), note(m('c6 ~ c6 ~ c6 ~ c6 ~')).s('pink').decay(0.008).hpf(7200).gain(0.045))",
+            bass: 'silence',
+            melody: 'silence',
+            voice: 'silence',
+            fx: 'silence',
+        }),
+        requiredTracks: ['drums'],
+        qualityNotes: ['Lower drum register', 'No bass layer', 'No pad layer'],
+    },
     humanized_drums: {
         id: 'humanized_drums',
         aliases: ['humanized drums', 'less even drums', 'more human drums'],
@@ -591,6 +646,7 @@ export const GENRE_TEMPLATES: Record<GenreKey, GenreTemplate> = {
 
 const GENRE_PATTERNS: Array<[GenreKey, RegExp]> = [
     ['dnb', /\b(dnb|drum\s*(?:and|&)\s*bass|jungle|breakbeat)\b/i],
+    ['italo_80s', /\b(italo|italo\s*disco|80s\s*techno|techno\s+italo\s+80s|italo\s+80s)\b/i],
     ['hiphop', /\b(hip\s*hop|hip-hop|rap|boom\s*bap|trap)\b/i],
     ['metal', /\b(metal|heavy\s*metal|chug|double\s*kick)\b/i],
     ['punk', /\b(punk|pop\s*punk)\b/i],
@@ -633,8 +689,9 @@ export function isDrumOnlyPrompt(prompt: string) {
     const p = prompt.toLowerCase();
     const explicitOnly = /\b(?:pure|only|just|solo)\s+(?:drums?|percussion|beat|beats)\b/.test(p);
     const drumIntent = /\b(?:drums?|drum\s+loop|beat|beats|percussion|kick|snare|hi-?hat|hats?)\b/.test(p);
-    const fullSongOrGenre = /\b(?:rock|punk|metal|techno|house|ambient|dnb|drum\s*(?:and|&)\s*bass|jungle|trance|acid|minimal|funk|pop|jazz|hip\s*hop|hip-hop|reggae|latin|bassline|bass|guitar|riff|melody|chords?|song|full|complete)\b/.test(p);
-    return explicitOnly || (drumIntent && !fullSongOrGenre);
+    const fullArrangementSignals = /\b(?:bassline|bass|guitar|riff|melody|chords?|song|full|complete)\b/.test(p);
+    const drumAndBassGenre = /\bdrum\s*(?:and|&)\s*bass\b/.test(p) && !/\b(?:dnb|jungle|breakbeat)\s+drums?\b/.test(p);
+    return explicitOnly || (drumIntent && !fullArrangementSignals && !drumAndBassGenre);
 }
 
 export function isDoubleTapDrumPrompt(prompt: string) {

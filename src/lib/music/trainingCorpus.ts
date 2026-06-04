@@ -20,7 +20,7 @@ export type StrudelTrainingExample = {
     rejectionReason?: string;
 };
 
-export const STRUDEL_CORPUS_VERSION = '2026-06-04.3';
+export const STRUDEL_CORPUS_VERSION = '2026-06-04.4';
 
 const fromTemplate = (
     id: string,
@@ -93,12 +93,15 @@ const drumIntentExamples: StrudelTrainingExample[] = [
     fromTemplate('drums-002', 'double tap drums', 'double_tap_drums', ['modify-current-track', 'contextual-followup'], ['Change the existing drum pattern', 'Do not replay clean drums']),
     fromTemplate('drums-003', 'triple tap drums', 'triple_tap_drums', ['modify-current-track', 'contextual-followup', 'triple-tap'], ['Use three-hit subdivisions', 'Do not replay double tap drums']),
     fromTemplate('drums-004', 'drums like blink182', 'pop_punk_drums', ['style-reference', 'pop-punk'], ['Map to safe pop-punk drum traits only']),
-    fromTemplate('drums-005', 'pop-punk drums', 'pop_punk_drums', ['pop-punk', 'track-only'], ['Fast hats and backbeat', 'No bass or guitar unless requested']),
-    fromTemplate('drums-006', 'punk fast hats', 'punk_fast_hats', ['punk', 'fast-hats'], ['Fast hats carry energy']),
-    fromTemplate('drums-007', 'rock backbeat drums only', 'clean_drums', ['rock', 'backbeat', 'track-only'], ['Backbeat without adding bass or riff']),
-    fromTemplate('drums-008', 'metal double-kick drums', 'metal_double_kick', ['metal', 'double-kick', 'track-only'], ['Double kick without clipping']),
-    fromTemplate('drums-009', 'hip-hop boom bap drums', 'boom_bap_drums', ['hiphop', 'boom-bap', 'track-only'], ['Loose half-time feel']),
-    fromTemplate('drums-010', 'dnb breakbeat drums', 'dnb_breakbeat', ['dnb', 'breakbeat', 'track-only'], ['Fast broken rhythm without bass unless requested']),
+    fromTemplate('drums-005', 'some blink182 drums', 'pop_punk_drums', ['style-reference', 'pop-punk', 'loose-reference'], ['Map loose artist phrasing to safe pop-punk drum traits only']),
+    fromTemplate('drums-006', 'i said some blink182 drums', 'pop_punk_drums', ['style-reference', 'pop-punk', 'correction'], ['Respect repeated artist-reference drum request without adding bass or melody']),
+    fromTemplate('drums-007', 'pop-punk drums', 'pop_punk_drums', ['pop-punk', 'track-only'], ['Fast hats and backbeat', 'No bass or guitar unless requested']),
+    fromTemplate('drums-008', 'punk fast hats', 'punk_fast_hats', ['punk', 'fast-hats'], ['Fast hats carry energy']),
+    fromTemplate('drums-009', 'rock backbeat drums only', 'clean_drums', ['rock', 'backbeat', 'track-only'], ['Backbeat without adding bass or riff']),
+    fromTemplate('drums-010', 'metal double-kick drums', 'metal_double_kick', ['metal', 'double-kick', 'track-only'], ['Double kick without clipping']),
+    fromTemplate('drums-011', 'hip-hop boom bap drums', 'boom_bap_drums', ['hiphop', 'boom-bap', 'track-only'], ['Loose half-time feel']),
+    fromTemplate('drums-012', 'dnb breakbeat drums', 'dnb_breakbeat', ['dnb', 'breakbeat', 'track-only'], ['Fast broken rhythm without bass unless requested']),
+    fromTemplate('drums-013', 'low', 'low_drums', ['modify-current-track', 'low', 'drum-only'], ['Lower the active drum loop without adding bass or pads']),
 ];
 
 const contextualCorrectionExamples: StrudelTrainingExample[] = [
@@ -111,6 +114,10 @@ const contextualCorrectionExamples: StrudelTrainingExample[] = [
     fromTemplate('context-007', 'only drums', 'clean_drums', ['track-only', 'clear-tracks'], ['Clear bass, melody, voice, and FX']),
     fromTemplate('context-008', 'remove melody', 'clean_drums', ['clear-track', 'contextual-followup'], ['Clear melody without inventing a new full genre']),
     fromTemplate('context-009', 'i said clean drums', 'tight_clean_drums', ['correction', 'clean', 'drum-only'], ['Use a tighter clean template instead of replaying the same clean drums']),
+    fromTemplate('context-010', 'come on', 'repaired_drums', ['complaint', 'repair', 'drum-only'], ['Treat negative follow-up as context repair, not generic music']),
+    fromTemplate('context-011', 'come one', 'repaired_drums', ['complaint', 'repair', 'typo'], ['Handle typo as complaint repair']),
+    fromTemplate('context-012', 'techno italo 80s', 'italo_80s', ['italo', '80s', 'style'], ['Use retro Italo traits instead of generic techno']),
+    fromTemplate('context-013', 'techno italo 80s again', 'italo_80s_alt', ['italo', '80s', 'variation'], ['Repeated Italo request should vary the loop, not replay identical generic techno']),
 ];
 
 const negativeExamples: StrudelTrainingExample[] = [

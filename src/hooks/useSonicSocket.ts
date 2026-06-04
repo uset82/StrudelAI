@@ -317,7 +317,7 @@ export function useSonicSocket() {
                         setMessages(prev => [...prev, `System: Engine applied (bpm ${state.bpm}, ${state.isPlaying ? 'playing' : 'stopped'})`]);
                     }
 
-                    // Refresh analyser after pattern update (analyze(1) creates it)
+                    // Refresh analyser after the engine attaches analysis internally.
                     setTimeout(async () => {
                         const node = await refreshAnalyser();
                         if (node) setAnalyser(node);

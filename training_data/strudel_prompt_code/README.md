@@ -1,6 +1,6 @@
 # Strudel Prompt-To-Code Training Data
 
-Version: 2026-06-04.3
+Version: 2026-06-04.4
 
 This folder is separate from `training_data/` MusicGen audio samples. These files train and evaluate Aether's Strudel code-generation behavior: natural-language prompt in, valid `/api/agent` JSON out.
 
@@ -15,6 +15,7 @@ This folder is separate from `training_data/` MusicGen audio samples. These file
 - [x] Negative examples included for wrong genre, unsupported syntax, and harsh repair behavior.
 - [x] Contextual drum transcript examples included for clean drums, double-tap edits, tempo edits, repairs, and pop-punk references.
 - [x] Repeated correction examples distinguish plain drums, clean drums, tighter clean drums, double taps, and triple taps.
+- [x] Live-chat regressions included for loose Blink-182 drum phrasing, complaint follow-ups, low drum edits, and Italo 80s techno.
 - [x] Drum-only negative examples included for accidental bass/melody, genre-switch repair, fake drum synthesis, and unsupported syntax.
 - [x] Maintenance loop documented.
 

@@ -106,11 +106,19 @@ export function buildMusicContext(input: {
     if (input.currentState?.tracks) {
         source = 'currentState';
         for (const trackId of TRACK_IDS) {
-            const track = input.currentState.tracks[trackId];
+            const rawTrack = input.currentState.tracks[trackId] as unknown;
+            if (typeof rawTrack === 'string') {
+                tracks[trackId] = normalizeTrackPattern(rawTrack);
+                continue;
+            }
+
+            const track = rawTrack as Partial<SonicSessionState['tracks'][InstrumentType]> | null | undefined;
             const pattern = normalizeTrackPattern(track?.pattern);
             tracks[trackId] = track?.muted ? null : pattern;
         }
-    } else if (input.currentCode) {
+    }
+
+    if (!TRACK_IDS.some((trackId) => hasAudiblePattern(tracks[trackId])) && input.currentCode) {
         source = 'currentCode';
         Object.assign(tracks, inferTracksFromCode(input.currentCode));
     }
@@ -151,7 +159,12 @@ function hasBlinkReference(prompt: string) {
 }
 
 function hasDrumReferenceIntent(prompt: string) {
-    return /\bdrums?\b/.test(prompt) && /\b(like|style|reference|similar\s+to)\b/.test(prompt);
+    return /\bdrums?\b/.test(prompt);
+}
+
+function isComplaintPrompt(prompt: string) {
+    return /^(?:come\s+on|come\s+one|cmon|wtf|no|nope|nah|not\s+that|wrong|try\s+again)$/i.test(prompt.trim())
+        || /\b(?:come\s+on|come\s+one|not\s+that|wrong|try\s+again)\b/i.test(prompt);
 }
 
 function isTempoPrompt(prompt: string) {
@@ -173,12 +186,21 @@ function getTempoTarget(prompt: string, currentBpm: number) {
 
 function drumTemplateForPrompt(prompt: string): GenreKey {
     if (/\b(?:i\s+said|actually|no,?|cleaner|very\s+clean|super\s+clean)\b/.test(prompt) && /\bclean\s+drums?\b/.test(prompt)) return 'tight_clean_drums';
+    if (hasBlinkReference(prompt)) return 'pop_punk_drums';
+    if (/^(?:low|lower|deeper)$/.test(prompt) || /\b(?:low|lower|deeper)\s+drums?\b/.test(prompt)) return 'low_drums';
     if (/\bmetal\b|\bdouble\s*kick\b/.test(prompt)) return 'metal_double_kick';
     if (/\bboom\s*bap\b|\bhip\s*hop\b|\bhip-hop\b/.test(prompt)) return 'boom_bap_drums';
     if (/\bdnb\b|\bdrum\s*(?:and|&)\s*bass\b|\bjungle\b|\bbreakbeat\b/.test(prompt)) return 'dnb_breakbeat';
     if (/\bpunk\b|\bfast\s+hats?\b/.test(prompt)) return 'punk_fast_hats';
     if (/\bclean\b/.test(prompt)) return 'clean_drums';
     return 'drums';
+}
+
+function contextLooksLikeItalo(context: MusicContext) {
+    const joined = [context.currentCode, ...Object.values(context.tracks).filter(Boolean)]
+        .join(' ')
+        .toLowerCase();
+    return /italo_80s|rolandtr808_hh\*8|c2 c3 c2 g1 bb1 g1|c5 eb5 g5 bb5/.test(joined);
 }
 
 export function routeMusicIntent(prompt: string, context: MusicContext): MusicIntent {
@@ -208,6 +230,32 @@ export function routeMusicIntent(prompt: string, context: MusicContext): MusicIn
             referenceStyle: 'pop-punk drum traits',
             nextBpm: 176,
             reason: 'Artist reference mapped to safe pop-punk drum traits, not exact imitation.',
+        }, context);
+    }
+
+    if (isComplaintPrompt(normalized) && context.activeTracks.length > 0) {
+        if (context.isDrumOnly) {
+            return buildIntent({
+                kind: 'repair_current_context',
+                targetTracks: ['drums'],
+                preserveTracks: [],
+                clearTracks: NON_DRUM_TRACKS,
+                templateId: 'repaired_drums',
+                referenceStyle: null,
+                nextBpm: context.currentBpm,
+                reason: 'Repair the active drum-only loop after a negative follow-up, without adding bass or melody.',
+            }, context);
+        }
+
+        return buildIntent({
+            kind: 'repair_current_context',
+            targetTracks: context.activeTracks,
+            preserveTracks: context.activeTracks,
+            clearTracks: [],
+            templateId: null,
+            referenceStyle: null,
+            nextBpm: context.currentBpm,
+            reason: 'Keep the current context and make a safer correction instead of starting generic music.',
         }, context);
     }
 
@@ -280,6 +328,32 @@ export function routeMusicIntent(prompt: string, context: MusicContext): MusicIn
         }, context);
     }
 
+    if (/^(?:low|lower|deeper)$/.test(normalized) || /\b(?:make\s+it\s+lower|make\s+it\s+deeper|lower\s+drums?|deeper\s+drums?)\b/.test(normalized)) {
+        if (context.isDrumOnly || isDrumOnlyPrompt(normalized)) {
+            return buildIntent({
+                kind: 'modify_current_track',
+                targetTracks: ['drums'],
+                preserveTracks: [],
+                clearTracks: NON_DRUM_TRACKS,
+                templateId: 'low_drums',
+                referenceStyle: null,
+                nextBpm: context.currentBpm,
+                reason: 'Lower the current drum-only loop without adding tonal layers.',
+            }, context);
+        }
+
+        return buildIntent({
+            kind: 'modify_current_track',
+            targetTracks: context.activeTracks,
+            preserveTracks: context.activeTracks,
+            clearTracks: [],
+            templateId: null,
+            referenceStyle: null,
+            nextBpm: context.currentBpm,
+            reason: 'Preserve the current tracks for a low-register adjustment instead of adding unrelated layers.',
+        }, context);
+    }
+
     if (/\b(?:triple\s*tap|triple|three\s*hit|3\s*hit)\b/.test(normalized) && isDrumOnlyPrompt(normalized)) {
         return buildIntent({
             kind: 'modify_current_track',
@@ -321,15 +395,18 @@ export function routeMusicIntent(prompt: string, context: MusicContext): MusicIn
 
     const genre = detectGenre(normalized);
     if (genre) {
+        const templateId = genre === 'italo_80s' && contextLooksLikeItalo(context)
+            ? 'italo_80s_alt'
+            : genre;
         return buildIntent({
             kind: 'create_full_style',
             targetTracks: ['drums', 'bass', 'melody'],
             preserveTracks: [],
             clearTracks: [],
-            templateId: genre,
+            templateId,
             referenceStyle: null,
             nextBpm: null,
-            reason: `Create a full ${genre} style loop.`,
+            reason: `Create a full ${templateId} style loop.`,
         }, context);
     }
 

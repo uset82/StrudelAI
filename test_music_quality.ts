@@ -11,6 +11,8 @@ import {
 import { buildMusicContext, routeMusicIntent } from './src/lib/music/musicIntent';
 import { STRUDEL_TRAINING_CORPUS, getRelevantTrainingExamples } from './src/lib/music/trainingCorpus';
 import { validateGeneratedTracks } from './src/lib/music/strudelValidation';
+import { buildStrudelCode } from './src/lib/strudel/engine';
+import type { SonicSessionState, InstrumentType } from './src/types/sonic';
 
 const hasTrack = (value: string | null) => typeof value === 'string' && value.trim().length > 0;
 
@@ -60,6 +62,7 @@ assert.equal(doubleTapDrums!.tracks.melody, 'silence');
 assert.equal(detectGenre('make a guitar riff'), 'rock');
 assert.equal(detectGenre('play fast punk'), 'punk');
 assert.equal(detectGenre('drum and bass'), 'dnb');
+assert.equal(detectGenre('techno italo 80s'), 'italo_80s');
 
 const fallbackRock = buildFallbackResponse('make a guitar riff', 'fallback');
 assert.equal(fallbackRock.bpm, GENRE_TEMPLATES.rock.bpm);
@@ -177,6 +180,58 @@ assert.ok(hasTrack(blinkDrumsTurn.response.tracks.drums), 'pop-punk reference sh
 assert.equal(blinkDrumsTurn.response.tracks.bass, 'silence', 'drums like blink182 should stay drum-only');
 assert.equal(blinkDrumsTurn.response.tracks.melody, 'silence', 'drums like blink182 should stay drum-only');
 
+const looseBlinkDrumsTurn = applyIntentTurn('some blink182 drums', repairedDrumsTurn.response);
+assert.equal(looseBlinkDrumsTurn.intent.kind, 'style_reference');
+assert.equal(looseBlinkDrumsTurn.intent.templateId, 'pop_punk_drums');
+assert.match(looseBlinkDrumsTurn.response.thought, /pop-punk|punk/i, 'loose Blink phrasing should map to pop-punk traits');
+assert.equal(looseBlinkDrumsTurn.response.tracks.bass, 'silence');
+assert.equal(looseBlinkDrumsTurn.response.tracks.melody, 'silence');
+
+const responseShapedContext = buildMusicContext({
+    currentState: {
+        bpm: looseBlinkDrumsTurn.response.bpm,
+        tracks: looseBlinkDrumsTurn.response.tracks,
+    } as unknown as Partial<SonicSessionState>,
+});
+assert.equal(responseShapedContext.isDrumOnly, true, 'API response-shaped currentState should still preserve drum-only context');
+
+const insistedBlinkDrumsTurn = applyIntentTurn('i said some blink182 drums', repairedDrumsTurn.response);
+assert.equal(insistedBlinkDrumsTurn.intent.kind, 'style_reference');
+assert.equal(insistedBlinkDrumsTurn.intent.templateId, 'pop_punk_drums');
+assert.equal(insistedBlinkDrumsTurn.response.tracks.bass, 'silence');
+assert.equal(insistedBlinkDrumsTurn.response.tracks.melody, 'silence');
+
+const comeOnTurn = applyIntentTurn('come on', looseBlinkDrumsTurn.response);
+assert.equal(comeOnTurn.intent.kind, 'repair_current_context');
+assert.equal(comeOnTurn.intent.templateId, 'repaired_drums');
+assert.equal(comeOnTurn.response.tracks.bass, 'silence', 'come on after drum-only should not add bass');
+assert.equal(comeOnTurn.response.tracks.melody, 'silence', 'come on after drum-only should not add melody');
+assert.doesNotMatch(comeOnTurn.response.thought, /rejected unsafe|generic/i, 'complaint fallback should not expose validator noise or generic music');
+
+const comeOneTurn = applyIntentTurn('come one', looseBlinkDrumsTurn.response);
+assert.equal(comeOneTurn.intent.kind, 'repair_current_context');
+assert.equal(comeOneTurn.response.tracks.bass, 'silence', 'come one typo should still repair drum-only context');
+assert.equal(comeOneTurn.response.tracks.melody, 'silence');
+
+const lowDrumsTurn = applyIntentTurn('low', doubleTapTurn.response);
+assert.equal(lowDrumsTurn.intent.kind, 'modify_current_track');
+assert.equal(lowDrumsTurn.intent.templateId, 'low_drums');
+assert.equal(lowDrumsTurn.response.tracks.bass, 'silence', 'low after drum-only should not add bass');
+assert.equal(lowDrumsTurn.response.tracks.melody, 'silence', 'low after drum-only should not add melody');
+assert.match(lowDrumsTurn.response.thought, /lower|deeper|low/i);
+
+const italoTurn = applyIntentTurn('techno italo 80s');
+assert.equal(italoTurn.intent.kind, 'create_full_style');
+assert.equal(italoTurn.intent.templateId, 'italo_80s');
+assert.notEqual(italoTurn.response.tracks.drums, GENRE_TEMPLATES.techno.tracks.drums, 'Italo 80s should not replay generic techno drums');
+assert.match(italoTurn.response.thought, /italo|80s|retro/i);
+
+const italoRepeatTurn = applyIntentTurn('techno italo 80s', italoTurn.response);
+assert.equal(italoRepeatTurn.intent.kind, 'create_full_style');
+assert.equal(italoRepeatTurn.intent.templateId, 'italo_80s_alt');
+assert.notEqual(italoRepeatTurn.response.tracks.drums, italoTurn.response.tracks.drums, 'repeated Italo 80s prompt should produce a variation');
+assert.match(italoRepeatTurn.response.thought, /variation|changes|italo/i);
+
 const tempoIntent = fasterTurn.intent;
 const tempoValidation = validateGeneratedTracks(fasterTurn.response.tracks, 'faster', undefined, tempoIntent);
 assert.equal(tempoValidation.valid, true, JSON.stringify(tempoValidation.issues));
@@ -189,6 +244,29 @@ const unsupportedDrumOnly = validateGeneratedTracks({
     fx: 'silence',
 }, 'only drums', undefined, cleanDrumsTurn.intent);
 assert.equal(unsupportedDrumOnly.valid, false, 'drum-only unsafe methods should be rejected');
+
+const makeTrack = (id: InstrumentType, pattern: string): SonicSessionState['tracks'][InstrumentType] => ({
+    id,
+    name: id,
+    pattern,
+    muted: false,
+    volume: 1,
+});
+
+const displayedCode = buildStrudelCode({
+    bpm: 120,
+    scale: 'C minor',
+    isPlaying: true,
+    tracks: {
+        drums: makeTrack('drums', `expr:${looseBlinkDrumsTurn.response.tracks.drums}`),
+        bass: makeTrack('bass', `expr:${looseBlinkDrumsTurn.response.tracks.bass}`),
+        melody: makeTrack('melody', `expr:${looseBlinkDrumsTurn.response.tracks.melody}`),
+        voice: makeTrack('voice', `expr:${looseBlinkDrumsTurn.response.tracks.voice}`),
+        fx: makeTrack('fx', `expr:${looseBlinkDrumsTurn.response.tracks.fx}`),
+    },
+});
+assert.doesNotMatch(displayedCode, /\.analyze\s*\(/, 'displayed Strudel code should not include analyzer helper calls');
+assert.doesNotMatch(displayedCode, /triangle.*sine|supersaw|c4 eb4 g4/i, 'displayed drum-only code should not include stale tonal layers');
 
 const rockFamilyPositiveCount = STRUDEL_TRAINING_CORPUS.filter((example) =>
     !example.negative && example.intentTags.some((tag) => ['rock', 'punk', 'metal'].includes(tag)),
