@@ -49,6 +49,34 @@
       "badOutputSummary": "Uses .slider(), .bank(), and .analyze() in generated Strudel.",
       "rejectionReason": "Unsupported Strudel syntax.",
       "fixTarget": "Sanitize or reject unsupported helpers and use valid subdivided drum notation."
+    },
+    {
+      "id": "negative-008",
+      "prompt": "funky groove",
+      "badOutputSummary": "Straight four-on-floor kick with static c2 bass and no rests.",
+      "rejectionReason": "Robotic repetition and missing funk syncopation.",
+      "fixTarget": "Use syncopated kick/bass placement with clipped chord stabs and readable space."
+    },
+    {
+      "id": "negative-009",
+      "prompt": "drums only",
+      "badOutputSummary": "Drums track contains note(m('<c4 e4 g4>')).s('sawtooth') and no kick/snare/hat roles.",
+      "rejectionReason": "Melodic synth material is not a drum role.",
+      "fixTarget": "Use kick, snare, and hat roles; clear tonal tracks."
+    },
+    {
+      "id": "negative-010",
+      "prompt": "make something dark and cinematic",
+      "badOutputSummary": "Random high notes, loud pink noise, and unrelated fast dance drums.",
+      "rejectionReason": "Vague mood was not converted into coherent genre, tempo, structure, or mix constraints.",
+      "fixTarget": "Infer a coherent minor-key brief, restrained sound plan, and validated track roles."
+    },
+    {
+      "id": "negative-011",
+      "prompt": "more human, less robotic",
+      "badOutputSummary": "Repeats the exact same generated pattern with no variation.",
+      "rejectionReason": "Humanize request must change timing/density while preserving context.",
+      "fixTarget": "Add controlled syncopation, riff gaps, fills, or rests without switching genre."
     }
   ]
 }

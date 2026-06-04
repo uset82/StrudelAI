@@ -1,0 +1,4 @@
+interface:
+  display_name: "Strudel Validation"
+  short_description: "Validate and repair Strudel music code"
+  default_prompt: "Use $strudel-validation to diagnose and repair invalid Strudel tracks in this repo."

@@ -8,6 +8,7 @@ import {
     OPENROUTER_HEADERS,
     OPENROUTER_TIMEOUT_MS,
     getOpenRouterModelCandidates,
+    getServerEnv,
 } from '@/lib/ai/openrouter-config';
 import {
     TrackMap,
@@ -18,12 +19,14 @@ import {
 import { MusicContext, MusicIntent, buildMusicContext, routeMusicIntent } from '@/lib/music/musicIntent';
 import { formatTrainingExamplesForPrompt } from '@/lib/music/trainingCorpus';
 import { validateGeneratedTracks } from '@/lib/music/strudelValidation';
+import { runMusicAgentPipeline } from '@/lib/music-agent';
 
 // MusicGen server URL
 const MUSICGEN_URL = process.env.MUSICGEN_URL || 'http://localhost:5001';
 
 // YouTube to Strudel server URL
 const YOUTUBE_STRUDEL_URL = process.env.YOUTUBE_STRUDEL_URL || 'http://localhost:5002';
+const MUSIC_AGENT_DEBUG = /^(1|true|yes)$/i.test(getServerEnv('MUSIC_AGENT_DEBUG'));
 // Initialize OpenRouter client (using OpenAI SDK with custom baseURL)
 const openai = new OpenAI({
     baseURL: 'https://openrouter.ai/api/v1',
@@ -46,7 +49,7 @@ function jsonWithCors(data: unknown, init: ResponseInit = {}) {
 function isRecoverableProviderError(error: unknown) {
     const status = (error as { status?: number })?.status;
     if (typeof status === 'number') {
-        return status === 408 || status === 429 || status >= 500;
+        return status === 404 || status === 408 || status === 429 || status >= 500;
     }
 
     const code = String((error as { code?: string })?.code || '').toLowerCase();
@@ -1064,6 +1067,19 @@ export async function POST(req: Request) {
             }
         }
 
+        if (process.env.MUSIC_AGENT_PIPELINE !== 'legacy') {
+            const musicAgentResponse = await runMusicAgentPipeline({
+                prompt,
+                currentCode,
+                currentState,
+                context,
+                intent,
+                enableOpenRouter: true,
+                includeDebug: MUSIC_AGENT_DEBUG,
+            });
+            return jsonWithCors(musicAgentResponse);
+        }
+
         const deterministicResponse = buildDeterministicMusicResponse(intent, context);
         if (deterministicResponse) {
             console.log(`[API/Agent] Deterministic music template selected for prompt: "${prompt}" (${intent.kind}/${intent.templateId})`);
@@ -1071,10 +1087,12 @@ export async function POST(req: Request) {
         }
 
         if (!OPENROUTER_API_KEY) {
-            console.error('[API/Agent] OPENROUTER_API_KEY not found in environment');
-            return jsonWithCors({
-                error: 'OpenRouter API Key is missing. Please configure OPENROUTER_API_KEY in your deployment environment variables.'
-            }, { status: 500 });
+            console.warn('[API/Agent] OPENROUTER_API_KEY not found, generating locally through deterministic fallback');
+            return jsonWithCors(buildProviderFallback(
+                intent,
+                context,
+                'OpenRouter is not configured - generating music locally based on your request.',
+            ));
         }
 
         // Build audio analysis context for the AI

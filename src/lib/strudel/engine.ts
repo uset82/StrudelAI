@@ -6,20 +6,6 @@ import { registerSynthSounds, soundAlias, getAnalyserById } from 'superdough';
 import { workletUrl as supradoughWorkletUrl } from 'supradough';
 import { InstrumentType, SonicSessionState, ArrangementState, Lane, Clip, LaneGroup } from '@/types/sonic';
 
-interface StrudelWindow extends Window {
-    __strudelEvaluate__?: (code: string) => Promise<unknown>;
-    __strudelScheduler__?: { start: () => void, stop: () => void, started: boolean };
-    getAnalyserById?: (id: number, fftSize: number, smoothing: number) => AnalyserNode | null;
-    superdough?: {
-        getAnalyserById?: (id: number, fftSize: number, smoothing: number) => AnalyserNode | null;
-    };
-    m?: unknown;
-    scheduler?: { start: () => void, stop: () => void, started: boolean };
-    __strudel__?: {
-        scheduler?: { start: () => void, stop: () => void, started: boolean };
-    }
-}
-
 const EXPR_PREFIX = 'expr:';
 const DEFAULT_BEATS_PER_CYCLE = 4;
 
@@ -189,7 +175,6 @@ let isInitialized = false;
 let analyser: AnalyserNode | null = null;
 let synthsRegistered = false;
 let drumSamplesLoaded = false;
-let pianoSamplesLoaded = false;
 let tempoLockBpm: number | null = null;
 let tempoLockTimer: number | null = null;
 
@@ -754,7 +739,6 @@ async function ensureSynths() {
         // sound like real drums/instruments, but will work reliably.
 
         drumSamplesLoaded = false;
-        pianoSamplesLoaded = false;
 
         synthsRegistered = true;
         console.log('[strudel] ✅ Synths registered');
@@ -1071,21 +1055,6 @@ export function getTransitionSweepHpf(): number {
  */
 export function isTransitionSweepActive(): boolean {
     return transitionSweep?.active || false;
-}
-
-/**
- * Apply transition sweep filter to code if sweep is active
- */
-function applyTransitionSweepToCode(code: string, layerId: string): string {
-    if (!transitionSweep || !transitionSweep.active || transitionSweep.layerId !== layerId) {
-        return code;
-    }
-
-    const hpf = getTransitionSweepHpf();
-    if (hpf <= 50) return code; // Don't apply if basically no filter
-
-    // Wrap the code with a high-pass filter
-    return `(${code}).hpf(${Math.round(hpf)})`;
 }
 
 // Legacy updateStrudel: Redirects to 'main' layer

@@ -33,6 +33,9 @@ This folder is separate from `training_data/` MusicGen audio samples. These file
 - No unsupported helpers such as `.bank()`, `.slider()`, `._pianoroll()`, `.analyze()`, `cpm()`, `.cpm()`, or `setcpm()`.
 - Stable BPM via the top-level `bpm` field, not fractional `.fast()` or `.slow()` tempo hacks.
 - Broad rock-family requests require drums, bass, and a guitar-like riff/chord track.
+- Instrument roles must be plausible: drums contain kick/snare/hat roles, bass stays mostly low, melody carries hooks/riffs, and FX stays textural.
+- Vague mood prompts should become a `MusicBrief` with genre or style defaults, tempo, key/scale, target instruments, and mix constraints.
+- Examples are reference material. Generated output may vary, but it must preserve the musical traits and avoid exact-copy dependence.
 - Repair requests should simplify the mix, reduce distortion/gain, and avoid adding noisy layers.
 - Humanize requests should add controlled syncopation without destroying the groove.
 - Drum-only and tempo-only follow-ups should preserve context instead of falling back to a new full genre.

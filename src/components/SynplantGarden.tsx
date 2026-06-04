@@ -398,18 +398,6 @@ export function SynplantGarden({ state, onApplyPattern }: SynplantGardenProps) {
         showStatus(`${NOTE_RING[idx]} branch growth ${g.toFixed(2)}`);
     }, [activeTrack, applyGenome, bulbBranches, bulbGrowth, cancelPreview, parent, showStatus]);
 
-    const setAllGrowth = useCallback((value: number) => {
-        cancelPreview();
-        const g = clamp(value, 0, 1);
-        setGrowthAll(g);
-        const nextBranches = makeBulbBranches(parent, g);
-        setBulbGrowth(NOTE_RING.map(() => g));
-        setBulbBranches(nextBranches);
-        const selected = nextBranches[selectedBranch] ?? nextBranches[0];
-        if (selected) applyGenome(activeTrack, selected);
-        showStatus(`All branches grown to ${g.toFixed(2)}`);
-    }, [activeTrack, applyGenome, cancelPreview, parent, selectedBranch, showStatus]);
-
     const replantSelectedBranch = useCallback(() => {
         const branch = bulbBranches[selectedBranch];
         if (!branch) return;

@@ -3,7 +3,7 @@ import { AGENT_TOOLS, executeTool } from './tool-bridge';
 import { ContextManager } from './context-manager';
 import { SonicSessionState, ChatMessage } from '../../types/sonic';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
-import { buildDeterministicMusicResponse } from '../music/genreTemplates';
+import { applyTrackMapToState, buildLocalMusicAgentPipeline, toAgentUpdateResponse } from '../music-agent';
 
 const ACTION_KEYWORDS = [
     'play', 'stop', 'start', 'pause', 'faster', 'slower', 'tempo', 'bpm', 'speed',
@@ -21,6 +21,14 @@ function requiresToolCall(text: string) {
 
 function cloneState(state: SonicSessionState): SonicSessionState {
     return JSON.parse(JSON.stringify(state));
+}
+
+function shouldUseSharedMusicPipeline(text: string) {
+    const lowered = text.toLowerCase();
+    if (/^(stop|pause|silence)\b/.test(lowered)) return false;
+    if (/\b(mute|unmute|delete|clear)\b/.test(lowered)) return false;
+    if (/^(drums|bass|melody|fx|voice)\s*:/i.test(text)) return false;
+    return /\b(play|make|create|generate|give|music|song|loop|beat|drums?|bass|melody|lead|riff|guitar|groove|rock|punk|metal|funk|jazz|hip\s*hop|house|techno|ambient|dnb|drum\s*(?:and|&)\s*bass|reggae|latin|trance|acid|minimal|horrible|harsh|muddy|human|humanize|clean|less\s+even|not\s+even)\b/i.test(text);
 }
 
 /**
@@ -68,22 +76,18 @@ function tryRuleBasedUpdate(text: string, state: SonicSessionState): { changed: 
         .map((track) => track.pattern)
         .filter(Boolean)
         .join('\n');
-    const deterministic = buildDeterministicMusicResponse(text, currentCode);
-
-    if (deterministic) {
-        newState.bpm = deterministic.bpm;
-        Object.entries(deterministic.tracks).forEach(([rawTrackId, pattern]) => {
-            const trackId = rawTrackId as keyof SonicSessionState['tracks'];
-            if (pattern && newState.tracks[trackId]) {
-                newState.tracks[trackId].pattern = normalizePattern(trackId, pattern);
-                newState.tracks[trackId].muted = false;
-            }
+    if (shouldUseSharedMusicPipeline(text)) {
+        const local = buildLocalMusicAgentPipeline({
+            prompt: text,
+            currentCode,
+            currentState: state,
+            enableOpenRouter: false,
         });
-        newState.isPlaying = true;
+        const response = toAgentUpdateResponse(local);
         return {
             changed: true,
-            newState,
-            response: deterministic.thought,
+            newState: applyTrackMapToState(response, newState),
+            response: response.thought,
         };
     }
 

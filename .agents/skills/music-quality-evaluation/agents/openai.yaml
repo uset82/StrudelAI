@@ -1,0 +1,4 @@
+interface:
+  display_name: "Music Quality Evaluation"
+  short_description: "Evaluate generated music quality regressions"
+  default_prompt: "Use $music-quality-evaluation to expand music-quality tests and listening checks."

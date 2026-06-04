@@ -302,7 +302,9 @@ export function routeMusicIntent(prompt: string, context: MusicContext): MusicIn
         }, context);
     }
 
-    if (isHumanizePrompt(normalized)) {
+    const explicitGenreBeforeHumanize = detectGenre(normalized);
+    const explicitHumanizeLanguage = /\b(non\s*even|not\s+even|less\s+even|human|humanize|swing|syncop|too\s+straight|less\s+rigid|robotic|mechanical|stiff)\b/i.test(normalized);
+    if (isHumanizePrompt(normalized) && (!explicitGenreBeforeHumanize || explicitHumanizeLanguage)) {
         if (context.isDrumOnly || isDrumOnlyPrompt(normalized)) {
             return buildIntent({
                 kind: 'modify_current_track',

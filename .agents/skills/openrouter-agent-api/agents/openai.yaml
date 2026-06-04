@@ -1,0 +1,4 @@
+interface:
+  display_name: "OpenRouter Agent API"
+  short_description: "Harden OpenRouter agent API behavior"
+  default_prompt: "Use $openrouter-agent-api to improve OpenRouter fallback and typed agent loops."

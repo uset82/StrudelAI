@@ -12,6 +12,14 @@ import { buildMusicContext, routeMusicIntent } from './src/lib/music/musicIntent
 import { STRUDEL_TRAINING_CORPUS, getRelevantTrainingExamples } from './src/lib/music/trainingCorpus';
 import { validateGeneratedTracks } from './src/lib/music/strudelValidation';
 import { buildStrudelCode } from './src/lib/strudel/engine';
+import {
+    MusicBriefSchema,
+    QualityReviewSchema,
+    SoundPlanSchema,
+    TheoryPlanSchema,
+    buildLocalMusicAgentPipeline,
+    buildMusicBrief,
+} from './src/lib/music-agent';
 import type { SonicSessionState, InstrumentType } from './src/types/sonic';
 
 const hasTrack = (value: string | null) => typeof value === 'string' && value.trim().length > 0;
@@ -275,5 +283,94 @@ assert.ok(rockFamilyPositiveCount >= 25, `expected at least 25 rock-family examp
 
 const retrievedRock = getRelevantTrainingExamples('play some rock', 3);
 assert.ok(retrievedRock.some((example) => example.id === 'rock-001'), 'rock first-success example should be retrieved');
+
+const emptyContext = buildMusicContext({});
+const rockBrief = buildMusicBrief('classic rock in e minor', emptyContext, routeMusicIntent('classic rock in e minor', emptyContext));
+MusicBriefSchema.parse(rockBrief);
+assert.equal(rockBrief.genre, 'rock');
+assert.equal(rockBrief.key, 'E minor');
+assert.ok(rockBrief.targetTracks.includes('drums'), 'full rock brief should target drums');
+
+const localRockPipeline = buildLocalMusicAgentPipeline({ prompt: 'play some rock', enableOpenRouter: false });
+TheoryPlanSchema.parse(localRockPipeline.theory);
+SoundPlanSchema.parse(localRockPipeline.sound);
+QualityReviewSchema.parse(localRockPipeline.review);
+assert.equal(localRockPipeline.validation.valid, true, JSON.stringify(localRockPipeline.validation.issues));
+assert.ok(hasTrack(localRockPipeline.tracks.drums), 'local pipeline rock needs drums');
+assert.ok(hasTrack(localRockPipeline.tracks.bass), 'local pipeline rock needs bass');
+assert.ok(hasTrack(localRockPipeline.tracks.melody), 'local pipeline rock needs guitar-like melody');
+assert.notEqual(localRockPipeline.tracks.melody, GENRE_TEMPLATES.rock.tracks.melody, 'local pipeline should not only copy the rock template melody');
+assert.match(localRockPipeline.tracks.melody || '', /distort|sawtooth|square/i, 'local rock pipeline should sound guitar-like');
+
+const localFunkPipeline = buildLocalMusicAgentPipeline({ prompt: 'funky groove', enableOpenRouter: false });
+assert.equal(localFunkPipeline.brief.genre, 'funk');
+assert.equal(localFunkPipeline.validation.valid, true, JSON.stringify(localFunkPipeline.validation.issues));
+assert.match(localFunkPipeline.tracks.bass || '', /~/, 'funk bass should include syncopated rests');
+
+const boomBapDrumsOnlyPipeline = buildLocalMusicAgentPipeline({ prompt: 'boom bap drums only', enableOpenRouter: false });
+assert.equal(boomBapDrumsOnlyPipeline.brief.genre, 'boom_bap_drums');
+assert.equal(boomBapDrumsOnlyPipeline.validation.valid, true, JSON.stringify(boomBapDrumsOnlyPipeline.validation.issues));
+assert.ok(hasTrack(boomBapDrumsOnlyPipeline.tracks.drums), 'boom bap drums-only prompt needs drums');
+assert.equal(boomBapDrumsOnlyPipeline.tracks.bass, 'silence', 'boom bap drums-only prompt must clear bass');
+assert.equal(boomBapDrumsOnlyPipeline.tracks.melody, 'silence', 'boom bap drums-only prompt must clear melody');
+
+const vagueMoodPipeline = buildLocalMusicAgentPipeline({ prompt: 'make something dark and cinematic', enableOpenRouter: false });
+assert.ok(vagueMoodPipeline.brief.mood.includes('dark'), 'vague dark prompt should preserve mood in MusicBrief');
+assert.equal(vagueMoodPipeline.validation.valid, true, JSON.stringify(vagueMoodPipeline.validation.issues));
+
+const lessRoboticContext = buildMusicContext({
+    currentState: {
+        bpm: localRockPipeline.bpm,
+        tracks: localRockPipeline.tracks,
+    } as unknown as Partial<SonicSessionState>,
+});
+const lessRoboticIntent = routeMusicIntent('make this less robotic', lessRoboticContext);
+const lessRoboticPipeline = buildLocalMusicAgentPipeline({
+    prompt: 'make this less robotic',
+    context: lessRoboticContext,
+    intent: lessRoboticIntent,
+    enableOpenRouter: false,
+});
+assert.equal(lessRoboticIntent.templateId, 'humanized_rock', 'less robotic should map to the humanized context path');
+assert.equal(lessRoboticPipeline.validation.valid, true, JSON.stringify(lessRoboticPipeline.validation.issues));
+assert.match(lessRoboticPipeline.thought, /human|syncop|rock/i, 'less robotic should not become generic music');
+assert.ok(hasTrack(lessRoboticPipeline.tracks.drums), 'less robotic contextual edit should keep drums');
+assert.ok(hasTrack(lessRoboticPipeline.tracks.bass), 'less robotic contextual edit should keep bass');
+assert.ok(hasTrack(lessRoboticPipeline.tracks.melody), 'less robotic contextual edit should keep melody');
+
+const retryDrumsOnlyPipeline = buildLocalMusicAgentPipeline({ prompt: 'try again but keep only the drums', enableOpenRouter: false });
+assert.equal(retryDrumsOnlyPipeline.brief.requestedScope, 'track_only');
+assert.equal(retryDrumsOnlyPipeline.validation.valid, true, JSON.stringify(retryDrumsOnlyPipeline.validation.issues));
+assert.ok(hasTrack(retryDrumsOnlyPipeline.tracks.drums), 'retry drums-only prompt should keep drums');
+assert.equal(retryDrumsOnlyPipeline.tracks.bass, 'silence');
+assert.equal(retryDrumsOnlyPipeline.tracks.melody, 'silence');
+
+const invalidMelodicDrums = validateGeneratedTracks({
+    drums: "note(m('<c4 e4 g4>')).s('sawtooth').gain(0.7)",
+    bass: 'silence',
+    melody: 'silence',
+    voice: 'silence',
+    fx: 'silence',
+}, 'drums only');
+assert.equal(invalidMelodicDrums.valid, false, 'melodic synth material should not validate as drums');
+assert.ok(invalidMelodicDrums.issues.some((issue) => issue.reason.includes('kick/snare/hat')), JSON.stringify(invalidMelodicDrums.issues));
+
+const invalidHighBass = validateGeneratedTracks({
+    drums: null,
+    bass: "note(m('c5 e5 g5 c6')).s('sawtooth').hpf(1200).gain(0.5)",
+    melody: null,
+    voice: null,
+    fx: null,
+}, 'add bass');
+assert.equal(invalidHighBass.valid, false, 'high lead-like material should not validate as bass');
+
+const malformedUnsupportedRepair = validateGeneratedTracks({
+    drums: "s('RolandTR909_bd*4'",
+    bass: "note(m('c1 c1 c1 c1')).s('sawtooth').bank('bad')",
+    melody: null,
+    voice: null,
+    fx: null,
+}, 'repair this broken Strudel');
+assert.equal(malformedUnsupportedRepair.valid, false, 'malformed and unsupported Strudel should be rejected before repair fallback');
 
 console.log('Music quality regression tests passed.');

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Strudel Music Generation"
+  short_description: "Improve prompt-to-Strudel music generation"
+  default_prompt: "Use $strudel-music-generation to improve genre-aware Strudel generation in this repo."

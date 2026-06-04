@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@openrouter/agent": "0.7.1",
     "@strudel/core": "^1.2.5",
     "@strudel/mini": "^1.2.5",
     "@strudel/repl": "^1.2.7",
@@ -26,7 +27,8 @@
     "react-dom": "19.2.0",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
-    "superdough": "^1.2.6"
+    "superdough": "^1.2.6",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@netlify/plugin-nextjs": "^5.15.1",

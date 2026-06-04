@@ -676,7 +676,7 @@ export function isRepairPrompt(prompt: string) {
 }
 
 export function isHumanizePrompt(prompt: string) {
-    return /\b(non\s*even|not\s+even|less\s+even|human|humanize|swing|syncop|groove|too\s+straight|less\s+rigid)\b/i.test(prompt);
+    return /\b(non\s*even|not\s+even|less\s+even|human|humanize|swing|syncop|groove|too\s+straight|less\s+rigid|robotic|mechanical|stiff)\b/i.test(prompt);
 }
 
 export function isBroadMusicRequest(prompt: string) {

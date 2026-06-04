@@ -71,7 +71,55 @@
       "currentOutputSummary": "No guitar/riff intent mapping existed in fallback detection.",
       "failureLabels": ["missing-genre-detection", "missing-instrument-role"],
       "acceptanceTarget": "Rock-family riff using layered root/fifth synth texture."
+    },
+    {
+      "id": "baseline-011",
+      "prompt": "funky groove",
+      "currentOutputSummary": "Model risk: straight generic beat with no syncopated bass pocket.",
+      "failureLabels": ["wrong-groove", "missing-syncopation", "static-bass"],
+      "acceptanceTarget": "Funk traits with syncopated drums, active bass, clipped chord stabs, and readable rests."
+    },
+    {
+      "id": "baseline-012",
+      "prompt": "boom bap drums only",
+      "currentOutputSummary": "Model risk: full hip-hop arrangement or synthetic tonal blips instead of drum-only pocket.",
+      "failureLabels": ["extra-tracks-risk", "wrong-sound-role-risk"],
+      "acceptanceTarget": "Drum-only boom-bap loop with kick, snare, and hats; bass, melody, voice, and fx are silent."
+    },
+    {
+      "id": "baseline-013",
+      "prompt": "dreamy pop song",
+      "currentOutputSummary": "Model risk: generic ambient wash without pop hook or structure.",
+      "failureLabels": ["missing-hook-risk", "wrong-density-risk"],
+      "acceptanceTarget": "Pop loop with clean beat, supportive bass, and simple memorable hook."
+    },
+    {
+      "id": "baseline-014",
+      "prompt": "play reggae",
+      "currentOutputSummary": "Model risk: slow generic beat without one-drop feel or offbeat chops.",
+      "failureLabels": ["missing-offbeat", "wrong-genre-risk"],
+      "acceptanceTarget": "Reggae one-drop feel, deep bass, and offbeat chord chops."
+    },
+    {
+      "id": "baseline-015",
+      "prompt": "latin percussion groove",
+      "currentOutputSummary": "Model risk: straight house drums or over-loud noise percussion.",
+      "failureLabels": ["missing-syncopation", "harsh-percussion-risk"],
+      "acceptanceTarget": "Latin-style syncopated percussion, warm bass accents, and quiet bright upper hits."
+    },
+    {
+      "id": "baseline-016",
+      "prompt": "make something dark and cinematic",
+      "currentOutputSummary": "Vague mood prompt could default to unrelated generic music.",
+      "failureLabels": ["vague-intent", "missing-mood-interpretation"],
+      "acceptanceTarget": "Infer a coherent minor-key loop with dark mood, restrained density, and clear instrument roles."
+    },
+    {
+      "id": "baseline-017",
+      "prompt": "more human, less robotic",
+      "currentOutputSummary": "Follow-up could add chaotic rhythms or switch genres.",
+      "failureLabels": ["context-loss", "bad-humanization", "overcomplicated-response"],
+      "acceptanceTarget": "Preserve the current context and add controlled syncopation, rests, and variation."
     }
   ]
 }
-
