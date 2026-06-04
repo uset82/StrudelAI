@@ -172,12 +172,13 @@ function getTempoTarget(prompt: string, currentBpm: number) {
 }
 
 function drumTemplateForPrompt(prompt: string): GenreKey {
+    if (/\b(?:i\s+said|actually|no,?|cleaner|very\s+clean|super\s+clean)\b/.test(prompt) && /\bclean\s+drums?\b/.test(prompt)) return 'tight_clean_drums';
     if (/\bmetal\b|\bdouble\s*kick\b/.test(prompt)) return 'metal_double_kick';
     if (/\bboom\s*bap\b|\bhip\s*hop\b|\bhip-hop\b/.test(prompt)) return 'boom_bap_drums';
     if (/\bdnb\b|\bdrum\s*(?:and|&)\s*bass\b|\bjungle\b|\bbreakbeat\b/.test(prompt)) return 'dnb_breakbeat';
     if (/\bpunk\b|\bfast\s+hats?\b/.test(prompt)) return 'punk_fast_hats';
     if (/\bclean\b/.test(prompt)) return 'clean_drums';
-    return 'clean_drums';
+    return 'drums';
 }
 
 export function routeMusicIntent(prompt: string, context: MusicContext): MusicIntent {
@@ -276,6 +277,19 @@ export function routeMusicIntent(prompt: string, context: MusicContext): MusicIn
             referenceStyle: null,
             nextBpm: null,
             reason: 'Humanize the current full-track groove with controlled syncopation.',
+        }, context);
+    }
+
+    if (/\b(?:triple\s*tap|triple|three\s*hit|3\s*hit)\b/.test(normalized) && isDrumOnlyPrompt(normalized)) {
+        return buildIntent({
+            kind: 'modify_current_track',
+            targetTracks: ['drums'],
+            preserveTracks: [],
+            clearTracks: NON_DRUM_TRACKS,
+            templateId: 'triple_tap_drums',
+            referenceStyle: null,
+            nextBpm: context.currentBpm,
+            reason: 'Modify the current drums with three-hit triple taps.',
         }, context);
     }
 

@@ -22,7 +22,9 @@ export type GenreKey =
     | 'minimal'
     | 'drums'
     | 'clean_drums'
+    | 'tight_clean_drums'
     | 'double_tap_drums'
+    | 'triple_tap_drums'
     | 'humanized_drums'
     | 'repaired_drums'
     | 'pop_punk_drums'
@@ -346,16 +348,34 @@ export const GENRE_TEMPLATES: Record<GenreKey, GenreTemplate> = {
         bpm: 120,
         key: 'N/A',
         scale: 'N/A',
-        thought: 'Clean drum-only loop: kick, snare, and hats only. Clearing tonal tracks so the loop stays drum-only.',
+        thought: 'Drum-only groove: a simple kick, snare, hat, and light open-hat pattern. Clearing tonal tracks.',
         tracks: tracks({
-            drums: "stack(note(m('c2 ~ c2 ~')).s('square').decay(0.08).lpf(140).gain(0.78), note(m('~ c4 ~ c4')).s('pink').decay(0.04).hpf(950).gain(0.24), note(m('c6*8')).s('pink').decay(0.012).hpf(7800).gain(0.1))",
+            drums: "stack(note(m('c2 ~ ~ c2 ~ c2 ~ ~')).s('square').decay(0.085).lpf(145).gain(0.8), note(m('~ ~ c4 ~ ~ ~ c4 ~')).s('pink').decay(0.042).hpf(940).gain(0.24), note(m('c6*8')).s('pink').decay(0.013).hpf(7600).gain(0.095), note(m('~ ~ ~ c6 ~ ~ ~ ~')).s('pink').decay(0.018).hpf(6400).gain(0.045))",
             bass: 'silence',
             melody: 'silence',
             voice: 'silence',
             fx: 'silence',
         }),
         requiredTracks: ['drums'],
-        qualityNotes: ['Drum-only means no bass, melody, voice, or FX carryover', 'Use low gain hats', 'Keep layers simple'],
+        qualityNotes: ['Drum-only means no bass, melody, voice, or FX carryover', 'Distinct from clean drums', 'Light open-hat motion'],
+    },
+    tight_clean_drums: {
+        id: 'tight_clean_drums',
+        aliases: ['very clean drums', 'i said clean drums', 'cleaner drums'],
+        intentTags: ['drums', 'percussion', 'drum-only', 'clean', 'correction'],
+        bpm: 120,
+        key: 'N/A',
+        scale: 'N/A',
+        thought: 'Tight clean drum-only loop: stripped down kick/snare and quieter hats, with tonal tracks kept silent.',
+        tracks: tracks({
+            drums: "stack(note(m('c2 ~ ~ ~ c2 ~ ~ ~')).s('square').decay(0.065).lpf(125).gain(0.66), note(m('~ ~ c4 ~ ~ ~ c4 ~')).s('pink').decay(0.03).hpf(920).gain(0.16), note(m('c6 ~ c6 ~ c6 ~ c6 ~')).s('pink').decay(0.008).hpf(7600).gain(0.045))",
+            bass: 'silence',
+            melody: 'silence',
+            voice: 'silence',
+            fx: 'silence',
+        }),
+        requiredTracks: ['drums'],
+        qualityNotes: ['Correction template', 'Very sparse hats', 'No tonal carryover'],
     },
     double_tap_drums: {
         id: 'double_tap_drums',
@@ -374,6 +394,24 @@ export const GENRE_TEMPLATES: Record<GenreKey, GenreTemplate> = {
         }),
         requiredTracks: ['drums'],
         qualityNotes: ['Double hits use mini-notation subdivisions', 'No tonal carryover', 'Hats stay quiet'],
+    },
+    triple_tap_drums: {
+        id: 'triple_tap_drums',
+        aliases: ['triple tap drums', 'triple drums', 'three hit drums', '3 hit drums'],
+        intentTags: ['drums', 'percussion', 'drum-only', 'triple-tap'],
+        bpm: 120,
+        key: 'N/A',
+        scale: 'N/A',
+        thought: 'Triple-tap drum-only loop: three-hit kick and snare bursts, clearly different from double taps.',
+        tracks: tracks({
+            drums: "stack(note(m('[c2 c2 c2] ~ c2 ~')).s('square').decay(0.058).lpf(150).gain(0.72), note(m('~ [c4 c4 c4] ~ c4')).s('pink').decay(0.03).hpf(980).gain(0.23), note(m('c6*12')).s('pink').decay(0.009).hpf(8000).gain(0.07))",
+            bass: 'silence',
+            melody: 'silence',
+            voice: 'silence',
+            fx: 'silence',
+        }),
+        requiredTracks: ['drums'],
+        qualityNotes: ['Triple hits use three-note subdivisions', 'Different from double tap', 'No tonal carryover'],
     },
     humanized_drums: {
         id: 'humanized_drums',
@@ -601,7 +639,7 @@ export function isDrumOnlyPrompt(prompt: string) {
 
 export function isDoubleTapDrumPrompt(prompt: string) {
     const p = prompt.toLowerCase();
-    return isDrumOnlyPrompt(prompt) && /\b(?:double|double\s*tap|two\s*hit|2\s*hit|tap|flam|ratchet|stutter)\b/.test(p);
+    return isDrumOnlyPrompt(prompt) && !/\b(?:triple|three\s*hit|3\s*hit)\b/.test(p) && /\b(?:double|double\s*tap|two\s*hit|2\s*hit|tap|flam|ratchet|stutter)\b/.test(p);
 }
 
 export function inferGenreFromCode(currentCode?: string): GenreKey | null {
@@ -619,8 +657,11 @@ export function getTemplateForPrompt(prompt: string, currentCode?: string): Genr
     if (/\bdrums?\b/i.test(prompt) && /\bblink\s*-?\s*182\b|\bblink182\b/i.test(prompt)) {
         return GENRE_TEMPLATES.pop_punk_drums;
     }
+    if (/\b(?:triple\s*tap|triple|three\s*hit|3\s*hit)\b/i.test(prompt) && isDrumOnlyPrompt(prompt)) return GENRE_TEMPLATES.triple_tap_drums;
     if (isDoubleTapDrumPrompt(prompt)) return GENRE_TEMPLATES.double_tap_drums;
-    if (isDrumOnlyPrompt(prompt)) return GENRE_TEMPLATES.clean_drums;
+    if (/\b(?:i\s+said|actually|no,?|cleaner|very\s+clean|super\s+clean)\b/i.test(prompt) && /\bclean\s+drums?\b/i.test(prompt)) return GENRE_TEMPLATES.tight_clean_drums;
+    if (/\bclean\s+drums?\b/i.test(prompt)) return GENRE_TEMPLATES.clean_drums;
+    if (isDrumOnlyPrompt(prompt)) return GENRE_TEMPLATES.drums;
 
     if (isRepairPrompt(prompt)) {
         const genre = detectGenre(prompt) || inferGenreFromCode(currentCode);
@@ -705,7 +746,7 @@ export function buildDeterministicMusicResponse(
         const intent = promptOrIntent;
         const context = currentCodeOrContext as MusicContext;
         if (intent.kind === 'create_full_style' && intent.templateId === 'generic') return null;
-        return buildIntentFallback(intent, context, intent.reason);
+        return buildIntentFallback(intent, context);
     }
 
     const prompt = promptOrIntent;

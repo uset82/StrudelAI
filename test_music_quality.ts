@@ -127,12 +127,32 @@ assert.ok(hasTrack(cleanDrumsTurn.response.tracks.drums), 'clean drums should cr
 assert.equal(cleanDrumsTurn.response.tracks.bass, 'silence', 'clean drums should clear bass');
 assert.equal(cleanDrumsTurn.response.tracks.melody, 'silence', 'clean drums should clear melody');
 
+const plainDrumsTurn = applyIntentTurn('play some drums');
+assert.equal(plainDrumsTurn.intent.kind, 'track_only');
+assert.equal(plainDrumsTurn.intent.templateId, 'drums');
+assert.notEqual(plainDrumsTurn.response.tracks.drums, cleanDrumsTurn.response.tracks.drums, 'plain drums and clean drums must not replay the same template');
+
+const cleanAfterPlainTurn = applyIntentTurn('clean drums', plainDrumsTurn.response);
+assert.equal(cleanAfterPlainTurn.intent.templateId, 'clean_drums');
+assert.notEqual(cleanAfterPlainTurn.response.tracks.drums, plainDrumsTurn.response.tracks.drums, 'clean drums should change the existing plain drum loop');
+
+const correctionCleanTurn = applyIntentTurn('i said clean drums', cleanAfterPlainTurn.response);
+assert.equal(correctionCleanTurn.intent.templateId, 'tight_clean_drums');
+assert.notEqual(correctionCleanTurn.response.tracks.drums, cleanAfterPlainTurn.response.tracks.drums, 'i said clean drums should tighten/strip the clean loop further');
+
 const doubleTapTurn = applyIntentTurn('double tap drums', cleanDrumsTurn.response);
 assert.equal(doubleTapTurn.intent.kind, 'modify_current_track');
 assert.notEqual(doubleTapTurn.response.tracks.drums, cleanDrumsTurn.response.tracks.drums, 'double tap drums must change the clean drum code');
 assert.match(doubleTapTurn.response.tracks.drums || '', /\[c2 c2\].*\[c4 c4\]/, 'double tap drums should use subdivided hits');
 assert.equal(doubleTapTurn.response.tracks.bass, 'silence');
 assert.equal(doubleTapTurn.response.tracks.melody, 'silence');
+
+const tripleTapTurn = applyIntentTurn('triple tap drums', doubleTapTurn.response);
+assert.equal(isDoubleTapDrumPrompt('triple tap drums'), false);
+assert.equal(tripleTapTurn.intent.kind, 'modify_current_track');
+assert.equal(tripleTapTurn.intent.templateId, 'triple_tap_drums');
+assert.notEqual(tripleTapTurn.response.tracks.drums, doubleTapTurn.response.tracks.drums, 'triple tap drums must not reuse double tap drums');
+assert.match(tripleTapTurn.response.tracks.drums || '', /\[c2 c2 c2\].*\[c4 c4 c4\]/, 'triple tap drums should use three-hit subdivisions');
 
 const fasterTurn = applyIntentTurn('faster', doubleTapTurn.response);
 assert.equal(fasterTurn.intent.kind, 'tempo_change');
