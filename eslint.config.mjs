@@ -14,6 +14,7 @@ const eslintConfig = defineConfig([
     "build/**",
     "coverage/**",
     "scratch/**",
+    "training_data/awesome_strudel_raw/**",
     "next-env.d.ts",
   ]),
 ]);

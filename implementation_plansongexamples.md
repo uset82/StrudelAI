@@ -29,3 +29,11 @@ This document outlines the design and phase-by-phase execution plan for importin
 - [x] **Task 4.2:** Run `npm run build` to confirm the application compiles successfully.
 - [x] **Task 4.3:** Run `npm run test:music-quality` to check quality metrics.
 - [x] **Task 4.4:** Start the local server (`npm run dev`) and manually test prompts (e.g., "play Blue Monday") in the chat REPL.
+
+## Hardening Pass — Reference Examples Without Runtime Copying
+- [x] **Task H.1:** Keep `training_data/awesome_strudel_raw/` as an unmodified source archive and exclude it from ESLint.
+- [x] **Task H.2:** Use imported songs as reference traits and grounding, not copied full-song Strudel scripts.
+- [x] **Task H.3:** Replace helper-heavy runtime templates with compact, valid, role-separated drums/bass/melody/fx tracks.
+- [x] **Task H.4:** Update baseline acceptance targets away from "full arrangement in melody track".
+- [x] **Task H.5:** Add regression coverage for every imported song prompt, including rejection of `const`, `arrange`, `.bank()`, `.slider()`, `.analyze()`, and other unsafe copied-script constructs.
+- [x] **Task H.6:** Verify with `npm run test:music-quality`, `npm run lint`, `npm run build`, and `npx tsx test_agent_validator.ts`.
