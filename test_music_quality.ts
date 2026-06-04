@@ -4,6 +4,7 @@ import {
     buildDeterministicMusicResponse,
     buildFallbackResponse,
     detectGenre,
+    isDrumOnlyPrompt,
 } from './src/lib/music/genreTemplates';
 import { STRUDEL_TRAINING_CORPUS, getRelevantTrainingExamples } from './src/lib/music/trainingCorpus';
 import { validateGeneratedTracks } from './src/lib/music/strudelValidation';
@@ -33,6 +34,16 @@ const repaired = buildDeterministicMusicResponse('sounds horrible', currentRockC
 assert.ok(repaired, 'repair prompt should use deterministic repair template');
 assert.match(repaired!.thought, /clean|simpl|distortion|harsh/i);
 assert.doesNotMatch(repaired!.tracks.melody || '', /distort\(0\.[4-9]|gain\(1/i, 'repair should avoid high distortion/gain');
+
+const pureDrums = buildDeterministicMusicResponse('some pure drums', currentRockCode);
+assert.ok(pureDrums, 'pure drums should use deterministic drum-only template');
+assert.equal(isDrumOnlyPrompt('some pure drums'), true);
+assert.ok(hasTrack(pureDrums!.tracks.drums), 'pure drums needs a drum pattern');
+assert.equal(pureDrums!.tracks.bass, 'silence', 'pure drums must clear existing bass');
+assert.equal(pureDrums!.tracks.melody, 'silence', 'pure drums must clear existing melody');
+assert.equal(pureDrums!.tracks.voice, 'silence', 'pure drums must clear existing voice');
+assert.equal(pureDrums!.tracks.fx, 'silence', 'pure drums must clear existing fx');
+assert.doesNotMatch(pureDrums!.tracks.drums || '', /c4 eb4|triangle|sawtooth.*lpf\(520\)/i, 'pure drums must not include generic bass/melody material');
 
 assert.equal(detectGenre('make a guitar riff'), 'rock');
 assert.equal(detectGenre('play fast punk'), 'punk');
@@ -66,6 +77,12 @@ const repairTooHarsh = validateGeneratedTracks({
 }, 'sounds horrible');
 assert.equal(repairTooHarsh.valid, false, 'repair prompt should reject harsh dense output');
 
+const validPureDrums = validateGeneratedTracks(pureDrums!.tracks, 'some pure drums', currentRockCode);
+assert.equal(validPureDrums.valid, true, JSON.stringify(validPureDrums.issues));
+
+const invalidPureDrums = validateGeneratedTracks(GENRE_TEMPLATES.generic.tracks, 'some pure drums', currentRockCode);
+assert.equal(invalidPureDrums.valid, false, 'drum-only prompts should reject generic full-song fallback');
+
 const rockFamilyPositiveCount = STRUDEL_TRAINING_CORPUS.filter((example) =>
     !example.negative && example.intentTags.some((tag) => ['rock', 'punk', 'metal'].includes(tag)),
 ).length;
@@ -75,4 +92,3 @@ const retrievedRock = getRelevantTrainingExamples('play some rock', 3);
 assert.ok(retrievedRock.some((example) => example.id === 'rock-001'), 'rock first-success example should be retrieved');
 
 console.log('Music quality regression tests passed.');
-

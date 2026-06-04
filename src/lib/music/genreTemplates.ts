@@ -19,6 +19,7 @@ export type GenreKey =
     | 'trance'
     | 'acid'
     | 'minimal'
+    | 'drums'
     | 'clean_rock'
     | 'humanized_rock'
     | 'generic';
@@ -310,6 +311,24 @@ export const GENRE_TEMPLATES: Record<GenreKey, GenreTemplate> = {
         requiredTracks: ['drums', 'bass'],
         qualityNotes: ['Sparse', 'No melody unless requested'],
     },
+    drums: {
+        id: 'drums',
+        aliases: ['drums', 'pure drums', 'drum loop', 'percussion only', 'beat only'],
+        intentTags: ['drums', 'percussion', 'drum-only'],
+        bpm: 120,
+        key: 'N/A',
+        scale: 'N/A',
+        thought: 'Pure drums: kick, snare, and hats only. Clearing tonal tracks so the loop stays drum-only.',
+        tracks: tracks({
+            drums: "stack(note(m('c2 ~ c2 ~')).s('square').decay(0.09).lpf(150).gain(0.82), s('~ pink ~ pink').decay(0.05).hpf(1200).gain(0.36), s('pink*8').decay(0.014).hpf(7200).gain(0.12))",
+            bass: 'silence',
+            melody: 'silence',
+            voice: 'silence',
+            fx: 'silence',
+        }),
+        requiredTracks: ['drums'],
+        qualityNotes: ['Drum-only means no bass, melody, voice, or FX carryover', 'Use low gain hats', 'Keep layers simple'],
+    },
     clean_rock: {
         id: 'clean_rock',
         aliases: ['clean rock repair'],
@@ -400,6 +419,14 @@ export function isBroadMusicRequest(prompt: string) {
     return wordCount <= 5 || /\b(play|make|create|generate|start|give\s+me|some|music|loop|beat|song)\b/i.test(p);
 }
 
+export function isDrumOnlyPrompt(prompt: string) {
+    const p = prompt.toLowerCase();
+    const explicitOnly = /\b(?:pure|only|just|solo)\s+(?:drums?|percussion|beat|beats)\b/.test(p);
+    const drumIntent = /\b(?:drums?|drum\s+loop|beat|beats|percussion|kick|snare|hi-?hat|hats?)\b/.test(p);
+    const fullSongOrGenre = /\b(?:rock|punk|metal|techno|house|ambient|dnb|drum\s*(?:and|&)\s*bass|jungle|trance|acid|minimal|funk|pop|jazz|hip\s*hop|hip-hop|reggae|latin|bassline|bass|guitar|riff|melody|chords?|song|full|complete)\b/.test(p);
+    return explicitOnly || (drumIntent && !fullSongOrGenre);
+}
+
 export function inferGenreFromCode(currentCode?: string): GenreKey | null {
     if (!currentCode) return null;
     const code = currentCode.toLowerCase();
@@ -412,6 +439,8 @@ export function inferGenreFromCode(currentCode?: string): GenreKey | null {
 }
 
 export function getTemplateForPrompt(prompt: string, currentCode?: string): GenreTemplate {
+    if (isDrumOnlyPrompt(prompt)) return GENRE_TEMPLATES.drums;
+
     if (isRepairPrompt(prompt)) {
         const genre = detectGenre(prompt) || inferGenreFromCode(currentCode);
         if (genre === 'metal') return GENRE_TEMPLATES.metal;
@@ -428,6 +457,7 @@ export function getTemplateForPrompt(prompt: string, currentCode?: string): Genr
 }
 
 export function shouldUseDeterministicTemplate(prompt: string) {
+    if (isDrumOnlyPrompt(prompt)) return true;
     if (isRepairPrompt(prompt) || isHumanizePrompt(prompt)) return true;
     return Boolean(detectGenre(prompt)) && isBroadMusicRequest(prompt) && !/\b(add|only|mute|remove|delete|just|change\s+the|make\s+the\s+drums|make\s+the\s+bass)\b/i.test(prompt);
 }

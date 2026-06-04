@@ -5,6 +5,7 @@ import {
     detectGenre,
     getTemplateForPrompt,
     isBroadMusicRequest,
+    isDrumOnlyPrompt,
     isHumanizePrompt,
     isRepairPrompt,
 } from './genreTemplates';
@@ -53,6 +54,22 @@ function includesAny(value: string, patterns: RegExp[]) {
 
 function validateTemplateRequirements(tracks: TrackMap, template: GenreTemplate, prompt: string): TrackValidationIssue[] {
     const issues: TrackValidationIssue[] = [];
+
+    if (isDrumOnlyPrompt(prompt)) {
+        if (!trackHasPattern(tracks.drums)) {
+            issues.push({ trackId: 'drums', reason: 'drum-only requests require a drums track' });
+        }
+
+        for (const trackId of ['bass', 'melody', 'voice', 'fx'] as const) {
+            const value = tracks[trackId]?.trim();
+            if (value && value !== 'silence') {
+                issues.push({ trackId, reason: 'drum-only requests must not include tonal or FX tracks' });
+            }
+        }
+
+        return issues;
+    }
+
     for (const trackId of template.requiredTracks) {
         if (!trackHasPattern(tracks[trackId])) {
             issues.push({ trackId, reason: `${template.id} requires ${trackId}` });

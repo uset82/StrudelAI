@@ -14,6 +14,7 @@ import {
     buildDeterministicMusicResponse,
     buildFallbackResponse,
     buildTemplateGrounding,
+    isDrumOnlyPrompt,
 } from '@/lib/music/genreTemplates';
 import { formatTrainingExamplesForPrompt } from '@/lib/music/trainingCorpus';
 import { validateGeneratedTracks } from '@/lib/music/strudelValidation';
@@ -733,11 +734,20 @@ const buildValidatedTrackPayload = (params: {
     thought?: string;
 }) => {
     const enforcedTracks = toTrackMap(enforceAtLeastOne(params.tracks, params.prompt));
-    const validation = validateGeneratedTracks(enforcedTracks, params.prompt, params.currentCode);
+    const finalTracks = isDrumOnlyPrompt(params.prompt)
+        ? {
+            ...enforcedTracks,
+            bass: 'silence',
+            melody: 'silence',
+            voice: 'silence',
+            fx: 'silence',
+        }
+        : enforcedTracks;
+    const validation = validateGeneratedTracks(finalTracks, params.prompt, params.currentCode);
     const bpm = coerceBpmValue(params.bpm) ?? extractBpmFromPrompt(params.prompt) ?? 128;
 
     if (!validation.valid) {
-        logBadGeneration(params.prompt, params.raw, validation.issues, enforcedTracks);
+        logBadGeneration(params.prompt, params.raw, validation.issues, finalTracks);
         const reasons = validation.issues.map((issue) => `${issue.trackId}: ${issue.reason}`).join('; ');
         return {
             ...buildFallbackResponse(params.prompt, `Rejected unsafe or off-target model output (${reasons}). Using deterministic template instead.`, params.currentCode),
@@ -749,7 +759,7 @@ const buildValidatedTrackPayload = (params: {
     return {
         type: 'update_tracks',
         bpm,
-        tracks: enforcedTracks,
+        tracks: finalTracks,
         thought: params.thought || '',
     };
 };
@@ -1328,6 +1338,7 @@ User Request: ${prompt}`
                     if (!v || typeof v !== 'string') return false;
                     const trimmed = v.trim();
                     if (trimmed.length < 3) return false;
+                    if (trimmed === 'silence') return true;
                     return /^(stack|note|s|sound|sample|seq|cat|silence|m)\s*\(/i.test(trimmed);
                 };
 
