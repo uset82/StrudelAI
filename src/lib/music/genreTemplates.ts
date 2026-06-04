@@ -20,6 +20,7 @@ export type GenreKey =
     | 'acid'
     | 'minimal'
     | 'drums'
+    | 'double_tap_drums'
     | 'clean_rock'
     | 'humanized_rock'
     | 'generic';
@@ -318,9 +319,9 @@ export const GENRE_TEMPLATES: Record<GenreKey, GenreTemplate> = {
         bpm: 120,
         key: 'N/A',
         scale: 'N/A',
-        thought: 'Pure drums: kick, snare, and hats only. Clearing tonal tracks so the loop stays drum-only.',
+        thought: 'Clean drum-only loop: kick, snare, and hats only. Clearing tonal tracks so the loop stays drum-only.',
         tracks: tracks({
-            drums: "stack(note(m('c2 ~ c2 ~')).s('square').decay(0.09).lpf(150).gain(0.82), s('~ pink ~ pink').decay(0.05).hpf(1200).gain(0.36), s('pink*8').decay(0.014).hpf(7200).gain(0.12))",
+            drums: "stack(note(m('c2 ~ c2 ~')).s('square').decay(0.08).lpf(140).gain(0.78), note(m('~ c4 ~ c4')).s('pink').decay(0.04).hpf(950).gain(0.24), note(m('c6*8')).s('pink').decay(0.012).hpf(7800).gain(0.1))",
             bass: 'silence',
             melody: 'silence',
             voice: 'silence',
@@ -328,6 +329,24 @@ export const GENRE_TEMPLATES: Record<GenreKey, GenreTemplate> = {
         }),
         requiredTracks: ['drums'],
         qualityNotes: ['Drum-only means no bass, melody, voice, or FX carryover', 'Use low gain hats', 'Keep layers simple'],
+    },
+    double_tap_drums: {
+        id: 'double_tap_drums',
+        aliases: ['double tap drums', 'double drums', 'drum flam', 'ratchet drums'],
+        intentTags: ['drums', 'percussion', 'drum-only', 'double-tap'],
+        bpm: 120,
+        key: 'N/A',
+        scale: 'N/A',
+        thought: 'Double-tap drum-only loop: quick kick and snare doubles with hats kept quiet, clearing all tonal tracks.',
+        tracks: tracks({
+            drums: "stack(note(m('[c2 c2] ~ c2 ~')).s('square').decay(0.07).lpf(145).gain(0.76), note(m('~ [c4 c4] ~ c4')).s('pink').decay(0.038).hpf(950).gain(0.25), note(m('c6*8')).s('pink').decay(0.011).hpf(7800).gain(0.095))",
+            bass: 'silence',
+            melody: 'silence',
+            voice: 'silence',
+            fx: 'silence',
+        }),
+        requiredTracks: ['drums'],
+        qualityNotes: ['Double hits use mini-notation subdivisions', 'No tonal carryover', 'Hats stay quiet'],
     },
     clean_rock: {
         id: 'clean_rock',
@@ -427,6 +446,11 @@ export function isDrumOnlyPrompt(prompt: string) {
     return explicitOnly || (drumIntent && !fullSongOrGenre);
 }
 
+export function isDoubleTapDrumPrompt(prompt: string) {
+    const p = prompt.toLowerCase();
+    return isDrumOnlyPrompt(prompt) && /\b(?:double|double\s*tap|two\s*hit|2\s*hit|tap|flam|ratchet|stutter)\b/.test(p);
+}
+
 export function inferGenreFromCode(currentCode?: string): GenreKey | null {
     if (!currentCode) return null;
     const code = currentCode.toLowerCase();
@@ -439,6 +463,7 @@ export function inferGenreFromCode(currentCode?: string): GenreKey | null {
 }
 
 export function getTemplateForPrompt(prompt: string, currentCode?: string): GenreTemplate {
+    if (isDoubleTapDrumPrompt(prompt)) return GENRE_TEMPLATES.double_tap_drums;
     if (isDrumOnlyPrompt(prompt)) return GENRE_TEMPLATES.drums;
 
     if (isRepairPrompt(prompt)) {

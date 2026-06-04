@@ -4,6 +4,7 @@ import {
     buildDeterministicMusicResponse,
     buildFallbackResponse,
     detectGenre,
+    isDoubleTapDrumPrompt,
     isDrumOnlyPrompt,
 } from './src/lib/music/genreTemplates';
 import { STRUDEL_TRAINING_CORPUS, getRelevantTrainingExamples } from './src/lib/music/trainingCorpus';
@@ -45,6 +46,15 @@ assert.equal(pureDrums!.tracks.voice, 'silence', 'pure drums must clear existing
 assert.equal(pureDrums!.tracks.fx, 'silence', 'pure drums must clear existing fx');
 assert.doesNotMatch(pureDrums!.tracks.drums || '', /c4 eb4|triangle|sawtooth.*lpf\(520\)/i, 'pure drums must not include generic bass/melody material');
 
+const doubleTapDrums = buildDeterministicMusicResponse('double tap drums', pureDrums!.tracks.drums || '');
+assert.ok(doubleTapDrums, 'double tap drums should use deterministic drum-only template');
+assert.equal(isDrumOnlyPrompt('double tap drums'), true);
+assert.equal(isDoubleTapDrumPrompt('double tap drums'), true);
+assert.notEqual(doubleTapDrums!.tracks.drums, pureDrums!.tracks.drums, 'double tap drums must not replay the plain clean drums template');
+assert.match(doubleTapDrums!.tracks.drums || '', /\[c2 c2\].*\[c4 c4\]/, 'double tap drums should use subdivided double hits');
+assert.equal(doubleTapDrums!.tracks.bass, 'silence');
+assert.equal(doubleTapDrums!.tracks.melody, 'silence');
+
 assert.equal(detectGenre('make a guitar riff'), 'rock');
 assert.equal(detectGenre('play fast punk'), 'punk');
 assert.equal(detectGenre('drum and bass'), 'dnb');
@@ -79,6 +89,9 @@ assert.equal(repairTooHarsh.valid, false, 'repair prompt should reject harsh den
 
 const validPureDrums = validateGeneratedTracks(pureDrums!.tracks, 'some pure drums', currentRockCode);
 assert.equal(validPureDrums.valid, true, JSON.stringify(validPureDrums.issues));
+
+const validDoubleTapDrums = validateGeneratedTracks(doubleTapDrums!.tracks, 'double tap drums', currentRockCode);
+assert.equal(validDoubleTapDrums.valid, true, JSON.stringify(validDoubleTapDrums.issues));
 
 const invalidPureDrums = validateGeneratedTracks(GENRE_TEMPLATES.generic.tracks, 'some pure drums', currentRockCode);
 assert.equal(invalidPureDrums.valid, false, 'drum-only prompts should reject generic full-song fallback');
