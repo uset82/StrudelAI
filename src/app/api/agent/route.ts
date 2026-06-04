@@ -20,6 +20,7 @@ import { MusicContext, MusicIntent, buildMusicContext, routeMusicIntent } from '
 import { formatTrainingExamplesForPrompt } from '@/lib/music/trainingCorpus';
 import { validateGeneratedTracks } from '@/lib/music/strudelValidation';
 import { runMusicAgentPipeline } from '@/lib/music-agent';
+import { validateStrudelCode } from '@/agents/StrudelCodeAudioValidationAgent';
 
 // MusicGen server URL
 const MUSICGEN_URL = process.env.MUSICGEN_URL || 'http://localhost:5001';
@@ -665,7 +666,7 @@ const logBadGeneration = (
     }
 };
 
-const buildValidatedTrackPayload = (params: {
+const buildValidatedTrackPayload = async (params: {
     prompt: string;
     currentCode?: string;
     intent: MusicIntent;
@@ -682,6 +683,43 @@ const buildValidatedTrackPayload = (params: {
     if (!validation.valid) {
         logBadGeneration(params.prompt, params.raw, validation.issues, finalTracks);
         return buildIntentFallback(params.intent, params.context);
+    }
+
+    // ── StrudelCodeAudioValidationAgent: per-track validation ─────────────────
+    // Run the new agent on each non-null track before the code reaches the engine.
+    const trackIds = ['drums', 'bass', 'melody', 'voice', 'fx'] as const;
+    for (const trackId of trackIds) {
+        const trackCode = finalTracks[trackId];
+        if (!trackCode || trackCode === 'silence') continue;
+        try {
+            const agentResult = await validateStrudelCode(trackCode, {
+                userPrompt: params.prompt,
+                enableAudioValidation: false,
+            });
+            if (!agentResult.approved) {
+                console.warn(
+                    `[ValidationAgent] Track "${trackId}" rejected:`,
+                    agentResult.errors.map(e => e.message).join('; ')
+                );
+                // Use suggested patch if available, otherwise fall back
+                const patch = agentResult.errors.find(e => e.suggestedPatch)?.suggestedPatch;
+                if (patch) {
+                    (finalTracks as Record<string, string | null>)[trackId] = patch;
+                    console.log(`[ValidationAgent] Applied patch for track "${trackId}"`);
+                } else {
+                    // Cannot patch — log and let the track stay for now (existing fallback handles it)
+                    console.warn(`[ValidationAgent] No patch available for track "${trackId}", keeping original.`);
+                }
+            } else if (agentResult.warnings.length > 0) {
+                console.log(
+                    `[ValidationAgent] Track "${trackId}" warnings:`,
+                    agentResult.warnings.map(w => w.message).join('; ')
+                );
+            }
+        } catch (err) {
+            // Agent errors must never break the music pipeline
+            console.warn(`[ValidationAgent] Error validating track "${trackId}":`, err);
+        }
     }
 
     return {
@@ -1253,7 +1291,7 @@ User Request: ${prompt}`
                 } else {
                     detectedTracks.melody = sanitizedCode;
                 }
-                return jsonWithCors(buildValidatedTrackPayload({
+                return jsonWithCors(await buildValidatedTrackPayload({
                     prompt,
                     currentCode,
                     intent,
@@ -1320,7 +1358,7 @@ User Request: ${prompt}`
                 console.log('[API/Agent] Final enforced tracks:', JSON.stringify(Object.fromEntries(
                     Object.entries(previewTracks).map(([k, v]) => [k, v ? v.substring(0, 60) + '...' : null])
                 )));
-                return jsonWithCors(buildValidatedTrackPayload({
+                return jsonWithCors(await buildValidatedTrackPayload({
                     prompt,
                     currentCode,
                     intent,
@@ -1386,7 +1424,7 @@ User Request: ${prompt}`
                 detectedTracks.melody = sanitizedCode;
             }
 
-            return jsonWithCors(buildValidatedTrackPayload({
+            return jsonWithCors(await buildValidatedTrackPayload({
                 prompt,
                 currentCode,
                 intent,

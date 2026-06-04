@@ -85,6 +85,10 @@ function sampleTokensLookKnown(value: string) {
     return true;
 }
 
+/**
+ * @deprecated Superseded by StrudelCodeAudioValidationAgent (in src/agents/StrudelCodeAudioValidationAgent).
+ * Use validateStrudelCode instead for comprehensive AST, scale, sample, and audio validation.
+ */
 export function looksLikeSafeStrudelTrack(value: string | null): boolean {
     if (!value || typeof value !== 'string') return true;
     const trimmed = value.trim();

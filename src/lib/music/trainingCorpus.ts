@@ -264,6 +264,29 @@ const negativeExamples: StrudelTrainingExample[] = [
         negative: true,
         rejectionReason: 'Unsupported Strudel syntax should be sanitized or rejected.',
     },
+    {
+        id: 'negative-008',
+        version: STRUDEL_CORPUS_VERSION,
+        userPrompt: 'classic cello melody in C minor',
+        intentTags: ['negative', 'scale-error', 'melody'],
+        expected: {
+            type: 'update_tracks',
+            thought: 'Rejected: Cello melody contains E natural which is outside the C minor scale.',
+            bpm: 120,
+            tracks: {
+                drums: null,
+                bass: null,
+                melody: "note('c3 d3 e3 f3').s('cello')",
+                voice: null,
+                fx: null,
+            },
+        },
+        bpm: 120,
+        key: 'C minor',
+        qualityNotes: ['E natural is outside C minor. C minor scale notes are: C, D, Eb, F, G, Ab, Bb.'],
+        negative: true,
+        rejectionReason: 'Cello melody contains out-of-scale E natural note when C minor key/scale was expected.',
+    },
 ];
 
 export const STRUDEL_TRAINING_CORPUS: StrudelTrainingExample[] = [

@@ -207,6 +207,9 @@ python tools/musicgen_server.py
 - **Superdough** - Audio synthesis engine
 - **Web Audio API** - Browser audio processing
 
+### Validation & Guardrails
+- **StrudelCodeAudioValidationAgent** - Multi-skill validation pipeline verifying syntax, scale alignment (target key), instrument intent (valid sample aliases vs. request), sample index limits, and expected vs. analyzed frequency energy (kick, snare, hi-hat).
+
 ### Analysis Tools (Python)
 - **librosa** - Audio analysis library
 - **yt-dlp** - YouTube downloader

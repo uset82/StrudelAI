@@ -7,9 +7,10 @@ import {
     getOpenRouterModelCandidates,
 } from '@/lib/ai/openrouter-config';
 import { buildMusicContext, routeMusicIntent, type MusicContext, type MusicIntent } from '@/lib/music/musicIntent';
-import type { SonicSessionState } from '@/types/sonic';
+import type { SonicSessionState, InstrumentType } from '@/types/sonic';
 import type { AgentUpdateResponse, TrackMap } from '@/lib/music/genreTemplates';
 import { validateGeneratedTracks } from '@/lib/music/strudelValidation';
+import { validateStrudelCode } from '@/agents/StrudelCodeAudioValidationAgent';
 import { GENRE_STYLE_TRAITS } from './styleTraits';
 import {
     TrackMapSchema,
@@ -123,7 +124,36 @@ function createTools(prompt: string, currentCode: string | undefined, intent: Mu
             valid: z.boolean(),
             issues: z.array(z.object({ trackId: z.string(), reason: z.string() })),
         }),
-        execute: ({ tracks }) => validateGeneratedTracks(tracks as TrackMap, prompt, currentCode, intent),
+        execute: async ({ tracks }) => {
+            const legacy = validateGeneratedTracks(tracks as TrackMap, prompt, currentCode, intent);
+            const issues = [...legacy.issues];
+
+            // Run agent validation for each track
+            for (const [trackId, code] of Object.entries(tracks)) {
+                if (!code || code === 'silence') continue;
+                try {
+                    const agentResult = await validateStrudelCode(code, {
+                        userPrompt: prompt,
+                        enableAudioValidation: false,
+                    });
+                    if (!agentResult.approved) {
+                        for (const err of agentResult.errors) {
+                            issues.push({
+                                trackId: trackId as InstrumentType,
+                                reason: `${err.message}${err.suggestedPatch ? ` Suggested patch: ${err.suggestedPatch}` : ''}`,
+                            });
+                        }
+                    }
+                } catch (err) {
+                    console.warn(`[ValidationAgent] Tool error validating track "${trackId}":`, err);
+                }
+            }
+
+            return {
+                valid: issues.length === 0,
+                issues,
+            };
+        },
     });
 
     return [getStyleTraits, validateTracks] as const;
@@ -201,9 +231,39 @@ export async function refineWithOpenRouterAgent(params: {
             const tracks = sanitizeTracks(parsed.tracks as TrackMap);
             const validation = validateGeneratedTracks(tracks, params.prompt, params.currentCode, params.intent);
             if (!validation.valid) {
-                console.warn('[MusicAgent] OpenRouter refinement rejected:', validation.issues);
+                console.warn('[MusicAgent] OpenRouter refinement rejected by legacy validation:', validation.issues);
                 continue;
             }
+
+            // Run agent validation and patch if needed
+            let approved = true;
+            for (const trackId of ['drums', 'bass', 'melody', 'voice', 'fx'] as const) {
+                const trackCode = tracks[trackId];
+                if (!trackCode || trackCode === 'silence') continue;
+                try {
+                    const agentResult = await validateStrudelCode(trackCode, {
+                        userPrompt: params.prompt,
+                        enableAudioValidation: false,
+                    });
+                    if (!agentResult.approved) {
+                        const patch = agentResult.errors.find(e => e.suggestedPatch)?.suggestedPatch;
+                        if (patch) {
+                            (tracks as Record<string, string | null>)[trackId] = patch;
+                            console.log(`[ValidationAgent] Applied patch for track "${trackId}" in OpenRouter flow`);
+                        } else {
+                            console.warn(`[ValidationAgent] Track "${trackId}" rejected in OpenRouter flow and no patch available:`, agentResult.errors.map(e => e.message).join('; '));
+                            approved = false;
+                        }
+                    }
+                } catch (err) {
+                    console.warn(`[ValidationAgent] Error validating track "${trackId}" in OpenRouter flow:`, err);
+                }
+            }
+
+            if (!approved) {
+                continue;
+            }
+
             return {
                 type: 'update_tracks',
                 thought: parsed.thought,
@@ -236,21 +296,50 @@ export async function runMusicAgentPipeline(params: {
     const local = buildLocalMusicAgentPipeline({ ...params, context, intent });
     const localResponse = toAgentUpdateResponse(local);
 
+    let finalResponse: AgentUpdateResponse;
+    let finalSource: MusicAgentResponseSource = local.source;
+
     if (params.enableOpenRouter === false) {
-        return params.includeDebug ? withDebugMetadata(localResponse, local, local.source) : localResponse;
+        finalResponse = localResponse;
+    } else {
+        const refined = await refineWithOpenRouterAgent({
+            prompt: params.prompt,
+            currentCode: params.currentCode || undefined,
+            context,
+            intent,
+            local,
+        });
+
+        if (refined) {
+            finalResponse = refined;
+            finalSource = 'openrouter_agent';
+        } else {
+            finalResponse = localResponse;
+        }
     }
 
-    const refined = await refineWithOpenRouterAgent({
-        prompt: params.prompt,
-        currentCode: params.currentCode || undefined,
-        context,
-        intent,
-        local,
-    });
-
-    if (refined) {
-        return params.includeDebug ? withDebugMetadata(refined, local, 'openrouter_agent') : refined;
+    // Run final agent validation and patch if needed
+    for (const trackId of ['drums', 'bass', 'melody', 'voice', 'fx'] as const) {
+        const trackCode = finalResponse.tracks[trackId];
+        if (!trackCode || trackCode === 'silence') continue;
+        try {
+            const agentResult = await validateStrudelCode(trackCode, {
+                userPrompt: params.prompt,
+                enableAudioValidation: false,
+            });
+            if (!agentResult.approved) {
+                const patch = agentResult.errors.find(e => e.suggestedPatch)?.suggestedPatch;
+                if (patch) {
+                    (finalResponse.tracks as Record<string, string | null>)[trackId] = patch;
+                    console.log(`[ValidationAgent] Applied final patch for track "${trackId}" in pipeline`);
+                } else {
+                    console.warn(`[ValidationAgent] Final track "${trackId}" in pipeline rejected and cannot patch:`, agentResult.errors.map(e => e.message).join('; '));
+                }
+            }
+        } catch (err) {
+            console.warn(`[ValidationAgent] Error in final track validation for "${trackId}":`, err);
+        }
     }
 
-    return params.includeDebug ? withDebugMetadata(localResponse, local, local.source) : localResponse;
+    return params.includeDebug ? withDebugMetadata(finalResponse, local, finalSource) : finalResponse;
 }
