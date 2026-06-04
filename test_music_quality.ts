@@ -9,7 +9,7 @@ import {
     isDrumOnlyPrompt,
 } from './src/lib/music/genreTemplates';
 import { buildMusicContext, routeMusicIntent } from './src/lib/music/musicIntent';
-import { STRUDEL_TRAINING_CORPUS, getRelevantTrainingExamples } from './src/lib/music/trainingCorpus';
+import { STRUDEL_TRAINING_CORPUS, formatTrainingExamplesForPrompt, getRelevantTrainingExamples } from './src/lib/music/trainingCorpus';
 import { validateGeneratedTracks } from './src/lib/music/strudelValidation';
 import { buildStrudelCode } from './src/lib/strudel/engine';
 import {
@@ -454,5 +454,45 @@ const malformedUnsupportedRepair = validateGeneratedTracks({
     fx: null,
 }, 'repair this broken Strudel');
 assert.equal(malformedUnsupportedRepair.valid, false, 'malformed and unsupported Strudel should be rejected before repair fallback');
+
+const unsafeCopiedSongScriptPattern = /\b(?:const|let|register|setDefaultVoicings|arrange|samples|setcpm|cpm)\b|\.bank\s*\(|\._pianoroll|\.slider\s*\(|\.analyze\s*\(/i;
+const awesomeSongPromptCases = [
+    { prompt: 'play grimes music 4 machines cover', genre: 'grimes_m4m', bpm: 135 },
+    { prompt: 'play charli xcx 360 remix', genre: 'charli_360', bpm: 120 },
+    { prompt: 'play bug from heaven by eefano', genre: 'bug_from_heaven', bpm: 128 },
+    { prompt: 'play stranger things theme song', genre: 'stranger_things', bpm: 168 },
+    { prompt: 'play radiohead pyramid song cover', genre: 'pyramid_song', bpm: 104 },
+    { prompt: 'play rhythm of the night by corona', genre: 'rhythm_of_the_night', bpm: 128 },
+    { prompt: 'play pump up the jam cover', genre: 'pump_up_the_jam', bpm: 124 },
+    { prompt: 'play happy birthday song', genre: 'happy_birthday', bpm: 120 },
+    { prompt: 'play shostakovich waltz 2', genre: 'shostakovich_waltz', bpm: 180 },
+    { prompt: 'play old macdonald song', genre: 'old_macdonald', bpm: 70 },
+    { prompt: 'play blue monday remix by new order', genre: 'blue_monday', bpm: 130 },
+    { prompt: 'play determination theme from undertale', genre: 'undertale_determination', bpm: 115 },
+    { prompt: 'play billie eilish birds of a feather cover', genre: 'billie_birds', bpm: 104 },
+] as const;
+
+for (const { prompt, genre, bpm } of awesomeSongPromptCases) {
+    const songPipeline = buildLocalMusicAgentPipeline({ prompt, enableOpenRouter: false });
+    assert.equal(songPipeline.brief.genre, genre, `${prompt} should route to ${genre}`);
+    assert.equal(songPipeline.bpm, bpm, `${prompt} should keep the reference BPM`);
+    assert.equal(songPipeline.validation.valid, true, `${prompt} pipeline validation failed: ${JSON.stringify(songPipeline.validation.issues)}`);
+
+    const directValidation = validateGeneratedTracks(GENRE_TEMPLATES[genre].tracks, prompt);
+    assert.equal(directValidation.valid, true, `${prompt} template validation failed: ${JSON.stringify(directValidation.issues)}`);
+
+    const generatedCode = Object.values(songPipeline.tracks).filter(Boolean).join('\n');
+    assert.ok(
+        Object.values(songPipeline.tracks).some((track) => track && track !== 'silence'),
+        `${prompt} should produce at least one playable track`,
+    );
+    assert.doesNotMatch(generatedCode, unsafeCopiedSongScriptPattern, `${prompt} must not emit copied helper-heavy full-song code`);
+    assert.doesNotMatch(songPipeline.thought, /full arrangement|authentic/i, `${prompt} should describe reference traits, not promise an exact copied cover`);
+}
+
+const blueMondayGrounding = formatTrainingExamplesForPrompt('play blue monday remix by new order');
+assert.match(blueMondayGrounding, /AWESOME STRUDEL SOURCE REFERENCES/, 'song prompts should retrieve Awesome Strudel reference notes');
+assert.match(blueMondayGrounding, /Blue Monday/, 'Blue Monday reference should be named in grounding');
+assert.doesNotMatch(blueMondayGrounding, /\bconst\s+kick1\b|arrange\s*\(/, 'grounding should summarize source traits instead of copying raw source scripts');
 
 console.log('Music quality regression tests passed.');

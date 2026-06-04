@@ -127,11 +127,13 @@ function summarizeContext(context: MusicContext) {
 
 export function buildMusicBrief(prompt: string, context: MusicContext, intent: MusicIntent): MusicBrief {
     const templateId = intent.templateId || 'generic';
-    const traits = GENRE_STYLE_TRAITS[templateId] || GENRE_STYLE_TRAITS.generic;
+    const template = GENRE_TEMPLATES[templateId] || GENRE_TEMPLATES.generic;
+    const traits = GENRE_STYLE_TRAITS[templateId];
+    const fallbackTraits = traits || GENRE_STYLE_TRAITS.generic;
     const explicitBpm = parseBpm(prompt);
     const explicitKey = parseKey(prompt);
-    const bpm = clampBpm(intent.nextBpm ?? explicitBpm ?? traits.defaultBpm ?? context.currentBpm);
-    const key = explicitKey || traits.key;
+    const bpm = clampBpm(intent.nextBpm ?? explicitBpm ?? traits?.defaultBpm ?? template.bpm ?? context.currentBpm);
+    const key = explicitKey || traits?.key || template.key;
     const seed = hashString(`${prompt}|${context.currentCode}|${context.activeTracks.join(',')}|${intent.templateId || ''}`);
 
     return {
@@ -142,7 +144,7 @@ export function buildMusicBrief(prompt: string, context: MusicContext, intent: M
         mood: parseMood(prompt),
         bpm,
         key,
-        scale: explicitKey || traits.scale,
+        scale: explicitKey || traits?.scale || template.scale || fallbackTraits.scale,
         instruments: inferInstruments(prompt, intent),
         targetTracks: intent.targetTracks,
         preserveTracks: intent.preserveTracks,
@@ -417,14 +419,19 @@ export function generateTracksFromPlans(brief: MusicBrief, theory: TheoryPlan, s
     const drumTemplate = composeDrumTemplateTracks(brief);
     const baseTracks = drumTemplate || genreTracks(brief);
     const tracks = silenceClears({ ...emptyTracks(), ...baseTracks }, intent.clearTracks);
-    const traits = GENRE_STYLE_TRAITS[brief.genre] || GENRE_STYLE_TRAITS.generic;
-    const thought = [
-        `${brief.genre}: ${traits.drumFeel}`,
-        traits.bassRole,
-        traits.leadRole,
-        `Theory: ${theory.key}, ${theory.chordProgression.join(' -> ')}.`,
-        `Sound: ${sound.mixRules[0]}`,
-    ].join(' ');
+    const traits = GENRE_STYLE_TRAITS[brief.genre];
+    const template = GENRE_TEMPLATES[brief.genre];
+    const isReferenceTemplate = template?.intentTags.includes('song') || template?.intentTags.includes('reference');
+    let thought = `${template.thought} Theory: ${theory.key}. Sound: ${sound.mixRules[0]}`;
+    if (!isReferenceTemplate && traits) {
+        thought = [
+            `${brief.genre}: ${traits.drumFeel}`,
+            traits.bassRole,
+            traits.leadRole,
+            `Theory: ${theory.key}, ${theory.chordProgression.join(' -> ')}.`,
+            `Sound: ${sound.mixRules[0]}`,
+        ].join(' ');
+    }
 
     return {
         bpm: theory.bpm,

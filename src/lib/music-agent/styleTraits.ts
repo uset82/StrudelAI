@@ -22,7 +22,7 @@ export type GenreStyleTraits = {
 
 const template = (genre: GenreKey) => GENRE_TEMPLATES[genre];
 
-export const GENRE_STYLE_TRAITS: Record<GenreKey, GenreStyleTraits> = {
+export const GENRE_STYLE_TRAITS: Partial<Record<GenreKey, GenreStyleTraits>> & { generic: GenreStyleTraits } = {
     rock: {
         genre: 'rock',
         aliases: template('rock').aliases,
@@ -406,43 +406,43 @@ export const GENRE_STYLE_TRAITS: Record<GenreKey, GenreStyleTraits> = {
         ...templateTraitsFrom('rock', 'humanized_rock', 'Humanized rock with syncopated kick and riff gaps.'),
     },
     grimes_m4m: {
-        ...templateTraitsFrom('generic', 'grimes_m4m', 'Authentic Grimes Music 4 Machines cover.'),
+        ...templateTraitsFrom('generic', 'grimes_m4m', 'Reference-inspired Music 4 Machines traits; do not copy the full source script.'),
     },
     charli_360: {
-        ...templateTraitsFrom('generic', 'charli_360', 'Authentic Charli XCX 360 cover.'),
+        ...templateTraitsFrom('generic', 'charli_360', 'Reference-inspired Charli XCX 360 electropop traits; do not copy the full source script.'),
     },
     bug_from_heaven: {
-        ...templateTraitsFrom('generic', 'bug_from_heaven', 'Authentic Bug From Heaven cover.'),
+        ...templateTraitsFrom('generic', 'bug_from_heaven', 'Reference-inspired Bug From Heaven guitar-song traits; do not copy the full source script.'),
     },
     stranger_things: {
-        ...templateTraitsFrom('generic', 'stranger_things', 'Authentic Stranger Things theme cover.'),
+        ...templateTraitsFrom('generic', 'stranger_things', 'Reference-inspired Stranger Things arpeggiated synth traits; do not copy the full source script.'),
     },
     pyramid_song: {
-        ...templateTraitsFrom('generic', 'pyramid_song', 'Authentic Radiohead Pyramid Song cover.'),
+        ...templateTraitsFrom('generic', 'pyramid_song', 'Reference-inspired Pyramid Song piano and vocal-pad traits; do not copy the full source script.'),
     },
     rhythm_of_the_night: {
-        ...templateTraitsFrom('generic', 'rhythm_of_the_night', 'Authentic Corona Rhythm of the Night cover.'),
+        ...templateTraitsFrom('generic', 'rhythm_of_the_night', 'Reference-inspired Rhythm of the Night Eurodance traits; do not copy the full source script.'),
     },
     pump_up_the_jam: {
-        ...templateTraitsFrom('generic', 'pump_up_the_jam', 'Authentic Pump Up The Jam cover.'),
+        ...templateTraitsFrom('generic', 'pump_up_the_jam', 'Reference-inspired Pump Up The Jam 90s dance traits; do not copy the full source script.'),
     },
     happy_birthday: {
-        ...templateTraitsFrom('generic', 'happy_birthday', 'Authentic Happy Birthday song arrangement.'),
+        ...templateTraitsFrom('generic', 'happy_birthday', 'Public-domain Happy Birthday melody traits with separated roles.'),
     },
     shostakovich_waltz: {
-        ...templateTraitsFrom('generic', 'shostakovich_waltz', 'Authentic Shostakovich Waltz #2 cover.'),
+        ...templateTraitsFrom('generic', 'shostakovich_waltz', 'Reference-inspired Waltz #2 minor waltz traits; do not copy the full source script.'),
     },
     old_macdonald: {
-        ...templateTraitsFrom('generic', 'old_macdonald', 'Authentic Old Macdonald traditional song.'),
+        ...templateTraitsFrom('generic', 'old_macdonald', 'Traditional Old MacDonald melody traits with separated roles.'),
     },
     blue_monday: {
-        ...templateTraitsFrom('generic', 'blue_monday', 'Authentic New Order Blue Monday cover.'),
+        ...templateTraitsFrom('generic', 'blue_monday', 'Reference-inspired Blue Monday machine-drum and synth-bass traits; do not copy the full source script.'),
     },
     undertale_determination: {
-        ...templateTraitsFrom('generic', 'undertale_determination', 'Authentic Undertale Determination theme cover.'),
+        ...templateTraitsFrom('generic', 'undertale_determination', 'Reference-inspired Determination chiptune traits; do not copy the full source script.'),
     },
     billie_birds: {
-        ...templateTraitsFrom('generic', 'billie_birds', 'Authentic Billie Eilish Birds of a Feather cover.'),
+        ...templateTraitsFrom('generic', 'billie_birds', 'Reference-inspired Birds of a Feather soft-pop traits; do not copy the full source script.'),
     },
     generic: {
         genre: 'generic',
