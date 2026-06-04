@@ -16,7 +16,7 @@ const RIGHT_PANEL_DEFAULT_WIDTH = 520;
 const RIGHT_PANEL_MAX_WIDTH = 900;
 const RIGHT_PANEL_MIN_WIDTH = 320;
 const RIGHT_PANEL_COLLAPSED_WIDTH = 44;
-const SPLITTER_WIDTH = 10;
+const SPLITTER_WIDTH = 14;
 const UI_STORAGE_KEYS = {
     rightPanelWidth: 'aether:rightPanelWidth',
     rightPanelCollapsed: 'aether:rightPanelCollapsed',
@@ -466,25 +466,70 @@ export default function SonicInterface() {
         console.log('Test beep played');
     };
 
-    const beginResizeRightPanel = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-        (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+    const startResizeRightPanel = useCallback((clientX: number) => {
         if (isRightPanelCollapsed) setIsRightPanelCollapsed(false);
-        rightPanelResizeRef.current = { startX: e.clientX, startWidth: rightPanelWidth };
+        rightPanelResizeRef.current = { startX: clientX, startWidth: rightPanelWidth };
         setIsResizingRightPanel(true);
     }, [isRightPanelCollapsed, rightPanelWidth]);
 
-    const updateResizeRightPanel = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-        if (!isResizingRightPanel || !rightPanelResizeRef.current) return;
-        const dx = e.clientX - rightPanelResizeRef.current.startX;
+    const updateResizeRightPanelFromClientX = useCallback((clientX: number) => {
+        if (!rightPanelResizeRef.current) return;
+        const dx = clientX - rightPanelResizeRef.current.startX;
         const next = rightPanelResizeRef.current.startWidth - dx;
         setRightPanelWidth(clampRightPanelWidth(next));
-    }, [clampRightPanelWidth, isResizingRightPanel]);
+    }, [clampRightPanelWidth]);
+
+    const beginResizeRightPanel = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+        if (e.detail > 1) return;
+        e.preventDefault();
+        (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+        startResizeRightPanel(e.clientX);
+    }, [startResizeRightPanel]);
+
+    const beginMouseResizeRightPanel = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        if (e.button !== 0 || e.detail > 1) return;
+        e.preventDefault();
+        startResizeRightPanel(e.clientX);
+    }, [startResizeRightPanel]);
+
+    const updateResizeRightPanel = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+        if (!isResizingRightPanel) return;
+        updateResizeRightPanelFromClientX(e.clientX);
+    }, [isResizingRightPanel, updateResizeRightPanelFromClientX]);
 
     const endResizeRightPanel = useCallback(() => {
         if (!isResizingRightPanel) return;
         setIsResizingRightPanel(false);
         rightPanelResizeRef.current = null;
     }, [isResizingRightPanel]);
+
+    const resetRightPanelWidth = useCallback(() => {
+        setIsRightPanelCollapsed(false);
+        setRightPanelWidth(clampRightPanelWidth(RIGHT_PANEL_DEFAULT_WIDTH));
+    }, [clampRightPanelWidth]);
+
+    useEffect(() => {
+        if (!isResizingRightPanel) return;
+
+        const handlePointerMove = (event: PointerEvent) => {
+            updateResizeRightPanelFromClientX(event.clientX);
+        };
+        const handleMouseMove = (event: MouseEvent) => {
+            updateResizeRightPanelFromClientX(event.clientX);
+        };
+
+        window.addEventListener('pointermove', handlePointerMove);
+        window.addEventListener('pointerup', endResizeRightPanel);
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', endResizeRightPanel);
+
+        return () => {
+            window.removeEventListener('pointermove', handlePointerMove);
+            window.removeEventListener('pointerup', endResizeRightPanel);
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', endResizeRightPanel);
+        };
+    }, [endResizeRightPanel, isResizingRightPanel, updateResizeRightPanelFromClientX]);
 
     const activeView = VIEW_MODE_META[viewMode];
     const ActiveViewIcon = activeView.Icon;
@@ -497,7 +542,7 @@ export default function SonicInterface() {
     return (
         <div className="min-h-dvh w-full overflow-x-hidden bg-[#101216] text-slate-200 selection:bg-cyan-400/20 selection:text-cyan-50 lg:h-screen lg:overflow-hidden">
             <div className="flex min-h-dvh min-w-0 flex-col lg:h-full lg:flex-row lg:overflow-hidden">
-                <section className="order-5 flex min-w-0 flex-1 flex-col border-r border-white/10 bg-[#12161d] max-lg:w-full max-lg:border-b max-lg:border-r-0 lg:order-1 lg:h-screen">
+                <section className="order-5 flex min-w-0 flex-1 flex-col border-r border-white/10 bg-[#12161d] max-lg:w-full max-lg:border-b max-lg:border-r-0 lg:order-1 lg:h-screen lg:overflow-hidden">
                     <header className="flex min-h-16 shrink-0 items-center justify-between gap-5 border-b border-white/10 bg-[#171c24] px-5 max-lg:w-full max-lg:max-w-full max-lg:flex-wrap max-lg:gap-3 max-lg:px-3 max-lg:py-3">
                         <div className="flex min-w-0 items-center gap-3">
                             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-cyan-300">
@@ -621,25 +666,44 @@ export default function SonicInterface() {
                     role="separator"
                     aria-orientation="vertical"
                     aria-label="Resize control panel"
-                    className="group relative h-screen shrink-0 cursor-col-resize select-none border-x border-white/10 bg-[#0b0e12] transition-colors hover:bg-[#151a21] max-lg:hidden"
+                    aria-valuenow={Math.round(rightPanelWidth)}
+                    tabIndex={0}
+                    className={`group relative h-screen shrink-0 cursor-col-resize select-none border-x border-cyan-300/10 bg-[#0b0e12] outline-none transition-colors hover:border-cyan-300/25 hover:bg-[#151a21] focus-visible:border-cyan-300/50 focus-visible:bg-[#151a21] max-lg:hidden lg:order-2 ${isResizingRightPanel ? 'border-cyan-300/40 bg-[#151a21]' : ''}`}
                     style={{ width: SPLITTER_WIDTH, touchAction: 'none' }}
                     onPointerDown={beginResizeRightPanel}
                     onPointerMove={updateResizeRightPanel}
                     onPointerUp={endResizeRightPanel}
                     onPointerCancel={endResizeRightPanel}
-                    onDoubleClick={() => {
+                    onLostPointerCapture={endResizeRightPanel}
+                    onMouseDown={beginMouseResizeRightPanel}
+                    onKeyDown={(e) => {
+                        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight' && e.key !== 'Home' && e.key !== 'End') return;
+                        e.preventDefault();
                         setIsRightPanelCollapsed(false);
-                        setRightPanelWidth(clampRightPanelWidth(RIGHT_PANEL_DEFAULT_WIDTH));
+                        if (e.key === 'Home') {
+                            setRightPanelWidth(clampRightPanelWidth(RIGHT_PANEL_MIN_WIDTH));
+                            return;
+                        }
+                        if (e.key === 'End') {
+                            setRightPanelWidth(clampRightPanelWidth(RIGHT_PANEL_MAX_WIDTH));
+                            return;
+                        }
+                        const delta = e.shiftKey ? 48 : 24;
+                        setRightPanelWidth((current) => clampRightPanelWidth(current + (e.key === 'ArrowLeft' ? delta : -delta)));
                     }}
+                    onClick={(e) => {
+                        if (e.detail === 2) resetRightPanelWidth();
+                    }}
+                    onDoubleClick={resetRightPanelWidth}
                 >
-                    <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-white/10" aria-hidden="true" />
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-md border border-white/10 bg-[#171c24] px-0.5 py-2 opacity-60 transition-opacity group-hover:opacity-100">
-                        <GripVertical className="h-4 w-4 text-slate-500" />
+                    <div className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${isResizingRightPanel ? 'bg-cyan-300/50' : 'bg-white/15 group-hover:bg-cyan-300/35 group-focus-visible:bg-cyan-300/45'}`} aria-hidden="true" />
+                    <div className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-md border px-0.5 py-3 shadow-[0_0_18px_rgba(34,211,238,0.08)] transition-colors ${isResizingRightPanel ? 'border-cyan-300/45 bg-cyan-300/10' : 'border-white/10 bg-[#171c24] group-hover:border-cyan-300/30 group-hover:bg-cyan-300/10 group-focus-visible:border-cyan-300/40 group-focus-visible:bg-cyan-300/10'}`}>
+                        <GripVertical className={`h-5 w-5 transition-colors ${isResizingRightPanel ? 'text-cyan-100' : 'text-slate-400 group-hover:text-cyan-200 group-focus-visible:text-cyan-100'}`} />
                     </div>
                 </div>
 
                 <aside
-                    className={`relative order-1 flex shrink-0 flex-col border-l border-white/10 bg-[#0b0e12] transition-[width] duration-200 ease-out max-lg:contents lg:order-2 lg:h-screen ${shouldCollapseRightPanel ? 'overflow-hidden p-0' : 'p-5 lg:overflow-x-hidden lg:overflow-y-auto'}`}
+                    className={`relative order-1 flex shrink-0 flex-col border-l border-white/10 bg-[#0b0e12] max-lg:contents lg:order-3 lg:h-screen lg:min-h-0 ${isResizingRightPanel ? 'transition-none' : 'transition-[width] duration-200 ease-out'} ${shouldCollapseRightPanel ? 'overflow-hidden p-0' : 'p-5 lg:overflow-hidden'}`}
                     style={{
                         width: shouldCollapseRightPanel
                             ? RIGHT_PANEL_COLLAPSED_WIDTH
@@ -728,7 +792,7 @@ export default function SonicInterface() {
                             </header>
 
                             {!isAudioReady && (
-                                <section className="order-2 shrink-0 border-b border-white/10 py-5 max-lg:w-full max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4">
+                                <section className="order-2 shrink-0 border-b border-white/10 py-4 max-lg:w-full max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4">
                                     <div className="rounded-lg border border-cyan-300/20 bg-cyan-300/10 p-4 max-sm:p-3">
                                         <div className="flex items-start gap-3">
                                             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cyan-300/15 text-cyan-100 max-sm:h-9 max-sm:w-9">
@@ -761,13 +825,13 @@ export default function SonicInterface() {
                                 </section>
                             )}
 
-                            <section className="order-4 flex shrink-0 flex-col border-b border-white/10 py-5 max-lg:min-h-[430px] max-lg:w-full max-lg:flex-none max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4">
+                            <section className="order-4 flex min-h-0 flex-1 flex-col py-5 max-lg:min-h-[430px] max-lg:w-full max-lg:flex-none max-lg:border-b max-lg:border-white/10 max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4">
                                 <div className="mb-3 flex items-center justify-between gap-3">
                                     <h2 className="text-sm font-semibold text-slate-100">Chat</h2>
                                     <span className="text-xs text-slate-500">{chatMessages.length > 0 ? `${chatMessages.length} messages` : 'Ready'}</span>
                                 </div>
 
-                                <div className="flex min-h-[360px] flex-col overflow-hidden rounded-lg border border-cyan-300/25 bg-[#07090c] shadow-[0_0_34px_rgba(34,211,238,0.05)] max-sm:min-h-[340px]">
+                                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-cyan-300/25 bg-[#07090c] shadow-[0_0_34px_rgba(34,211,238,0.05)] max-lg:min-h-[360px] max-sm:min-h-[340px]">
                                     <div
                                         ref={logRef}
                                         className="studio-scrollbar min-h-0 flex-1 overflow-y-auto p-3"
@@ -825,7 +889,7 @@ export default function SonicInterface() {
                                         </div>
                                     </div>
 
-                                    <div className="border-t border-white/10 p-3">
+                                    <div className="shrink-0 border-t border-white/10 p-3">
                                         <div className={`group relative flex items-center gap-3 rounded-lg border bg-[#10151b] px-3 py-3 transition-colors ${isAudioReady ? 'border-cyan-300/25 focus-within:border-cyan-200/50' : 'border-white/10 focus-within:border-cyan-300/35'}`}>
                                             <button
                                                 type="button"
@@ -883,7 +947,7 @@ export default function SonicInterface() {
                                 </div>
                             </section>
 
-                            <section className="order-3 shrink-0 border-b border-white/10 py-5 max-lg:w-full max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4">
+                            <section className={`order-3 shrink-0 border-b border-white/10 py-4 max-lg:w-full max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4 ${!isAudioReady ? 'lg:hidden' : ''}`}>
                                 <div className="mb-3 flex items-center justify-between gap-3">
                                     <h2 className="text-sm font-semibold text-slate-100">Mixer Channels</h2>
                                     <span className="text-xs text-slate-500">{activeTrackCount} active</span>
