@@ -320,7 +320,10 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
         console.log('[StrudelCodeView] Auto-fixed code');
     }, [editableCode, onCodeChange]);
 
-    const editorLineCount = Math.max(16, editableCode.split('\n').length + 4);
+    const editorLines = editableCode.split('\n');
+    const editorLineCount = Math.max(16, editorLines.length + 4);
+    const editorContentHeight = editorLineCount * 24 + 24;
+    const editorContentWidthCh = Math.max(112, ...editorLines.map((line) => line.length + 20));
 
     const highlightedCode = highlightJS(editableCode);
     const suggestionHtml = suggestion ? `<span class="bg-lime-300/10 text-lime-200/70">${escapeHtml(suggestion)}</span>` : '';
@@ -354,141 +357,144 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
                 </div>
 
                 <div className="relative min-h-0 min-w-0 flex-1">
-                <div
-                    className="pointer-events-none absolute inset-y-0 left-0 z-20 w-11 border-r border-white/[0.06] pr-3 pt-3 text-right font-mono text-[11px] leading-6 text-[#3f4652] max-sm:w-9 max-sm:pr-2 max-sm:text-[10px] max-sm:leading-6"
-                    aria-hidden="true"
-                >
-                    {Array.from({ length: editorLineCount }).map((_, index) => (
-                        <div key={index}>{index + 1}</div>
-                    ))}
-                </div>
+                    <div className="studio-scrollbar h-full min-h-0 w-full overflow-auto">
+                        <div
+                            className="relative min-w-full"
+                            style={{
+                                minHeight: '100%',
+                                height: `${editorContentHeight}px`,
+                                width: `${editorContentWidthCh}ch`,
+                            }}
+                        >
+                            <div
+                                className="pointer-events-none absolute inset-y-0 left-0 z-20 w-11 border-r border-white/[0.06] pr-3 pt-3 text-right font-mono text-[11px] leading-6 text-[#3f4652] max-sm:w-9 max-sm:pr-2 max-sm:text-[10px] max-sm:leading-6"
+                                aria-hidden="true"
+                            >
+                                {Array.from({ length: editorLineCount }).map((_, index) => (
+                                    <div key={index}>{index + 1}</div>
+                                ))}
+                            </div>
 
-                <div className="relative h-full w-full overflow-hidden">
-                    {/* Highlighted code view behind the textarea */}
-                    <pre
-                        ref={highlightRef}
-                        className="strudel-code-highlight studio-scrollbar pointer-events-none absolute inset-0 z-0 h-full w-full overflow-hidden whitespace-pre py-3 pl-16 pr-4 font-mono text-[13px] leading-6 text-[#e6edf3] max-sm:pl-12 max-sm:text-base max-sm:leading-6"
-                        dangerouslySetInnerHTML={{ __html: combinedHtml }}
-                        aria-hidden="true"
-                    />
+                            {/* Highlighted code view behind the textarea */}
+                            <pre
+                                ref={highlightRef}
+                                className="strudel-code-highlight pointer-events-none absolute inset-0 z-0 h-full w-full overflow-visible whitespace-pre py-3 pl-16 pr-4 font-mono text-[13px] leading-6 text-[#e6edf3] max-sm:pl-12 max-sm:text-base max-sm:leading-6"
+                                dangerouslySetInnerHTML={{ __html: combinedHtml }}
+                                aria-hidden="true"
+                            />
 
-                    {/* Interactive transparent textarea on top */}
-                    <textarea
-                        ref={textareaRef}
-                        id="strudel-code-editor"
-                        name="strudelCode"
-                        aria-label="Strudel code editor"
-                        className="studio-scrollbar relative z-10 h-full min-h-[260px] min-w-0 w-full cursor-text resize-none overflow-auto whitespace-pre border-none bg-transparent py-3 pl-16 pr-4 font-mono text-[13px] leading-6 text-transparent caret-lime-200 outline-none selection:bg-lime-300/20 placeholder:text-[#5b6470] focus:outline-none max-sm:pl-12 max-sm:text-base max-sm:leading-6"
-                        value={editableCode}
-                        wrap="off"
-                        onScroll={(e) => {
-                            if (highlightRef.current) {
-                                highlightRef.current.scrollTop = e.currentTarget.scrollTop;
-                                highlightRef.current.scrollLeft = e.currentTarget.scrollLeft;
-                            }
-                        }}
-                        onChange={(e) => {
-                            const newValue = e.target.value;
-                            const cursorPos = e.target.selectionStart || newValue.length;
-                            console.log('[StrudelCodeView] Text changed:', newValue.slice(0, 50));
-                            setEditableCode(newValue);
-                            onCodeChange?.(newValue); // Notify parent
-                            setIsUserEditing(true);
-                            setSuggestion(''); // Clear suggestion when typing
-
-                            // Clear existing timeouts
-                            if (userEditTimeoutRef.current) clearTimeout(userEditTimeoutRef.current);
-                            if (autoRunTimeoutRef.current) clearTimeout(autoRunTimeoutRef.current);
-
-                            // Set user as "not editing" after 1.2 seconds of inactivity
-                            userEditTimeoutRef.current = setTimeout(() => {
-                                console.log('[StrudelCodeView] User stopped editing');
-                                setIsUserEditing(false);
-                            }, 1200);
-
-                            // Auto-run code after 800ms of inactivity
-                            autoRunTimeoutRef.current = setTimeout(() => {
-                                console.log('[StrudelCodeView] Auto-running code...');
-                                onRun?.(newValue);
-                            }, 800);
-
-                            // Trigger completion after 500ms of no typing
-                            if (completionTimeoutRef.current) {
-                                clearTimeout(completionTimeoutRef.current);
-                            }
-                            completionTimeoutRef.current = setTimeout(() => {
-                                console.log('[StrudelCodeView] Triggering completion fetch...');
-                                fetchCompletion(newValue, cursorPos);
-                            }, 500);
-
-                            resizeTextarea();
-                        }}
-                        onFocus={() => console.log('[StrudelCodeView] Textarea focused')}
-                        onClick={() => console.log('[StrudelCodeView] Textarea clicked')}
-                        onKeyDown={(e) => {
-                            console.log('[StrudelCodeView] Key pressed:', e.key);
-
-                            // Run on Ctrl+Enter
-                            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                                e.preventDefault();
-                                console.log('[StrudelCodeView] Manual run triggered');
-                                onRun?.(editableCode);
-                                return;
-                            }
-
-                            // Handle Tab key (Accept suggestion OR Indent)
-                            if (e.key === 'Tab') {
-                                e.preventDefault(); // Always prevent focus loss
-
-                                if (suggestion) {
-                                    // Accept AI suggestion
-                                    const newValue = editableCode + suggestion;
+                            {/* Interactive transparent textarea on top */}
+                            <textarea
+                                ref={textareaRef}
+                                id="strudel-code-editor"
+                                name="strudelCode"
+                                aria-label="Strudel code editor"
+                                className="absolute inset-0 z-10 h-full w-full cursor-text resize-none overflow-hidden whitespace-pre border-none bg-transparent py-3 pl-16 pr-4 font-mono text-[13px] leading-6 text-transparent caret-lime-200 outline-none selection:bg-lime-300/20 placeholder:text-[#5b6470] focus:outline-none max-sm:pl-12 max-sm:text-base max-sm:leading-6"
+                                value={editableCode}
+                                wrap="off"
+                                onChange={(e) => {
+                                    const newValue = e.target.value;
+                                    const cursorPos = e.target.selectionStart || newValue.length;
+                                    console.log('[StrudelCodeView] Text changed:', newValue.slice(0, 50));
                                     setEditableCode(newValue);
-                                    onCodeChange?.(newValue);
-                                    setSuggestion('');
+                                    onCodeChange?.(newValue); // Notify parent
+                                    setIsUserEditing(true);
+                                    setSuggestion(''); // Clear suggestion when typing
 
-                                    // Move cursor to end
-                                    setTimeout(() => {
-                                        if (textareaRef.current) {
-                                            textareaRef.current.selectionStart = newValue.length;
-                                            textareaRef.current.selectionEnd = newValue.length;
+                                    // Clear existing timeouts
+                                    if (userEditTimeoutRef.current) clearTimeout(userEditTimeoutRef.current);
+                                    if (autoRunTimeoutRef.current) clearTimeout(autoRunTimeoutRef.current);
+
+                                    // Set user as "not editing" after 1.2 seconds of inactivity
+                                    userEditTimeoutRef.current = setTimeout(() => {
+                                        console.log('[StrudelCodeView] User stopped editing');
+                                        setIsUserEditing(false);
+                                    }, 1200);
+
+                                    // Auto-run code after 800ms of inactivity
+                                    autoRunTimeoutRef.current = setTimeout(() => {
+                                        console.log('[StrudelCodeView] Auto-running code...');
+                                        onRun?.(newValue);
+                                    }, 800);
+
+                                    // Trigger completion after 500ms of no typing
+                                    if (completionTimeoutRef.current) {
+                                        clearTimeout(completionTimeoutRef.current);
+                                    }
+                                    completionTimeoutRef.current = setTimeout(() => {
+                                        console.log('[StrudelCodeView] Triggering completion fetch...');
+                                        fetchCompletion(newValue, cursorPos);
+                                    }, 500);
+
+                                    resizeTextarea();
+                                }}
+                                onFocus={() => console.log('[StrudelCodeView] Textarea focused')}
+                                onClick={() => console.log('[StrudelCodeView] Textarea clicked')}
+                                onKeyDown={(e) => {
+                                    console.log('[StrudelCodeView] Key pressed:', e.key);
+
+                                    // Run on Ctrl+Enter
+                                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                                        e.preventDefault();
+                                        console.log('[StrudelCodeView] Manual run triggered');
+                                        onRun?.(editableCode);
+                                        return;
+                                    }
+
+                                    // Handle Tab key (Accept suggestion OR Indent)
+                                    if (e.key === 'Tab') {
+                                        e.preventDefault(); // Always prevent focus loss
+
+                                        if (suggestion) {
+                                            // Accept AI suggestion
+                                            const newValue = editableCode + suggestion;
+                                            setEditableCode(newValue);
+                                            onCodeChange?.(newValue);
+                                            setSuggestion('');
+
+                                            // Move cursor to end
+                                            setTimeout(() => {
+                                                if (textareaRef.current) {
+                                                    textareaRef.current.selectionStart = newValue.length;
+                                                    textareaRef.current.selectionEnd = newValue.length;
+                                                }
+                                            }, 0);
+                                        } else {
+                                            // Insert indentation (2 spaces)
+                                            const start = e.currentTarget.selectionStart;
+                                            const end = e.currentTarget.selectionEnd;
+                                            const newValue = editableCode.substring(0, start) + '  ' + editableCode.substring(end);
+
+                                            setEditableCode(newValue);
+                                            onCodeChange?.(newValue);
+
+                                            // Move cursor after spaces
+                                            setTimeout(() => {
+                                                if (textareaRef.current) {
+                                                    textareaRef.current.selectionStart = start + 2;
+                                                    textareaRef.current.selectionEnd = start + 2;
+                                                }
+                                            }, 0);
                                         }
-                                    }, 0);
-                                } else {
-                                    // Insert indentation (2 spaces)
-                                    const start = e.currentTarget.selectionStart;
-                                    const end = e.currentTarget.selectionEnd;
-                                    const newValue = editableCode.substring(0, start) + '  ' + editableCode.substring(end);
+                                        return;
+                                    }
 
-                                    setEditableCode(newValue);
-                                    onCodeChange?.(newValue);
-
-                                    // Move cursor after spaces
-                                    setTimeout(() => {
-                                        if (textareaRef.current) {
-                                            textareaRef.current.selectionStart = start + 2;
-                                            textareaRef.current.selectionEnd = start + 2;
-                                        }
-                                    }, 0);
-                                }
-                                return;
-                            }
-
-                            // Clear suggestion on Escape
-                            if (e.key === 'Escape') {
-                                setSuggestion('');
-                            }
-                        }}
-                        placeholder="// Type Strudel code here...
+                                    // Clear suggestion on Escape
+                                    if (e.key === 'Escape') {
+                                        setSuggestion('');
+                                    }
+                                }}
+                                placeholder="// Type Strudel code here...
 // Example: note(m(&quot;c3 ~ c3 ~&quot;)).s(&quot;square&quot;)
 // Try: stack(note(m(&quot;c3*4&quot;)).s(&quot;square&quot;), note(m(&quot;c5*8&quot;)).s(&quot;square&quot;).decay(0.02))
 // Press Tab to accept AI suggestions"
-                        spellCheck={false}
-                        autoComplete="off"
-                        autoCorrect="off"
-                        autoCapitalize="off"
-                    />
-                </div>
+                                spellCheck={false}
+                                autoComplete="off"
+                                autoCorrect="off"
+                                autoCapitalize="off"
+                            />
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
