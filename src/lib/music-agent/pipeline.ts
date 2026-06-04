@@ -393,11 +393,17 @@ function genreTracks(brief: MusicBrief): TrackMap {
             };
         case 'hiphop':
             return {
-                drums: "stack(s('RolandTR808_bd ~ ~ RolandTR808_bd ~ ~ RolandTR808_bd ~').gain(0.9), s('~ ~ RolandTR909_sd ~ ~ ~ RolandTR909_sd ~').gain(0.72).hpf(480), s('RolandTR909_hh ~ RolandTR909_hh RolandTR909_hh ~ RolandTR909_hh ~ RolandTR909_hh').gain(0.13).hpf(7400))",
-                bass: "note(m('f1 ~ f1 ~ ab1 ~ eb1 ~')).s('sine').att(0.01).decay(0.28).lpf(115).gain(0.76)",
-                melody: "note(m('f4 ~ ab4 ~ c5 ~ eb5 ~')).s('sine').att(0.01).decay(0.18).hpf(450).room(0.3).gain(0.22).slow(2)",
-                voice: null,
-                fx: null,
+                drums: pick(seed, [
+                    "stack(s('RolandTR808_bd ~ ~ RolandTR808_bd ~ ~ RolandTR808_bd ~').gain(0.94).lpf(185), s('~ ~ RolandTR909_sd ~ ~ ~ RolandTR909_sd ~').gain(0.74).hpf(430), s('RolandTR909_hh ~ RolandTR909_hh RolandTR909_hh ~ RolandTR909_hh ~ RolandTR909_hh').gain(0.13).hpf(7600), s('~ ~ ~ RolandTR909_cp ~ ~ ~ ~').gain(0.16).hpf(1200))",
+                    "stack(s('RolandTR808_bd ~ RolandTR808_bd ~ ~ ~ RolandTR808_bd ~').gain(0.94).lpf(185), s('~ ~ RolandTR909_sd ~ ~ ~ RolandTR909_sd ~').gain(0.74).hpf(430), s('RolandTR909_hh ~ RolandTR909_hh ~ RolandTR909_hh RolandTR909_hh ~ RolandTR909_hh').gain(0.13).hpf(7600))",
+                ]),
+                bass: pick(seed + 1, [
+                    "note(m('f1 ~ f1 ~ db1 ~ eb1 ~')).s('sine').att(0.006).decay(0.32).lpf(95).gain(0.82)",
+                    "note(m('f1 ~ ~ f1 ~ db1 eb1 ~')).s('sine').att(0.006).decay(0.34).lpf(90).gain(0.82)",
+                ]),
+                melody: 'silence',
+                voice: 'silence',
+                fx: "s('pink').hpf(1800).lpf(3600).gain(0.03).room(0.16).slow(8)",
             };
         default:
             if (GENRE_TEMPLATES[brief.genre]) {

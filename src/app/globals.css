@@ -67,6 +67,51 @@ textarea {
   background: rgba(148, 163, 184, 0.45);
 }
 
+.strudel-code-shell {
+  color-scheme: dark;
+}
+
+.strudel-code-highlight,
+.strudel-code-highlight * {
+  tab-size: 2;
+  font-variant-ligatures: none;
+}
+
+.strudel-token-comment {
+  color: #7890ad;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.strudel-token-string {
+  color: #b8ff55;
+  font-weight: 500;
+}
+
+.strudel-token-number {
+  color: #c59cff;
+  font-weight: 600;
+}
+
+.strudel-token-keyword {
+  color: #f7bd4f;
+  font-weight: 700;
+}
+
+.strudel-token-function {
+  color: #fff45f;
+  font-weight: 700;
+}
+
+.strudel-token-punctuation {
+  color: #7f8797;
+}
+
+.strudel-token-operator {
+  color: #70e6ff;
+  font-weight: 500;
+}
+
 .studio-range {
   height: 0.35rem;
   cursor: pointer;

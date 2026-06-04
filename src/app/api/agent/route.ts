@@ -260,82 +260,13 @@ async function analyzeYouTubeVideo(url: string, duration: number = 30): Promise<
     }
 }
 
-// Parse Strudel code into tracks structure
-function parseStrudelCodeToTracks(code: string): Record<string, string | null> {
-    const tracks: Record<string, string | null> = {
-        drums: null,
-        bass: null,
-        melody: null,
-        voice: null,
-        fx: null,
-    };
-
-    // Split by $: patterns or // comments to identify sections
-    const lines = code.split('\n');
-    let currentSection = '';
-    let currentCode: string[] = [];
-
-    for (const line of lines) {
-        const trimmed = line.trim();
-
-        // Check for section comments
-        if (trimmed.startsWith('// Drums') || trimmed.startsWith('// drums')) {
-            if (currentSection && currentCode.length > 0) {
-                tracks[currentSection] = currentCode.join('\n').replace(/^\$:\s*/, '').trim();
-            }
-            currentSection = 'drums';
-            currentCode = [];
-        } else if (trimmed.startsWith('// Bass') || trimmed.startsWith('// bass')) {
-            if (currentSection && currentCode.length > 0) {
-                tracks[currentSection] = currentCode.join('\n').replace(/^\$:\s*/, '').trim();
-            }
-            currentSection = 'bass';
-            currentCode = [];
-        } else if (trimmed.startsWith('// Melody') || trimmed.startsWith('// melody')) {
-            if (currentSection && currentCode.length > 0) {
-                tracks[currentSection] = currentCode.join('\n').replace(/^\$:\s*/, '').trim();
-            }
-            currentSection = 'melody';
-            currentCode = [];
-        } else if (trimmed.startsWith('// Voice') || trimmed.startsWith('// voice')) {
-            if (currentSection && currentCode.length > 0) {
-                tracks[currentSection] = currentCode.join('\n').replace(/^\$:\s*/, '').trim();
-            }
-            currentSection = 'voice';
-            currentCode = [];
-        } else if (trimmed.startsWith('// FX') || trimmed.startsWith('// fx') || trimmed.startsWith('// Ambient')) {
-            if (currentSection && currentCode.length > 0) {
-                tracks[currentSection] = currentCode.join('\n').replace(/^\$:\s*/, '').trim();
-            }
-            currentSection = 'fx';
-            currentCode = [];
-        } else if (trimmed.startsWith('//') || trimmed.startsWith('setcpm')) {
-            // Skip other comments and tempo settings
-            continue;
-        } else if (trimmed && currentSection) {
-            currentCode.push(trimmed);
-        } else if (trimmed && !currentSection) {
-            // If no section identified yet, try to detect from content
-            if (/\b(bd|sd|hh|kick|snare|clap)\b/i.test(trimmed) || /\.struct\(/i.test(trimmed)) {
-                currentSection = 'drums';
-                currentCode.push(trimmed);
-            } else if (/\b(c[12]|d[12]|e[12]|f[12]|g[12]|a[12]|b[12])\b/i.test(trimmed) && /triangle|lpf\(4/i.test(trimmed)) {
-                currentSection = 'bass';
-                currentCode.push(trimmed);
-            } else if (/\b(c[45]|d[45]|e[45]|f[45]|g[45]|a[45]|b[45])\b/i.test(trimmed)) {
-                currentSection = 'melody';
-                currentCode.push(trimmed);
-            }
-        }
-    }
-
-    // Don't forget the last section
-    if (currentSection && currentCode.length > 0) {
-        tracks[currentSection] = currentCode.join('\n').replace(/^\$:\s*/, '').trim();
-    }
-
-    return tracks;
-}
+import {
+    coerceBpmValue,
+    extractBpmFromPrompt,
+    sanitizeGeneratedCode,
+    parseStrudelCodeToTracks,
+    toTrackMap,
+} from '@/lib/music/codeExtractor';
 
 type ParsedResponse = {
     type?: 'chat' | 'meta' | 'code' | 'update_tracks';
@@ -355,248 +286,8 @@ type ParsedResponse = {
     };
 };
 
-const coerceLooseLines = (src: string) => {
-    const lines = src.split(/\n+/).map(l => l.trim()).filter(Boolean);
-    if (lines.length <= 1) return src;
-    if (/[{;]|\b(const|let|var|function|class|return|if|for|while|=>)\b/.test(src)) {
-        return src;
-    }
-    const isPlainExpr = (l: string) => /^(note\(|s\(|stack\(|silence|sound\(|sample\(|n\(|m\()/i.test(l);
-    if (lines.every(isPlainExpr)) {
-        return `stack(${lines.join(', ')})`;
-    }
-    return src;
-};
-
-const balanceDelimiters = (src: string) => {
-    let openParens = 0;
-    let openBrackets = 0;
-    let inString = false;
-    let stringChar = '';
-
-    for (let i = 0; i < src.length; i++) {
-        const ch = src[i];
-        const prevCh = i > 0 ? src[i - 1] : '';
-
-        // Handle string boundaries (skip escaped quotes)
-        if ((ch === '"' || ch === "'" || ch === '`') && prevCh !== '\\') {
-            if (!inString) {
-                inString = true;
-                stringChar = ch;
-            } else if (ch === stringChar) {
-                inString = false;
-                stringChar = '';
-            }
-            continue;
-        }
-
-        // Only count delimiters outside of strings
-        if (!inString) {
-            if (ch === '(') openParens++;
-            else if (ch === ')') openParens = Math.max(0, openParens - 1);
-            else if (ch === '[') openBrackets++;
-            else if (ch === ']') openBrackets = Math.max(0, openBrackets - 1);
-        }
-    }
-
-    let balanced = src;
-    if (openParens > 0) {
-        balanced += ')'.repeat(openParens);
-    }
-    if (openBrackets > 0) {
-        balanced += ']'.repeat(openBrackets);
-    }
-    return balanced;
-};
-
-const coerceBpmValue = (value: unknown): number | null => {
-    if (typeof value !== 'number' || !Number.isFinite(value)) return null;
-    const rounded = Math.round(value);
-    if (rounded < 40 || rounded > 240) return null;
-    return rounded;
-};
-
-const extractBpmFromPrompt = (prompt: string): number | null => {
-    const p = prompt.toLowerCase();
-    const bpmMatch = p.match(/(\d{2,3})\s*bpm\b/);
-    if (bpmMatch) {
-        return coerceBpmValue(Number(bpmMatch[1]));
-    }
-    const tempoMatch = p.match(/\btempo\s*(?:to|=)?\s*(\d{2,3})\b/);
-    if (tempoMatch) {
-        return coerceBpmValue(Number(tempoMatch[1]));
-    }
-    return null;
-};
-
-const sanitizeGeneratedCode = (input: string) => {
-    let output = input.trim();
-
-    // Strip surrounding quotes around the entire code string if present (e.g. "stack(...)")
-    if ((output.startsWith('"') && output.endsWith('"')) ||
-        (output.startsWith("'") && output.endsWith("'")) ||
-        (output.startsWith('`') && output.endsWith('`'))) {
-        output = output.slice(1, -1).trim();
-    }
-
-    // Normalize smart quotes and odd unicode punctuation that can break JS parsing
-    output = output
-        .replace(/[“”„‟«»]/g, '"')
-        .replace(/[‘’‚‛‹›`]/g, "'")
-        .replace(/\u00A0/g, ' ')
-        .replace(/\u200B/g, '');
-
-    // Remove markdown bullets or stray list markers the model sometimes emits
-    output = output.replace(/^\s*[-*]\s+/gm, '');
-
-    // Remove $: prefix (not valid Strudel)
-    output = output.replace(/^\s*\$:\s*/gm, '');
-
-    // Remove .bank() calls (samples not available)
-    output = output.replace(/\.bank\([^)]*\)/g, '');
-    // Remove slider() calls (not available)
-    output = output.replace(/\.slider\([^)]*\)/g, '');
-    // Remove ._pianoroll() calls (not available)
-    output = output.replace(/\._pianoroll\([^)]*\)/g, '');
-    // Strip analyze() which is forbidden in this environment
-    output = output.replace(/\.analyze\([^)]*\)/gi, '');
-    output = output.replace(/\banalyze\([^)]*\)/gi, '');
-    // Strip tempo helpers that frequently break parsing (model still tries to add them)
-    output = output.replace(/\bcpm\([^)]*\)/gi, '');
-    output = output.replace(/\.cpm\([^)]*\)/gi, '');
-    output = output.replace(/setcpm\([^)]*\)/gi, '');
-
-    // BPM lock: prevent accidental tempo drift from fractional fast/slow values.
-    // We only allow simple musical factors (0.5, 1, 2, 4). Everything else is snapped to the nearest.
-    const snapFactor = (v: number) => {
-        const candidates = [0.5, 1, 2, 4];
-        let best = candidates[0];
-        let bestDist = Math.abs(v - best);
-        for (const c of candidates) {
-            const d = Math.abs(v - c);
-            if (d < bestDist) {
-                bestDist = d;
-                best = c;
-            }
-        }
-        return best;
-    };
-    output = output.replace(/\.(fast|slow)\(\s*(-?\d+(?:\.\d+)?)\s*\)/gi, (_m, fn, rawVal) => {
-        const v = Number(rawVal);
-        if (!Number.isFinite(v) || v === 0) return '';
-        const snapped = snapFactor(Math.abs(v));
-        return `.${String(fn).toLowerCase()}(${snapped})`;
-    });
-
-    // NOTE: We no longer replace sample calls with synth equivalents since we now load real samples
-    // s("bd"), s("sd"), s("hh"), s("cp") etc. will use the loaded Dirt-Samples
-
-    // Normalize vowel arguments to valid vowels
-    // Allow sequences but filter out invalid words
-    output = output.replace(/\.vowel\(\s*(["'`])([^"'`]+)\1\s*\)/gi, (_match, quote, content) => {
-        // First, sanitize individual tokens within the content
-        const sanitizedTokenContent = content.replace(/[a-z]+/gi, (token: string) => {
-            if (/^[aeiou]$/i.test(token)) return token.toLowerCase();
-            const match = token.match(/[aeiou]/i);
-            return match ? match[0].toLowerCase() : 'a';
-        });
-
-        // Now, ensure the final result for .vowel() is a single valid vowel.
-        // Take the first vowel found in the (potentially multi-vowel) sanitizedTokenContent
-        // or default to 'a' if none found.
-        const finalVowelMatch = sanitizedTokenContent.match(/[aeiou]/i);
-        const finalVowel = finalVowelMatch ? finalVowelMatch[0].toLowerCase() : 'a';
-
-        return `.vowel("${finalVowel}")`;
-    });
-
-    // Fix mini-notation strings that start with "(" which breaks the mini parser
-    output = output.replace(/m\(\s*["'`]\(([^"'`]+)["'`]\s*\)/gi, (_match, inner) => {
-        return `m("${inner}")`;
-    });
-
-    // Remove duplicate commas
-    output = output.replace(/,\s*,+/g, ',');
-    // Strip trailing commas before closing delimiters
-    output = output.replace(/,\s*(\)|\]|\})/g, '$1');
-    // Strip leading commas at line starts (common when model inserts bullet-like commas)
-    output = output.replace(/(^|\r?\n)\s*,\s*/g, '$1');
-
-    // Clean up dangling commas left by removals
-    output = output.replace(/,\s*(?=[\)\}])/g, '');
-
-    // Fix function calls with leading commas: "stack(, " -> "stack("
-    output = output.replace(/\(\s*,/g, '(');
-    output = output.replace(/stack\(\s*,/g, 'stack('); // Extra safety
-
-    output = coerceLooseLines(output.trim());
-
-    // Final safety check for leading commas after coercion
-    output = output.replace(/\(\s*,/g, '(');
-
-    if (input !== output) {
-        console.log('[Sanitizer] Fixed code:', { input: input.substring(0, 50), output: output.substring(0, 50) });
-    }
-
-    // Fix run-on code: "stack(...))stack(...)" -> "stack(...))"
-    const runOnMatch = output.match(/\)\s*(stack|note|s|sound|n|seq|cat)\(/);
-    if (runOnMatch && runOnMatch.index) {
-        console.log('[API/Agent] Detected run-on code, truncating...');
-        output = output.substring(0, runOnMatch.index + 1);
-    }
-
-    // Fix missing commas between patterns: "stack(note(...) note(...))" -> "stack(note(...), note(...))"
-    // This is a common LLM error where it lists arguments without commas
-    output = output.replace(/\)\s+(stack|note|s|sound|n|seq|cat|m)/g, '), $1');
-
-    output = balanceDelimiters(output);
-
-    // Verify syntax by wrapping in a function that has Strudel globals as parameters
-    // This prevents "undefined" errors for note, stack, m, sine, etc.
-    const strudelGlobals = 'note, m, s, n, stack, silence, sound, sample, seq, cat, sine, saw, tri, square, pink, noise, cosine, rand';
-    try {
-        new Function(strudelGlobals, `return ${output}`);
-    } catch (e: unknown) {
-        const message = e instanceof Error ? e.message : String(e);
-        // Only log if it's a real syntax issue (not undefined variable)
-        if (!message.includes('is not defined')) {
-            console.warn('[Sanitizer] Generated code has syntax error:', message);
-        }
-
-        // Attempt fixes only for actual syntax issues (unbalanced parens, etc.)
-        if (message.includes('missing )') || message.includes('Unexpected end') || message.includes('Unexpected token')) {
-            // Re-run balance with aggressive fix
-            let fixed = output;
-            // Remove any trailing incomplete method chains like ".gain(" or ".lpf("
-            fixed = fixed.replace(/\.\w+\([^)]*$/g, '');
-            // Re-balance
-            fixed = balanceDelimiters(fixed);
-            // Retry parse
-            try {
-                new Function(strudelGlobals, `return ${fixed}`);
-                output = fixed;
-                console.log('[Sanitizer] Fixed syntax via re-balance');
-            } catch {
-                // If still failing, try stripping to last complete expression
-                const lastCompleteStack = fixed.lastIndexOf(')');
-                if (lastCompleteStack > 0) {
-                    fixed = fixed.substring(0, lastCompleteStack + 1);
-                    fixed = balanceDelimiters(fixed);
-                    try {
-                        new Function(strudelGlobals, `return ${fixed}`);
-                        output = fixed;
-                        console.log('[Sanitizer] Fixed syntax via truncation');
-                    } catch {
-                        // At this point, just return the balanced output and let Strudel handle it
-                        console.warn('[Sanitizer] Could not verify syntax, proceeding anyway');
-                    }
-                }
-            }
-        }
-    }
-
-    return output;
-};
+const hasAnyTrack = (tracks: Record<string, string | null>) =>
+    Object.values(tracks).some(v => typeof v === 'string' && v.trim());
 
 const detectRequestedTracks = (prompt: string) => {
     const p = prompt.toLowerCase();
@@ -608,25 +299,20 @@ const detectRequestedTracks = (prompt: string) => {
         fx: /\b(fx|effects?|atmo|atmos|atmosphere|texture|noise|riser|sweep|ambient)\b/.test(p),
     };
     const any = wants.drums || wants.bass || wants.melody || wants.voice || wants.fx;
-    // If no explicit request, allow all
     return any ? wants : { drums: true, bass: true, melody: true, voice: true, fx: true };
 };
 
-const toTrackMap = (tracks: Record<string, string | null>): TrackMap => ({
-    drums: tracks.drums ?? null,
-    bass: tracks.bass ?? null,
-    melody: tracks.melody ?? null,
-    voice: tracks.voice ?? null,
-    fx: tracks.fx ?? null,
-});
+const isPlainRapVocalBedPrompt = (prompt: string) =>
+    /\b(?:rap(?:per)?|hip\s*hop|hip-hop|hiphop|boom\s*bap|trap|eminem|eminen|slim\s+shady)\b/i.test(prompt)
+    && !/\b(melod(?:y|ic)|hook|lead|topline|piano|sample|chords?|keys|arp|arpeggio)\b/i.test(prompt);
 
-const hasAnyTrack = (tracks: Record<string, string | null>) =>
-    Object.values(tracks).some(v => typeof v === 'string' && v.trim());
+const RAP_VOCAL_BED_THOUGHT = 'Rap vocal-bed loop: punchy half-time drums, low sub bass, and open space for vocals. No melodic lead was added.';
 
 const applyIntentTrackPolicy = (
     tracks: Record<string, string | null>,
     intent: MusicIntent,
     context: MusicContext,
+    prompt: string,
 ) => {
     const next = toTrackMap(hasAnyTrack(tracks) ? tracks : context.tracks);
     if (!hasAnyTrack(next)) {
@@ -635,6 +321,10 @@ const applyIntentTrackPolicy = (
 
     for (const trackId of intent.clearTracks) {
         next[trackId] = 'silence';
+    }
+    if (isPlainRapVocalBedPrompt(prompt)) {
+        next.melody = 'silence';
+        next.voice = 'silence';
     }
 
     return next;
@@ -683,7 +373,7 @@ const buildValidatedTrackPayload = async (params: {
     bpm?: number | null;
     thought?: string;
 }) => {
-    const finalTracks = applyIntentTrackPolicy(params.tracks, params.intent, params.context);
+    const finalTracks = applyIntentTrackPolicy(params.tracks, params.intent, params.context, params.prompt);
     const validation = validateGeneratedTracks(finalTracks, params.prompt, params.currentCode, params.intent);
     const bpm = coerceBpmValue(params.bpm) ?? params.intent.nextBpm ?? extractBpmFromPrompt(params.prompt) ?? params.context.currentBpm;
 
@@ -733,7 +423,7 @@ const buildValidatedTrackPayload = async (params: {
         type: 'update_tracks',
         bpm,
         tracks: finalTracks,
-        thought: params.thought || '',
+        thought: isPlainRapVocalBedPrompt(params.prompt) ? RAP_VOCAL_BED_THOUGHT : params.thought || '',
     };
 };
 
@@ -1361,7 +1051,7 @@ User Request: ${prompt}`
                 }
 
                 const bpm = coerceBpmValue(parsed.bpm) ?? extractBpmFromPrompt(prompt) ?? 128;
-                const previewTracks = applyIntentTrackPolicy(sanitizedTracks, intent, context);
+                const previewTracks = applyIntentTrackPolicy(sanitizedTracks, intent, context, prompt);
                 console.log('[API/Agent] Final enforced tracks:', JSON.stringify(Object.fromEntries(
                     Object.entries(previewTracks).map(([k, v]) => [k, v ? v.substring(0, 60) + '...' : null])
                 )));

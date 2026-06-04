@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { ClientToServerEvents, ServerToClientEvents, SonicSessionState, InstrumentType } from '@/types/sonic';
-import { updateStrudel, initAudio, buildStrudelCode, evalStrudelCode, refreshAnalyser, addMusicGenSample, playMusicGenSample } from '../lib/strudel/engine';
+import { updateStrudel, initAudio, buildStrudelCode, evalStrudelCode, refreshAnalyser, addMusicGenSample, playMusicGenSample, formatStrudelDisplayCode } from '../lib/strudel/engine';
 
 function resolveSocketUrl() {
     const fallback = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -296,7 +296,7 @@ export function useSonicSocket() {
             .join('|');
         const hash = `${state.bpm}:${state.isPlaying}:${trackPatterns}`;
 
-        if (hash !== lastDisplayedRef.current) {
+        if (hash !== lastDisplayedRef.current || currentCodeRef.current.trim() !== displayCode.trim()) {
             lastDisplayedRef.current = hash;
             setCurrentCode(displayCode);
         }
@@ -430,6 +430,56 @@ export function useSonicSocket() {
         return p;
     }, []);
 
+    const applyAgentTrackUpdate = useCallback((
+        baseState: SonicSessionState,
+        data: { bpm?: unknown; thought?: unknown; tracks?: unknown }
+    ): SonicSessionState => {
+        const nextState: SonicSessionState = {
+            ...baseState,
+            tracks: { ...baseState.tracks },
+            trackDescription: typeof data.thought === 'string' ? data.thought : baseState.trackDescription,
+        };
+
+        if (typeof data.bpm === 'number' && Number.isFinite(data.bpm)) {
+            nextState.bpm = Math.max(40, Math.min(240, Math.round(data.bpm)));
+        }
+
+        const incomingTracks = data.tracks && typeof data.tracks === 'object'
+            ? data.tracks as Record<string, unknown>
+            : null;
+
+        if (incomingTracks) {
+            Object.entries(incomingTracks).forEach(([key, pattern]) => {
+                if (!(key in nextState.tracks)) return;
+
+                const trackId = key as InstrumentType;
+                const patternText = typeof pattern === 'string' ? pattern : String(pattern ?? '');
+                const trimmed = patternText.trim();
+                const lowered = trimmed.toLowerCase();
+
+                if (trimmed && lowered !== 'null' && lowered !== 'silence') {
+                    nextState.tracks[trackId] = {
+                        ...nextState.tracks[trackId],
+                        pattern: normalizeLocalPattern(trackId, trimmed),
+                        muted: false,
+                    };
+                    return;
+                }
+
+                if (lowered === 'silence' || lowered === 'null') {
+                    nextState.tracks[trackId] = {
+                        ...nextState.tracks[trackId],
+                        pattern: 'expr:silence',
+                        muted: false,
+                    };
+                }
+            });
+        }
+
+        nextState.isPlaying = true;
+        return nextState;
+    }, [normalizeLocalPattern]);
+
     // ... (existing code)
 
     const sendCommand = useCallback(async (text: string) => {
@@ -441,6 +491,10 @@ export function useSonicSocket() {
         // or if it looks like raw Strudel code (s("..."), note(...), etc.)
         const isDirectCommand = /^(drums|bass|melody|fx|voice|bpm):/i.test(trimmed);
         const isRawCode = /^(s\(|note\(|stack\(|silence|sound\(|sample\(|n\(|m\(|\(\(\)\s*=>)/.test(trimmed);
+
+        if (isRawCode) {
+            setCurrentCode(formatStrudelDisplayCode(trimmed));
+        }
 
         // Ensure audio is ready before doing anything
         if (!isAudioReady) {
@@ -505,7 +559,6 @@ export function useSonicSocket() {
 
         if (isRawCode) {
             console.log('[SonicSocket] Evaluating raw Strudel code locally');
-            setCurrentCode(trimmed);
             try {
                 await evalStrudelCode(trimmed);
                 setMessages(prev => [...prev, 'System: Code executed successfully']);
@@ -583,48 +636,10 @@ export function useSonicSocket() {
                     setMessages(prev => [...prev, `AI Thought: ${data.thought}`]);
                 }
 
-                // Update local state with new tracks
-                setState(prevState => {
-                    const baseState = createBaseState(prevState);
-
-                    const nextState = {
-                        ...baseState,
-                        tracks: { ...baseState.tracks },
-                        trackDescription: data.thought || baseState.trackDescription
-                    };
-
-                    // Optional tempo update (keeps the engine locked to a stable BPM)
-                    if (typeof data.bpm === 'number' && Number.isFinite(data.bpm)) {
-                        nextState.bpm = Math.max(40, Math.min(240, Math.round(data.bpm)));
-                    }
-
-                    // Apply updates - tracks with patterns get updated, tracks with null get cleared
-                    if (data.tracks) {
-                        Object.entries(data.tracks).forEach(([key, pattern]) => {
-                            if (key in nextState.tracks) {
-                                const trackId = key as InstrumentType;
-                                const patternText = typeof pattern === 'string' ? pattern : String(pattern ?? '');
-                                if (patternText.trim()) {
-                                    // Update track with new pattern
-                                    nextState.tracks[trackId] = {
-                                        ...nextState.tracks[trackId],
-                                        pattern: normalizeLocalPattern(trackId, patternText),
-                                        muted: false // Unmute if updated
-                                    };
-                                }
-                                // Note: We don't clear patterns for null tracks - 
-                                // this preserves existing patterns when user adds new layers
-                                // If user wants to clear, they should say "clear" or "stop"
-                            }
-                        });
-                    }
-
-                    // Ensure playing
-                    nextState.isPlaying = true;
-
-                    console.log('[useSonicSocket] Updated state from tracks:', nextState);
-                    return nextState;
-                });
+                const nextState = applyAgentTrackUpdate(createBaseState(stateRef.current), data);
+                console.log('[useSonicSocket] Updated state from tracks:', nextState);
+                setState(nextState);
+                setCurrentCode(buildStrudelCode(nextState));
 
                 // Check if this was a YouTube analysis
                 if (data.youtube) {
@@ -648,7 +663,7 @@ export function useSonicSocket() {
 
                 // Update editor state
                 if (setCurrentCode) {
-                    setCurrentCode(generatedCode);
+                    setCurrentCode(formatStrudelDisplayCode(generatedCode));
                 }
 
                 // Execute locally with error handling
@@ -684,7 +699,7 @@ export function useSonicSocket() {
                             if (fixData.type === 'code') {
                                 const fixedCode = fixData.code;
                                 setMessages(prev => [...prev, `AI: Fixed the error, trying again...`]);
-                                setCurrentCode(fixedCode);
+                                setCurrentCode(formatStrudelDisplayCode(fixedCode));
 
                                 try {
                                     await evalStrudelCode(fixedCode);
@@ -717,7 +732,7 @@ export function useSonicSocket() {
         } finally {
             setIsThinking(false);
         }
-    }, [ensureAudioReady, isAudioReady, createBaseState, normalizeLocalPattern]);
+    }, [ensureAudioReady, isAudioReady, createBaseState, normalizeLocalPattern, applyAgentTrackUpdate]);
 
     const startSession = useCallback(async () => {
         try {

@@ -566,32 +566,213 @@ function replaceSampleCalls(src: string) {
     });
 }
 
+function splitTopLevelStackArgs(expr: string): string[] | null {
+    const trimmed = expr.trim();
+    if (!trimmed.startsWith('stack(') || !trimmed.endsWith(')')) {
+        return null;
+    }
+
+    const inner = trimmed.slice(6, -1);
+    const args: string[] = [];
+    let currentArg = '';
+    let depth = 0;
+    let inSingleQuote = false;
+    let inDoubleQuote = false;
+
+    for (let i = 0; i < inner.length; i++) {
+        const char = inner[i];
+
+        if (char === "'" && inner[i - 1] !== '\\' && !inDoubleQuote) {
+            inSingleQuote = !inSingleQuote;
+        } else if (char === '"' && inner[i - 1] !== '\\' && !inSingleQuote) {
+            inDoubleQuote = !inDoubleQuote;
+        }
+
+        if (!inSingleQuote && !inDoubleQuote) {
+            if (char === '(' || char === '[' || char === '{') {
+                depth++;
+            } else if (char === ')' || char === ']' || char === '}') {
+                depth--;
+            }
+        }
+
+        if (char === ',' && depth === 0 && !inSingleQuote && !inDoubleQuote) {
+            args.push(currentArg.trim());
+            currentArg = '';
+        } else {
+            currentArg += char;
+        }
+    }
+    if (currentArg.trim()) {
+        args.push(currentArg.trim());
+    }
+
+    return args;
+}
+
+function breakTopLevelMethodChain(expr: string) {
+    const trimmed = expr.trim();
+    const shouldBreak = trimmed.startsWith('note(') || trimmed.length > 88;
+    if (!shouldBreak) return trimmed;
+
+    const parts: string[] = [];
+    let current = '';
+    let depth = 0;
+    let inSingleQuote = false;
+    let inDoubleQuote = false;
+
+    for (let i = 0; i < trimmed.length; i++) {
+        const char = trimmed[i];
+
+        if (char === "'" && trimmed[i - 1] !== '\\' && !inDoubleQuote) {
+            inSingleQuote = !inSingleQuote;
+        } else if (char === '"' && trimmed[i - 1] !== '\\' && !inSingleQuote) {
+            inDoubleQuote = !inDoubleQuote;
+        }
+
+        if (!inSingleQuote && !inDoubleQuote) {
+            if (char === '(' || char === '[' || char === '{') {
+                depth++;
+            } else if (char === ')' || char === ']' || char === '}') {
+                depth--;
+            }
+        }
+
+        if (char === '.' && depth === 0 && !inSingleQuote && !inDoubleQuote && current.trim()) {
+            parts.push(current.trim());
+            current = '.';
+            continue;
+        }
+
+        current += char;
+    }
+
+    if (current.trim()) {
+        parts.push(current.trim());
+    }
+
+    if (parts.length <= 1) return trimmed;
+    return parts.map((part, index) => index === 0 ? part : `  ${part}`).join('\n');
+}
+
+function prettifyNestedStack(expr: string, indent: string = '  '): string {
+    const trimmed = expr.trim();
+    const args = splitTopLevelStackArgs(trimmed);
+    if (!args) {
+        return expr;
+    }
+
+    const childIndent = indent + '  ';
+    const formattedTracks = args.map((arg) => {
+        if (arg.startsWith('stack(')) {
+            return prettifyNestedStack(arg, childIndent);
+        }
+        return breakTopLevelMethodChain(arg);
+    });
+
+    return `stack(\n${childIndent}${formattedTracks.join(',\n' + childIndent)}\n${indent})`;
+}
+
+const DISPLAY_TRACK_ORDER: InstrumentType[] = ['drums', 'bass', 'melody', 'voice', 'fx'];
+
+const DISPLAY_TRACK_LABELS: Record<InstrumentType, string> = {
+    drums: 'Drums',
+    bass: 'Bass',
+    melody: 'Melody',
+    voice: 'Voice',
+    fx: 'FX',
+};
+
+function isAudibleDisplayCode(code: string) {
+    const trimmed = code.trim();
+    return Boolean(trimmed) && trimmed !== 'silence' && trimmed !== 's("~")' && trimmed !== "s('~')";
+}
+
+function indentCodeBlock(code: string, indent: string) {
+    return code.split('\n').map((line) => `${indent}${line}`).join('\n');
+}
+
+function formatDisplayTrackExpression(code: string) {
+    const trimmed = code.trim();
+    if (trimmed.startsWith('stack(')) {
+        return prettifyNestedStack(trimmed, '');
+    }
+    return breakTopLevelMethodChain(trimmed);
+}
+
+function inferRawStackSectionLabel(code: string) {
+    const lowered = code.toLowerCase();
+    const hasDrumSamples = /rolandtr\d{3}_(?:bd|sd|sn|cp|hh|oh|rd|rim)|\b(?:bd|sd|snare|cp|clap|hh|hat|kick|rim|ride|cymbal)\b/.test(lowered);
+    if (hasDrumSamples) return 'Drums';
+    if (/\.vowel\(|\bchoir\b|\bvocal\b|\bvoice\b/.test(lowered)) return 'Voice';
+
+    const lowNotes = (lowered.match(/\b[a-g](?:#|b)?[0-2]\b/g) || []).length;
+    const midHighNotes = (lowered.match(/\b[a-g](?:#|b)?[3-7]\b/g) || []).length;
+    if (lowNotes > 0 && lowNotes >= midHighNotes) return 'Bass';
+
+    const fxSignals = /\bpink\b|\bnoise\b|sine\.range|\.hpf\(sine\.range|\.lpf\(sine\.range|riser|sweep|downlifter/.test(lowered);
+    if (fxSignals && !/\bnote\(\s*m\(/.test(lowered)) return 'FX';
+    if (/\bnote\(\s*m\(|\bs\(['"](?:sawtooth|square|sine|triangle|piano|supersaw)/.test(lowered)) return 'Melody';
+    return 'Layer';
+}
+
+export function formatStrudelDisplayCode(code: string) {
+    const trimmed = code.trim();
+    if (!trimmed || trimmed.startsWith('//')) return code;
+    if (/^\s*stack\(\s*\n\s*\/\/\s*\d+\./.test(trimmed)) return code;
+    if (!trimmed.startsWith('stack(')) return formatDisplayTrackExpression(trimmed);
+
+    const args = splitTopLevelStackArgs(trimmed);
+    if (!args || args.length === 0) return formatDisplayTrackExpression(trimmed);
+
+    const lines: string[] = [];
+    args.forEach((arg, index) => {
+        const label = inferRawStackSectionLabel(arg);
+        lines.push(`  // ${index + 1}. ${label}`);
+
+        const expressionLines = indentCodeBlock(formatDisplayTrackExpression(arg), '  ').split('\n');
+        if (index < args.length - 1) {
+            expressionLines[expressionLines.length - 1] += ',';
+        }
+        lines.push(...expressionLines);
+    });
+
+    return `stack(\n${lines.join('\n')}\n)`;
+}
+
 export function buildStrudelCode(state: SonicSessionState) {
     // If arrangement mode is enabled, use the arrangement builder
     if (state.useArrangement && state.arrangement) {
         return buildArrangementCode(state.arrangement);
     }
 
-    // Build simple stacked pattern from tracks
-    // Filter out silent/muted/empty tracks
-    const tracks = [
-        formatTrack(state.tracks.drums),
-        formatTrack(state.tracks.bass),
-        formatTrack(state.tracks.melody),
-        formatTrack(state.tracks.fx),
-        formatTrack(state.tracks.voice)
-    ].filter(t => t !== 'silence' && t !== 's("~")' && t.trim() !== '');
+    const sections = DISPLAY_TRACK_ORDER
+        .map((trackId) => {
+            const code = formatTrack(state.tracks[trackId]);
+            if (!isAudibleDisplayCode(code)) return null;
+            return {
+                trackId,
+                code: formatDisplayTrackExpression(code),
+            };
+        })
+        .filter((section): section is { trackId: InstrumentType; code: string } => Boolean(section));
 
-    if (tracks.length === 0) {
+    if (sections.length === 0) {
         return 'silence';
     }
 
-    if (tracks.length === 1) {
-        return `(${tracks[0]})`;
-    }
+    const lines: string[] = [];
+    sections.forEach((section, index) => {
+        lines.push(`  // ${index + 1}. ${DISPLAY_TRACK_LABELS[section.trackId]}`);
 
-    // Use single-line format to avoid potential parsing issues
-    return `stack(${tracks.join(', ')})`;
+        const expressionLines = indentCodeBlock(section.code, '  ').split('\n');
+        if (index < sections.length - 1) {
+            expressionLines[expressionLines.length - 1] += ',';
+        }
+        lines.push(...expressionLines);
+    });
+
+    return `stack(\n${lines.join('\n')}\n)`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

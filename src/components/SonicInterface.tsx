@@ -601,20 +601,20 @@ export default function SonicInterface() {
 
                     <div className="min-h-0 bg-[#11151b] max-lg:w-full max-lg:max-w-full lg:flex-1">
                         <div className={`min-h-0 flex-col gap-4 p-5 max-lg:w-full max-lg:max-w-full max-lg:p-3 lg:h-full ${viewMode === 'simple' ? 'flex' : 'hidden'}`}>
-                            <section className="flex min-h-[320px] min-w-0 flex-col overflow-hidden rounded-lg border border-white/10 bg-[#0e1218] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] max-lg:h-[430px] max-lg:w-full max-lg:max-w-full max-sm:h-[390px] lg:flex-1">
-                                <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
+                            <section className="flex min-h-[320px] min-w-0 flex-col overflow-hidden rounded-md border border-white/[0.07] bg-[#090b0f] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] max-lg:h-[430px] max-lg:w-full max-lg:max-w-full max-sm:h-[390px] lg:flex-1">
+                                <div className="flex shrink-0 items-center justify-between border-b border-white/[0.07] px-3 py-2.5">
                                     <div className="flex items-center gap-2">
-                                        <Code className="h-4 w-4 text-cyan-300" />
+                                        <Code className="h-4 w-4 text-lime-300" />
                                         <div>
                                             <h3 className="text-sm font-semibold text-slate-100">Code Workspace</h3>
-                                            <p className="text-xs text-slate-500">Live Strudel pattern</p>
+                                            <p className="text-xs text-slate-500">Formatted Strudel stack</p>
                                         </div>
                                     </div>
-                                    <div className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-xs text-slate-400 max-sm:hidden">
+                                    <div className="rounded border border-white/[0.07] bg-white/[0.025] px-2 py-1 text-xs text-slate-500 max-sm:hidden">
                                         {isConnected ? 'Socket linked' : 'Standalone mode'}
                                     </div>
                                 </div>
-                                <div className="min-h-0 flex-1 p-4 max-sm:p-3">
+                                <div className="min-h-0 flex-1 p-2 max-sm:p-2">
                                     <StrudelCodeView
                                         code={currentCode}
                                         tracks={state?.tracks}

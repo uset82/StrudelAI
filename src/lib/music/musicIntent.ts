@@ -202,6 +202,15 @@ function drumTemplateForPrompt(prompt: string): GenreKey {
     return 'drums';
 }
 
+function isVocalBedHipHopPrompt(prompt: string) {
+    return /\b(hip\s*hop|hip-hop|rap|boom\s*bap|trap|eminem|eminen|slim\s+shady)\b/.test(prompt)
+        && !/\b(melod(?:y|ic)|hook|lead|topline|piano|sample|chords?|keys|arp|arpeggio)\b/.test(prompt);
+}
+
+function isRapArtistReferencePrompt(prompt: string) {
+    return /\b(eminem|eminen|slim\s+shady)\b/.test(prompt);
+}
+
 function contextLooksLikeItalo(context: MusicContext) {
     const joined = [context.currentCode, ...Object.values(context.tracks).filter(Boolean)]
         .join(' ')
@@ -249,6 +258,19 @@ export function routeMusicIntent(prompt: string, context: MusicContext): MusicIn
             referenceStyle: 'safe pop-funk dance traits',
             nextBpm: 116,
             reason: 'Artist reference mapped to safe pop-funk dance traits, not exact imitation.',
+        }, context);
+    }
+
+    if (isRapArtistReferencePrompt(normalized)) {
+        return buildIntent({
+            kind: 'create_full_style',
+            targetTracks: ['drums', 'bass'],
+            preserveTracks: [],
+            clearTracks: ['melody', 'voice'],
+            templateId: 'hiphop',
+            referenceStyle: 'safe rap vocal-bed traits',
+            nextBpm: 92,
+            reason: 'Artist reference mapped to safe rap vocal-bed traits, not exact imitation.',
         }, context);
     }
 
@@ -419,11 +441,12 @@ export function routeMusicIntent(prompt: string, context: MusicContext): MusicIn
         const templateId = genre === 'italo_80s' && contextLooksLikeItalo(context)
             ? 'italo_80s_alt'
             : genre;
+        const isHipHopVocalBed = genre === 'hiphop' && isVocalBedHipHopPrompt(normalized);
         return buildIntent({
             kind: 'create_full_style',
-            targetTracks: ['drums', 'bass', 'melody'],
+            targetTracks: isHipHopVocalBed ? ['drums', 'bass'] : ['drums', 'bass', 'melody'],
             preserveTracks: [],
-            clearTracks: [],
+            clearTracks: isHipHopVocalBed ? ['melody', 'voice'] : [],
             templateId,
             referenceStyle: null,
             nextBpm: null,

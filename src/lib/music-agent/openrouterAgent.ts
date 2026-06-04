@@ -21,6 +21,11 @@ import {
     formatAgentGrounding,
     toAgentUpdateResponse,
 } from './pipeline';
+import {
+    extractCodeFromMarkdown,
+    sanitizeGeneratedCode,
+    parseStrudelCodeToTracks,
+} from '@/lib/music/codeExtractor';
 
 type MusicAgentResponseSource = MusicAgentPipelineResult['source'] | 'openrouter_agent';
 
@@ -90,14 +95,21 @@ function sanitizeTrack(value: string | null) {
     return isSilentPlaceholder(stripped) ? null : stripped;
 }
 
-function sanitizeTracks(tracks: TrackMap): TrackMap {
-    return {
-        drums: sanitizeTrack(tracks.drums),
-        bass: sanitizeTrack(tracks.bass),
-        melody: sanitizeTrack(tracks.melody),
-        voice: sanitizeTrack(tracks.voice),
-        fx: sanitizeTrack(tracks.fx),
-    };
+
+
+const RAP_VOCAL_BED_THOUGHT = 'Rap vocal-bed loop: punchy half-time drums, low sub bass, and open space for vocals. No melodic lead was added.';
+
+function isRapVocalBedIntent(intent: MusicIntent) {
+    return intent.templateId === 'hiphop' && intent.clearTracks.includes('melody') && intent.clearTracks.includes('voice');
+}
+
+function applyIntentClears(response: AgentUpdateResponse, intent: MusicIntent): AgentUpdateResponse {
+    if (intent.clearTracks.length === 0) return response;
+    const tracks = { ...response.tracks };
+    for (const trackId of intent.clearTracks) {
+        tracks[trackId] = 'silence';
+    }
+    return { ...response, tracks, thought: isRapVocalBedIntent(intent) ? RAP_VOCAL_BED_THOUGHT : response.thought };
 }
 
 const AgentResponseSchema = z.object({
@@ -230,10 +242,65 @@ export async function refineWithOpenRouterAgent(params: {
                 allowFinalResponse: 'Return the final validated JSON response now.',
             });
             const text = await result.getText();
+            let parsed: z.infer<typeof AgentResponseSchema> | null = null;
+            let tracks: TrackMap | null = null;
+            let bpm = params.intent.nextBpm || params.context.currentBpm || 120;
+            let thought = '';
+
             const json = extractJson(text);
-            if (!json) continue;
-            const parsed = AgentResponseSchema.parse(JSON.parse(json));
-            const tracks = sanitizeTracks(parsed.tracks as TrackMap);
+            if (json) {
+                try {
+                    const parsedJson = JSON.parse(json);
+                    const validationResult = AgentResponseSchema.safeParse(parsedJson);
+                    if (validationResult.success) {
+                        parsed = validationResult.data;
+                    } else {
+                        console.warn('[MusicAgent] JSON schema validation failed:', validationResult.error);
+                    }
+                } catch (e) {
+                    console.warn('[MusicAgent] JSON parse failed, trying raw code extraction fallback:', e);
+                }
+            }
+
+            if (parsed) {
+                // LLM successfully returned structured JSON!
+                // Start with candidate tracks as base, and overwrite with anything the LLM returned that is NOT null/undefined
+                const mergedTracks = { ...candidate.tracks };
+                for (const trackId of ['drums', 'bass', 'melody', 'voice', 'fx'] as const) {
+                    const llmTrack = parsed.tracks[trackId];
+                    if (llmTrack !== undefined && llmTrack !== null) {
+                        mergedTracks[trackId] = sanitizeTrack(llmTrack);
+                    }
+                }
+                tracks = mergedTracks;
+                bpm = parsed.bpm;
+                thought = parsed.thought;
+            } else {
+                // JSON parsing failed or wasn't in the correct format. Let's try raw code extraction fallback.
+                const rawCode = extractCodeFromMarkdown(text);
+                if (rawCode) {
+                    console.log('[MusicAgent] Extracted raw code from OpenRouter response:', rawCode.substring(0, 100));
+                    const sanitized = sanitizeGeneratedCode(rawCode);
+                    const parsedTracks = parseStrudelCodeToTracks(sanitized);
+                    
+                    // Start with candidate tracks as base, and overwrite with parsed tracks
+                    const mergedTracks = { ...candidate.tracks };
+                    if (parsedTracks.drums) mergedTracks.drums = sanitizeGeneratedCode(parsedTracks.drums);
+                    if (parsedTracks.bass) mergedTracks.bass = sanitizeGeneratedCode(parsedTracks.bass);
+                    if (parsedTracks.melody) mergedTracks.melody = sanitizeGeneratedCode(parsedTracks.melody);
+                    if (parsedTracks.voice) mergedTracks.voice = sanitizeGeneratedCode(parsedTracks.voice);
+                    if (parsedTracks.fx) mergedTracks.fx = sanitizeGeneratedCode(parsedTracks.fx);
+                    
+                    tracks = mergedTracks;
+                    thought = 'Extracted Strudel code from OpenRouter response.';
+                }
+            }
+
+            if (!tracks) {
+                console.warn('[MusicAgent] No JSON or raw code tracks could be parsed from model response.');
+                continue;
+            }
+
             const validation = validateGeneratedTracks(tracks, params.prompt, params.currentCode, params.intent);
             if (!validation.valid) {
                 console.warn('[MusicAgent] OpenRouter refinement rejected by legacy validation:', validation.issues);
@@ -269,12 +336,12 @@ export async function refineWithOpenRouterAgent(params: {
                 continue;
             }
 
-            return {
+            return applyIntentClears({
                 type: 'update_tracks',
-                thought: parsed.thought,
-                bpm: parsed.bpm,
+                thought: thought || parsed?.thought || '',
+                bpm,
                 tracks,
-            };
+            }, params.intent);
         } catch (err) {
             lastError = err;
             console.warn(`[MusicAgent] OpenRouter agent failed (${model})`, err);
@@ -305,7 +372,7 @@ export async function runMusicAgentPipeline(params: {
     let finalSource: MusicAgentResponseSource = local.source;
 
     if (params.enableOpenRouter === false) {
-        finalResponse = localResponse;
+        finalResponse = applyIntentClears(localResponse, intent);
     } else {
         const refined = await refineWithOpenRouterAgent({
             prompt: params.prompt,
@@ -316,12 +383,14 @@ export async function runMusicAgentPipeline(params: {
         });
 
         if (refined) {
-            finalResponse = refined;
+            finalResponse = applyIntentClears(refined, intent);
             finalSource = 'openrouter_agent';
         } else {
-            finalResponse = localResponse;
+            finalResponse = applyIntentClears(localResponse, intent);
         }
     }
+
+    finalResponse = applyIntentClears(finalResponse, intent);
 
     // Run final agent validation and patch if needed
     for (const trackId of ['drums', 'bass', 'melody', 'voice', 'fx'] as const) {
@@ -344,6 +413,13 @@ export async function runMusicAgentPipeline(params: {
         } catch (err) {
             console.warn(`[ValidationAgent] Error in final track validation for "${trackId}":`, err);
         }
+    }
+
+    const finalValidation = validateGeneratedTracks(finalResponse.tracks, params.prompt, params.currentCode || undefined, intent);
+    if (!finalValidation.valid) {
+        console.warn('[MusicAgent] Final response rejected by legacy validation; returning local pipeline output:', finalValidation.issues);
+        finalResponse = applyIntentClears(localResponse, intent);
+        finalSource = local.source;
     }
 
     return params.includeDebug ? withDebugMetadata(finalResponse, local, finalSource) : finalResponse;

@@ -3,6 +3,7 @@ import {
     GenreTemplate,
     TrackMap,
     detectGenre,
+    detectSpecificSong,
     getTemplateForPrompt,
     isBroadMusicRequest,
     isDrumOnlyPrompt,
@@ -118,6 +119,10 @@ function numericMethodValues(value: string, method: string) {
         .filter(Number.isFinite);
 }
 
+function isPlainRapOrHiphopPrompt(prompt: string) {
+    return /\b(?:rap(?:per)?|hip-?hop|boom\s*bap|trap|eminem|eminen|slim\s+shady)\b/i.test(prompt) && !/\b(melod(?:y|ic)|hook|lead|topline|piano|sample)\b/i.test(prompt);
+}
+
 function validateTemplateRequirements(tracks: TrackMap, template: GenreTemplate, prompt: string): TrackValidationIssue[] {
     const issues: TrackValidationIssue[] = [];
 
@@ -175,6 +180,17 @@ function validateTemplateRequirements(tracks: TrackMap, template: GenreTemplate,
         const drums = tracks.drums || '';
         if (!/\*16|rolandtr909_hh\*16|~ ~/.test(drums.toLowerCase())) {
             issues.push({ trackId: 'drums', reason: 'DnB needs fast subdivisions or a broken beat' });
+        }
+    }
+
+    if (genre === 'hiphop' && isPlainRapOrHiphopPrompt(prompt)) {
+        const melody = tracks.melody || '';
+        const highMelodyNotes = (melody.match(/\b[a-g](?:#|b)?[4-7]\b/gi) || []).length;
+        if (melody.trim() && melody.trim() !== 'silence' && highMelodyNotes > 3) {
+            issues.push({ trackId: 'melody', reason: 'plain rap requests should leave vocal space instead of adding a melodic lead line' });
+        }
+        if (!trackHasPattern(tracks.drums) || !trackHasPattern(tracks.bass)) {
+            issues.push({ trackId: 'bass', reason: 'rap requests need drums and low bass as the core beat' });
         }
     }
 
@@ -262,7 +278,31 @@ function validateIntentRequirements(tracks: TrackMap, prompt: string, intent: Mu
     return validateTemplateRequirements(tracks, getTemplateForPrompt(prompt), prompt);
 }
 
-function validateTrackRoles(tracks: TrackMap): TrackValidationIssue[] {
+const STANDARD_STEP_COUNTS = new Set([1, 2, 3, 4, 6, 8, 12, 16, 24, 32]);
+
+function getPatternStepCount(pattern: string): number {
+    let collapsed = pattern;
+    let prev = '';
+    while (collapsed !== prev) {
+        prev = collapsed;
+        collapsed = collapsed.replace(/\[[^\]]*\]/g, 'sub');
+        collapsed = collapsed.replace(/<[^>]*>/g, 'alt');
+        collapsed = collapsed.replace(/\([^)]*\)/g, 'euclid');
+    }
+    const tokens = collapsed.split(/\s+/).filter(Boolean);
+    return tokens.length;
+}
+
+function extractMiniNotationPatterns(code: string): string[] {
+    const patterns: string[] = [];
+    const matches = code.matchAll(/\b(?:s|note|m|sound|sample)\(\s*(['"`])([\s\S]*?)\1\s*\)/gi);
+    for (const match of matches) {
+        patterns.push(match[2]);
+    }
+    return patterns;
+}
+
+function validateTrackRoles(tracks: TrackMap, prompt?: string): TrackValidationIssue[] {
     const issues: TrackValidationIssue[] = [];
     const drums = (tracks.drums || '').toLowerCase();
     const bass = (tracks.bass || '').toLowerCase();
@@ -303,6 +343,26 @@ function validateTrackRoles(tracks: TrackMap): TrackValidationIssue[] {
         }
     }
 
+    // Step count validation to catch AI loop division hallucinations (e.g. 10-step or 9-step patterns)
+    const isSpecificSong = prompt ? detectSpecificSong(prompt) : false;
+    if (!isSpecificSong) {
+        for (const [rawTrackId, code] of Object.entries(tracks)) {
+            const trackId = rawTrackId as InstrumentType;
+            if (!code || code === 'silence') continue;
+
+            const patterns = extractMiniNotationPatterns(code);
+            for (const pattern of patterns) {
+                const steps = getPatternStepCount(pattern);
+                if (steps > 0 && !STANDARD_STEP_COUNTS.has(steps)) {
+                    issues.push({
+                        trackId,
+                        reason: `${trackId} pattern has non-standard step count of ${steps} (pattern: "${pattern}"). Standard loop patterns must have 1, 2, 3, 4, 6, 8, 12, 16, 24, or 32 steps per cycle.`,
+                    });
+                }
+            }
+        }
+    }
+
     return issues;
 }
 
@@ -328,7 +388,7 @@ export function validateGeneratedTracks(
         issues.push(...validateTemplateRequirements(tracks, template, prompt));
     }
 
-    issues.push(...validateTrackRoles(tracks));
+    issues.push(...validateTrackRoles(tracks, prompt));
 
     return {
         valid: issues.length === 0,
