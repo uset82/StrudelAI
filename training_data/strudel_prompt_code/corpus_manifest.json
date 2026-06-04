@@ -1,0 +1,33 @@
+{
+  "version": "2026-06-04.1",
+  "priorityGenres": ["rock-family"],
+  "note": "The executable StrudelTrainingExample corpus lives in src/lib/music/trainingCorpus.ts and expands these prompts through shared GenreTemplate objects.",
+  "examples": [
+    { "id": "rock-001", "prompt": "play some rock", "templateId": "rock", "tags": ["rock", "broad-genre", "first-success-target"] },
+    { "id": "rock-002", "prompt": "classic rock in e minor", "templateId": "rock", "tags": ["rock", "classic-rock"] },
+    { "id": "rock-003", "prompt": "make a driving guitar riff", "templateId": "rock", "tags": ["rock", "riff", "guitar"] },
+    { "id": "rock-004", "prompt": "give me hard rock", "templateId": "rock", "tags": ["rock", "hard-rock"] },
+    { "id": "rock-005", "prompt": "rock song with a catchy riff", "templateId": "rock", "tags": ["rock", "hook", "riff"] },
+    { "id": "rock-006", "prompt": "e minor power chords", "templateId": "rock", "tags": ["rock", "power-chords"] },
+    { "id": "rock-007", "prompt": "arena rock loop", "templateId": "rock", "tags": ["rock", "anthemic"] },
+    { "id": "rock-008", "prompt": "grunge style guitar groove", "templateId": "rock", "tags": ["rock", "grunge"] },
+    { "id": "rock-009", "prompt": "alt rock beat", "templateId": "rock", "tags": ["rock", "alternative-rock"] },
+    { "id": "rock-010", "prompt": "make the rock less stiff", "templateId": "humanized_rock", "tags": ["rock", "humanize", "syncopated"] },
+    { "id": "rock-011", "prompt": "that not even sound", "templateId": "humanized_rock", "tags": ["rock", "humanize", "user-correction"] },
+    { "id": "rock-012", "prompt": "make it less even", "templateId": "humanized_rock", "tags": ["rock", "humanize", "syncopated"] },
+    { "id": "rock-013", "prompt": "more human rock groove", "templateId": "humanized_rock", "tags": ["rock", "humanize"] },
+    { "id": "rock-014", "prompt": "sounds horrible", "templateId": "clean_rock", "tags": ["repair", "clean"] },
+    { "id": "rock-015", "prompt": "clean up the bad rock sound", "templateId": "clean_rock", "tags": ["repair", "rock"] },
+    { "id": "rock-016", "prompt": "too harsh, make it listenable", "templateId": "clean_rock", "tags": ["repair", "harsh"] },
+    { "id": "rock-017", "prompt": "the mix is muddy", "templateId": "clean_rock", "tags": ["repair", "muddy"] },
+    { "id": "punk-001", "prompt": "play fast punk", "templateId": "punk", "tags": ["punk", "fast"] },
+    { "id": "punk-002", "prompt": "pop punk with guitars", "templateId": "punk", "tags": ["punk", "guitar"] },
+    { "id": "punk-003", "prompt": "raw punk rock", "templateId": "punk", "tags": ["punk", "raw"] },
+    { "id": "punk-004", "prompt": "punk drums and power chords", "templateId": "punk", "tags": ["punk", "power-chords"] },
+    { "id": "metal-001", "prompt": "play heavy metal", "templateId": "metal", "tags": ["metal", "heavy"] },
+    { "id": "metal-002", "prompt": "metal chug in e minor", "templateId": "metal", "tags": ["metal", "chug"] },
+    { "id": "metal-003", "prompt": "hard metal double kick", "templateId": "metal", "tags": ["metal", "double-kick"] },
+    { "id": "metal-004", "prompt": "aggressive guitar metal", "templateId": "metal", "tags": ["metal", "guitar"] }
+  ]
+}
+

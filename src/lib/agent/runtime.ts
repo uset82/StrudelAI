@@ -3,6 +3,7 @@ import { AGENT_TOOLS, executeTool } from './tool-bridge';
 import { ContextManager } from './context-manager';
 import { SonicSessionState, ChatMessage } from '../../types/sonic';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import { buildDeterministicMusicResponse } from '../music/genreTemplates';
 
 const ACTION_KEYWORDS = [
     'play', 'stop', 'start', 'pause', 'faster', 'slower', 'tempo', 'bpm', 'speed',
@@ -63,6 +64,28 @@ function tryRuleBasedUpdate(text: string, state: SonicSessionState): { changed: 
     let changed = false;
 
     const includesAll = (words: string[]) => words.every((w) => lowered.includes(w));
+    const currentCode = Object.values(state.tracks)
+        .map((track) => track.pattern)
+        .filter(Boolean)
+        .join('\n');
+    const deterministic = buildDeterministicMusicResponse(text, currentCode);
+
+    if (deterministic) {
+        newState.bpm = deterministic.bpm;
+        Object.entries(deterministic.tracks).forEach(([rawTrackId, pattern]) => {
+            const trackId = rawTrackId as keyof SonicSessionState['tracks'];
+            if (pattern && newState.tracks[trackId]) {
+                newState.tracks[trackId].pattern = normalizePattern(trackId, pattern);
+                newState.tracks[trackId].muted = false;
+            }
+        });
+        newState.isPlaying = true;
+        return {
+            changed: true,
+            newState,
+            response: deterministic.thought,
+        };
+    }
 
     // Clear/delete commands wipe patterns and stop
     if ((/\b(delete|clear)\b/.test(lowered) && /\b(code|song|everything|all)\b/.test(lowered)) || includesAll(['delete', 'code'])) {
@@ -272,7 +295,7 @@ export class AgentRuntime {
                     continue;
                 }
 
-                this.history.push(message as any as ChatMessage);
+                this.history.push(message as unknown as ChatMessage);
 
                 if (hasToolCalls && message.tool_calls) {
                     console.log(`[Agent] Tool calls detected:`, message.tool_calls);
@@ -313,7 +336,7 @@ export class AgentRuntime {
                     });
 
                     const finalMessage = secondCompletion.choices[0].message;
-                    this.history.push(finalMessage as any as ChatMessage);
+                    this.history.push(finalMessage as unknown as ChatMessage);
                     return { response: finalMessage.content || "Action completed.", newState: finalState };
                 }
             }

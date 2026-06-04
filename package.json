@@ -6,7 +6,8 @@
     "dev": "tsx server.ts",
     "build": "next build",
     "start": "NODE_ENV=production tsx server.ts",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:music-quality": "tsx test_music_quality.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

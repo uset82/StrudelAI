@@ -55,6 +55,7 @@ venv/
 *.wav
 *.mp3
 generated_samples/
+training_data/strudel_prompt_code/bad_generations.log.jsonl
 
 # Temporary/Session files
 live-session.json

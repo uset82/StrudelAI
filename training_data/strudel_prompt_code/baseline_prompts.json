@@ -1,0 +1,77 @@
+{
+  "version": "2026-06-04.1",
+  "recordingMethod": "Static inspection plus reported user failure before the quality-template implementation.",
+  "prompts": [
+    {
+      "id": "baseline-001",
+      "prompt": "play some rock",
+      "currentOutputSummary": "Reported output used generic electronic layers, 808/909 drums, saw bass, pink noise, and a brittle pseudo-chord melody instead of a coherent rock riff.",
+      "failureLabels": ["wrong-genre", "missing-guitar-riff", "harsh-tone", "overcomplicated-response"],
+      "acceptanceTarget": "Rock-family template with drums, bass, and guitar-like power-chord riff in E/A minor."
+    },
+    {
+      "id": "baseline-002",
+      "prompt": "play fast punk",
+      "currentOutputSummary": "No deterministic punk template existed; likely generic fallback or model improvisation.",
+      "failureLabels": ["missing-genre-template", "wrong-genre-risk"],
+      "acceptanceTarget": "Fast punk template around 170-180 BPM with short power chords and backbeat."
+    },
+    {
+      "id": "baseline-003",
+      "prompt": "play heavy metal",
+      "currentOutputSummary": "No deterministic metal template existed; model could overuse distortion or produce generic techno.",
+      "failureLabels": ["missing-genre-template", "harsh-tone-risk", "muddy-mix-risk"],
+      "acceptanceTarget": "Metal template with controlled chug, explicit BPM, and filtered low end."
+    },
+    {
+      "id": "baseline-004",
+      "prompt": "dark techno beat",
+      "currentOutputSummary": "Existing electronic template usually works but can become too dense or resonant.",
+      "failureLabels": ["overcomplicated-response-risk"],
+      "acceptanceTarget": "Four-on-floor techno with stable BPM and controlled bass/kick separation."
+    },
+    {
+      "id": "baseline-005",
+      "prompt": "deep house groove",
+      "currentOutputSummary": "Existing house fallback existed but was not part of a reusable contract.",
+      "failureLabels": ["missing-contract"],
+      "acceptanceTarget": "House template with warm kick, offbeat hats, bass, and simple chords."
+    },
+    {
+      "id": "baseline-006",
+      "prompt": "calm ambient music",
+      "currentOutputSummary": "Ambient fallback existed but could be overwritten by generic fallback when parsing failed.",
+      "failureLabels": ["fallback-routing-risk"],
+      "acceptanceTarget": "Ambient template with no forced drums and slow reverb/delay textures."
+    },
+    {
+      "id": "baseline-007",
+      "prompt": "drum and bass",
+      "currentOutputSummary": "DnB fallback existed but lacked regression assertions.",
+      "failureLabels": ["missing-regression-test"],
+      "acceptanceTarget": "174 BPM broken beat with rolling bass."
+    },
+    {
+      "id": "baseline-008",
+      "prompt": "that not even sound",
+      "currentOutputSummary": "Reported output interpreted this as Euclidean/offbeat complexity and made the result worse.",
+      "failureLabels": ["bad-rhythm", "overcomplicated-response", "intent-misread"],
+      "acceptanceTarget": "Controlled syncopation/humanization while preserving the original groove."
+    },
+    {
+      "id": "baseline-009",
+      "prompt": "sounds horrible",
+      "currentOutputSummary": "Reported output tried to repair by replacing the mix but still sounded bad.",
+      "failureLabels": ["repair-failure", "muddy-mix", "harsh-tone"],
+      "acceptanceTarget": "Simpler, cleaner repair with lower gain, lower distortion, and fewer layers."
+    },
+    {
+      "id": "baseline-010",
+      "prompt": "make a guitar riff",
+      "currentOutputSummary": "No guitar/riff intent mapping existed in fallback detection.",
+      "failureLabels": ["missing-genre-detection", "missing-instrument-role"],
+      "acceptanceTarget": "Rock-family riff using layered root/fifth synth texture."
+    }
+  ]
+}
+

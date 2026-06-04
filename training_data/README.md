@@ -1,3 +1,14 @@
+# Training Data
+
+This folder now contains two separate training-data tracks:
+
+- `training_data/`: audio/text pairs for optional MusicGen fine-tuning.
+- `training_data/strudel_prompt_code/`: natural-language prompt to Strudel JSON examples for Aether's chatbot code generation.
+
+Use the Strudel prompt-code corpus first when improving the live-coding assistant. Use MusicGen only when the goal is realistic generated audio samples.
+
+---
+
 # MusicGen Training Data
 
 ## How to prepare your training data:

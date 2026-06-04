@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StrudelTrainingExample",
+  "type": "object",
+  "required": ["id", "version", "userPrompt", "intentTags", "expected", "bpm", "key", "qualityNotes"],
+  "properties": {
+    "id": { "type": "string" },
+    "version": { "type": "string" },
+    "userPrompt": { "type": "string" },
+    "intentTags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "expected": {
+      "type": "object",
+      "required": ["type", "thought", "bpm", "tracks"],
+      "properties": {
+        "type": { "const": "update_tracks" },
+        "thought": { "type": "string" },
+        "bpm": { "type": "number", "minimum": 40, "maximum": 240 },
+        "tracks": {
+          "type": "object",
+          "required": ["drums", "bass", "melody", "voice", "fx"],
+          "properties": {
+            "drums": { "type": ["string", "null"] },
+            "bass": { "type": ["string", "null"] },
+            "melody": { "type": ["string", "null"] },
+            "voice": { "type": ["string", "null"] },
+            "fx": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "bpm": { "type": "number", "minimum": 40, "maximum": 240 },
+    "key": { "type": "string" },
+    "qualityNotes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "negative": { "type": "boolean" },
+    "rejectionReason": { "type": "string" }
+  },
+  "additionalProperties": false
+}
+

@@ -9,6 +9,14 @@ import {
     OPENROUTER_TIMEOUT_MS,
     getOpenRouterModelCandidates,
 } from '@/lib/ai/openrouter-config';
+import {
+    TrackMap,
+    buildDeterministicMusicResponse,
+    buildFallbackResponse,
+    buildTemplateGrounding,
+} from '@/lib/music/genreTemplates';
+import { formatTrainingExamplesForPrompt } from '@/lib/music/trainingCorpus';
+import { validateGeneratedTracks } from '@/lib/music/strudelValidation';
 
 // MusicGen server URL
 const MUSICGEN_URL = process.env.MUSICGEN_URL || 'http://localhost:5001';
@@ -583,7 +591,7 @@ const detectRequestedTracks = (prompt: string) => {
     const wants = {
         drums: /\b(drums?|beat|beats|percussion|kick|snare|hats?|hihat|hi-hat|batucada|samba|brazilian|carnival|surdo|tamborim|agogo|escola|anna|vintage culture|techno samba|rhythm)\b/.test(p),
         bass: /\b(bass|sub|low end|low-end|bassline)\b/.test(p),
-        melody: /\b(melody|melodies|lead|topline|chords?|pads?|keys|synth|arps?|arpeggio)\b/.test(p),
+        melody: /\b(melody|melodies|lead|topline|chords?|pads?|keys|synth|arps?|arpeggio|guitar|riff|power\s*chords?)\b/.test(p),
         voice: /\b(voice|voices|vocal|vocals|speech|sing|singing|choir|robot|talk|angel|angelic|heaven|heavenly)\b/.test(p),
         fx: /\b(fx|effects?|atmo|atmos|atmosphere|texture|noise|riser|sweep|ambient)\b/.test(p),
     };
@@ -595,6 +603,10 @@ const detectRequestedTracks = (prompt: string) => {
 const enforceAtLeastOne = (tracks: Record<string, string | null>, prompt?: string) => {
     const hasAny = Object.values(tracks).some(v => typeof v === 'string' && v.trim());
     if (hasAny) return tracks;
+
+    if (prompt) {
+        return buildFallbackResponse(prompt, '').tracks;
+    }
 
     // Genre-specific full track fallbacks when model returns empty tracks
     const p = (prompt || '').toLowerCase();
@@ -671,12 +683,76 @@ const enforceAtLeastOne = (tracks: Record<string, string | null>, prompt?: strin
     };
 };
 
-const buildProviderFallback = (prompt: string, thought: string) => ({
-    type: 'update_tracks',
-    bpm: extractBpmFromPrompt(prompt) ?? 128,
-    tracks: enforceAtLeastOne({ drums: null, bass: null, melody: null, voice: null, fx: null }, prompt),
-    thought,
+const buildProviderFallback = (prompt: string, thought: string, currentCode?: string) => {
+    const fallback = buildFallbackResponse(prompt, thought, currentCode);
+    return {
+        ...fallback,
+        bpm: extractBpmFromPrompt(prompt) ?? fallback.bpm,
+    };
+};
+
+const toTrackMap = (tracks: Record<string, string | null>): TrackMap => ({
+    drums: tracks.drums ?? null,
+    bass: tracks.bass ?? null,
+    melody: tracks.melody ?? null,
+    voice: tracks.voice ?? null,
+    fx: tracks.fx ?? null,
 });
+
+const logBadGeneration = (
+    prompt: string,
+    raw: string,
+    issues: ReturnType<typeof validateGeneratedTracks>['issues'],
+    tracks: TrackMap,
+) => {
+    try {
+        const logDir = path.join(process.cwd(), 'training_data', 'strudel_prompt_code');
+        fs.mkdirSync(logDir, { recursive: true });
+        fs.appendFileSync(
+            path.join(logDir, 'bad_generations.log.jsonl'),
+            `${JSON.stringify({
+                timestamp: new Date().toISOString(),
+                prompt,
+                issues,
+                raw: raw.slice(0, 2000),
+                tracks,
+            })}\n`,
+            'utf-8',
+        );
+    } catch (err) {
+        console.warn('[API/Agent] Failed to log bad generation:', err);
+    }
+};
+
+const buildValidatedTrackPayload = (params: {
+    prompt: string;
+    currentCode?: string;
+    raw: string;
+    tracks: Record<string, string | null>;
+    bpm?: number | null;
+    thought?: string;
+}) => {
+    const enforcedTracks = toTrackMap(enforceAtLeastOne(params.tracks, params.prompt));
+    const validation = validateGeneratedTracks(enforcedTracks, params.prompt, params.currentCode);
+    const bpm = coerceBpmValue(params.bpm) ?? extractBpmFromPrompt(params.prompt) ?? 128;
+
+    if (!validation.valid) {
+        logBadGeneration(params.prompt, params.raw, validation.issues, enforcedTracks);
+        const reasons = validation.issues.map((issue) => `${issue.trackId}: ${issue.reason}`).join('; ');
+        return {
+            ...buildFallbackResponse(params.prompt, `Rejected unsafe or off-target model output (${reasons}). Using deterministic template instead.`, params.currentCode),
+            validationFallback: true,
+            rejectedReasons: validation.issues,
+        };
+    }
+
+    return {
+        type: 'update_tracks',
+        bpm,
+        tracks: enforcedTracks,
+        thought: params.thought || '',
+    };
+};
 
 const SYSTEM_PROMPT = `You are a virtuoso live-coding music assistant powered by Strudel (a port of TidalCycles to JavaScript).
 You are performing at a LIVE CODING FESTIVAL. Your goal is to BUILD UP a track layer by layer.
@@ -1048,6 +1124,12 @@ export async function POST(req: Request) {
             }
         }
 
+        const deterministicResponse = buildDeterministicMusicResponse(prompt, currentCode);
+        if (deterministicResponse) {
+            console.log(`[API/Agent] Deterministic music template selected for prompt: "${prompt}"`);
+            return jsonWithCors(deterministicResponse);
+        }
+
         if (!OPENROUTER_API_KEY) {
             console.error('[API/Agent] OPENROUTER_API_KEY not found in environment');
             return jsonWithCors({
@@ -1078,21 +1160,14 @@ If low energy is high (>100), the bass might be muddy. Ensure frequency separati
 If the user mentions desync, clashing, or balance issues, analyze these values to understand the frequency distribution.`;
         }
 
-        // Read knowledge.md to augment the system prompt
-        let knowledgeBase = '';
-        try {
-            const knowledgePath = path.join(process.cwd(), 'knowledge.md');
-            if (fs.existsSync(knowledgePath)) {
-                knowledgeBase = fs.readFileSync(knowledgePath, 'utf-8');
-            }
-        } catch (err) {
-            console.error('[API/Agent] Failed to read knowledge.md:', err);
-        }
+        const targetedGrounding = [
+            buildTemplateGrounding(prompt, currentCode),
+            formatTrainingExamplesForPrompt(prompt, 3),
+        ].filter(Boolean).join('\n\n');
 
         const augmentedSystemPrompt = `${SYSTEM_PROMPT}
 
-## EXTENDED KNOWLEDGE BASE (REFERENCE)
-${knowledgeBase}
+${targetedGrounding}
 `;
 
         let completion;
@@ -1114,7 +1189,7 @@ ${currentCode || '// No code yet'}${audioContext}
 User Request: ${prompt}`
                         }
                     ],
-                    temperature: 0.7,
+                    temperature: 0.25,
                     max_tokens: 1500,
                 });
                 break;
@@ -1134,7 +1209,7 @@ User Request: ${prompt}`
                 : 'OpenRouter was slow or unavailable - generating music locally based on your request.';
             console.warn(`[API/Agent] ${reason}`, lastError);
             return jsonWithCors({
-                ...buildProviderFallback(prompt, reason),
+                ...buildProviderFallback(prompt, reason, currentCode),
                 providerFallback: true,
                 attemptedModels,
             });
@@ -1223,11 +1298,13 @@ User Request: ${prompt}`
                 } else {
                     detectedTracks.melody = sanitizedCode;
                 }
-                return jsonWithCors({
-                    type: 'update_tracks',
-                    tracks: enforceAtLeastOne(detectedTracks),
-                    thought: 'Extracted pattern from AI response'
-                });
+                return jsonWithCors(buildValidatedTrackPayload({
+                    prompt,
+                    currentCode,
+                    raw,
+                    tracks: detectedTracks,
+                    thought: 'Extracted pattern from AI response',
+                }));
             }
         }
 
@@ -1285,12 +1362,14 @@ User Request: ${prompt}`
                 console.log('[API/Agent] Final enforced tracks:', JSON.stringify(Object.fromEntries(
                     Object.entries(enforcedTracks).map(([k, v]) => [k, v ? v.substring(0, 60) + '...' : null])
                 )));
-                return jsonWithCors({
-                    type: 'update_tracks',
+                return jsonWithCors(buildValidatedTrackPayload({
+                    prompt,
+                    currentCode,
+                    raw,
                     bpm,
                     tracks: enforcedTracks,
-                    thought: parsed.thought || ''
-                });
+                    thought: parsed.thought || '',
+                }));
             }
 
             if (parsed.type === 'code' && parsed.content) {
@@ -1347,70 +1426,17 @@ User Request: ${prompt}`
                 detectedTracks.melody = sanitizedCode;
             }
 
-            return jsonWithCors({
-                type: 'update_tracks',
+            return jsonWithCors(buildValidatedTrackPayload({
+                prompt,
+                currentCode,
+                raw,
                 bpm: extractBpmFromPrompt(prompt) ?? 128,
-                tracks: enforceAtLeastOne(detectedTracks, prompt),
-                thought: 'Generated pattern from AI response'
-            });
+                tracks: detectedTracks,
+                thought: 'Generated pattern from AI response',
+            }));
         }
 
-        // Detect user intent from prompt and generate a reasonable response
-        const p = prompt.toLowerCase();
-        let fallbackTracks: Record<string, string | null> = {
-            drums: null,
-            bass: null,
-            melody: null,
-            voice: null,
-            fx: null
-        };
-        let thought = 'Generated fallback music based on your request.';
-
-        if (/love|romantic|ballad|sweet|tender|heart/i.test(p)) {
-            thought = 'Creating a romantic love song with soft chords, gentle melody, and dreamy atmosphere.';
-            fallbackTracks = {
-                drums: null,
-                bass: 'note(m("c2 ~ g2 ~ a2 ~ g2 ~")).s("triangle").sustain(0.5).lpf(400).gain(0.6).slow(2)',
-                melody: 'note(m("<c4 e4 g4> <a3 c4 e4> <f3 a3 c4> <g3 b3 d4>")).s("sine").slow(4).room(0.7).delay(0.3).gain(0.5)',
-                voice: null,
-                fx: 'note(m("<c5 g5> <e5 b5>")).s("sine").slow(8).room(0.95).delay(0.5).lpf(1200).gain(0.3)'
-            };
-        } else if (/techno|beat|dance|club|party/i.test(p)) {
-            thought = 'Creating an energetic techno beat with punchy drums and driving bass.';
-            fallbackTracks = {
-                drums: 'stack(note(m("c2*4")).s("square").decay(0.08).lpf(150).gain(0.95), note(m("~ c3 ~ c3")).s("square").hpf(500).decay(0.05).room(0.2), note(m("c5*16")).s("pink").hpf(8000).decay(0.015).gain(0.4))',
-                bass: 'note(m("c2 c2 ~ c2 eb2 ~ c2 ~")).s("sawtooth").lpf(sine.range(300, 900).slow(8)).decay(0.15).gain(0.75)',
-                melody: null,
-                voice: null,
-                fx: null
-            };
-        } else if (/chill|relax|ambient|calm|peaceful/i.test(p)) {
-            thought = 'Creating a chill ambient atmosphere with soft pads and gentle textures.';
-            fallbackTracks = {
-                drums: null,
-                bass: null,
-                melody: 'note(m("<c4 e4 g4> <d4 f4 a4>")).s("sine").slow(4).room(0.8).delay(0.4).gain(0.4)',
-                voice: null,
-                fx: 'note(m("<c5 g5> <e5 b5>")).s("sine").slow(8).room(0.95).delay(0.5).lpf(1200).gain(0.35)'
-            };
-        } else {
-            // Generic musical response - create something nice
-            thought = 'Creating a musical pattern based on your request.';
-            fallbackTracks = {
-                drums: 'note(m("c2*4")).s("square").decay(0.08).lpf(150).gain(0.8)',
-                bass: 'note(m("c2 ~ eb2 ~ g2 ~")).s("triangle").sustain(0.3).slow(2)',
-                melody: 'note(m("c4 e4 g4 b4")).s("sawtooth").slow(2).room(0.3).gain(0.5)',
-                voice: null,
-                fx: null
-            };
-        }
-
-        return jsonWithCors({
-            type: 'update_tracks',
-            bpm: extractBpmFromPrompt(prompt) ?? 128,
-            tracks: enforceAtLeastOne(fallbackTracks, prompt),
-            thought
-        });
+        return jsonWithCors(buildFallbackResponse(prompt, 'Generated deterministic fallback music based on your request.', currentCode));
 
     } catch (error: unknown) {
         console.error('[API/Agent] Error:', error);

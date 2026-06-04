@@ -1,0 +1,27 @@
+{
+  "version": "2026-06-04.1",
+  "negativeExamples": [
+    {
+      "id": "negative-001",
+      "prompt": "play some rock",
+      "badOutputSummary": "Generic four-on-floor techno stack with no guitar/riff role.",
+      "rejectionReason": "Wrong genre for rock request.",
+      "fixTarget": "Use the rock template with backbeat drums, bass, and power-chord riff."
+    },
+    {
+      "id": "negative-002",
+      "prompt": "make a guitar riff",
+      "badOutputSummary": "Unsupported .bank() and .analyze() calls with excessive distortion and gain.",
+      "rejectionReason": "Unsupported syntax plus harsh tone.",
+      "fixTarget": "Reject or sanitize unsupported methods, then fall back to rock-family riff template."
+    },
+    {
+      "id": "negative-003",
+      "prompt": "sounds horrible",
+      "badOutputSummary": "Adds more pink noise, loud hats, distorted bass, and high melody.",
+      "rejectionReason": "Repair prompt increased density and harshness.",
+      "fixTarget": "Use clean_rock repair: lower gain, lower distortion, fewer layers."
+    }
+  ]
+}
+
