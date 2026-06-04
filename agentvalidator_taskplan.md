@@ -13,17 +13,17 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
 
 > Goal: Understand the existing codebase and prepare all dependencies.
 
-- [ ] **1.1** Read and understand the current `src/lib/music-agent` pipeline and how code reaches the Strudel engine.
-- [ ] **1.2** Read `src/lib/music/strudelValidation.ts` to understand the existing validation layer.
-- [ ] **1.3** Clone reference repositories locally (do **not** fork into the main project):
-  - [ ] `git clone https://github.com/williamzujkowski/live-coding-music-mcp.git` — study MCP integration patterns.
-  - [ ] `git clone https://github.com/tidalcycles/strudel.git` — study Strudel grammar, `note()`, `s()`, `bank()`, `n()`, `scale()`, `trans()`.
-- [ ] **1.4** Install MVP audio/validation libraries into the Next.js project:
-  - [ ] `npm install @spotify/basic-pitch` (TypeScript build — basic-pitch-ts)
-  - [ ] `npm install meyda`
-  - [ ] `npm install pitchfinder`
-- [ ] **1.5** Confirm package compatibility (Node + browser targets) and add types if needed.
-- [ ] **1.6** Document the integration notes per library in a short `src/agents/StrudelCodeAudioValidationAgent/LIBRARIES.md`.
+- [x] **1.1** Read and understand the current `src/lib/music-agent` pipeline and how code reaches the Strudel engine.
+- [x] **1.2** Read `src/lib/music/strudelValidation.ts` to understand the existing validation layer.
+- [x] **1.3** Clone reference repositories locally (do **not** fork into the main project):
+  - [x] `git clone https://github.com/williamzujkowski/live-coding-music-mcp.git` — study MCP integration patterns.
+  - [x] `git clone https://github.com/tidalcycles/strudel.git` — study Strudel grammar, `note()`, `s()`, `bank()`, `n()`, `scale()`, `trans()`.
+- [x] **1.4** Install MVP audio/validation libraries into the Next.js project:
+  - [x] `npm install @spotify/basic-pitch` (TypeScript build — basic-pitch-ts)
+  - [x] `npm install meyda`
+  - [x] `npm install pitchfinder`
+- [x] **1.5** Confirm package compatibility (Node + browser targets) and add types if needed.
+- [x] **1.6** Document the integration notes per library in a short `src/agents/StrudelCodeAudioValidationAgent/LIBRARIES.md`.
 
 ---
 
@@ -31,7 +31,7 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
 
 > Goal: Create the folder layout and typed interfaces for the agent.
 
-- [ ] **2.1** Create the agent directory:
+- [x] **2.1** Create the agent directory:
   ```
   src/agents/StrudelCodeAudioValidationAgent/
   ├── index.ts                  ← main agent entry point
@@ -48,13 +48,13 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
   │   └── compareExpectedVsDetectedAudio.ts
   └── LIBRARIES.md
   ```
-- [ ] **2.2** Define TypeScript interfaces in `types.ts`:
-  - [ ] `ParsedStrudelIntent` — notes, sounds, bank, n-indexes, scale, trans, tempo, FX.
-  - [ ] `ValidationResult` — `approved`, `confidence`, `errors[]`, `warnings[]`, `analysis`.
-  - [ ] `CorrectionReport` — `type`, `message`, `suggestedPatch`.
-  - [ ] `AudioAnalysisResult` — `expectedNotes`, `detectedNotes`, `detectedProfile` (RMS, spectral, onsets).
-- [ ] **2.3** Create `index.ts` as the orchestrator that calls all skills in sequence.
-- [ ] **2.4** Export the agent so it can be imported by `src/lib/music-agent`.
+- [x] **2.2** Define TypeScript interfaces in `types.ts`:
+  - [x] `ParsedStrudelIntent` — notes, sounds, bank, n-indexes, scale, trans, tempo, FX.
+  - [x] `ValidationResult` — `approved`, `confidence`, `errors[]`, `warnings[]`, `analysis`.
+  - [x] `CorrectionReport` — `type`, `message`, `suggestedPatch`.
+  - [x] `AudioAnalysisResult` — `expectedNotes`, `detectedNotes`, `detectedProfile` (RMS, spectral, onsets).
+- [x] **2.3** Create `index.ts` as the orchestrator that calls all skills in sequence.
+- [x] **2.4** Export the agent so it can be imported by `src/lib/music-agent`.
 
 ---
 
@@ -62,16 +62,16 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
 
 > Goal: Build the internal registry that maps instruments to their validation profile.
 
-- [ ] **3.1** Create `registry/instrumentRegistry.ts` with entries for all instrument types:
+- [x] **3.1** Create `registry/instrumentRegistry.ts` with entries for all instrument types:
   - **Pitched**: `piano`, `cello`, `guitar`, `synth`, `bass`, `lead`, `pad`.
   - **Drum categories**: `kick`, `snare`, `clap`, `closed-hihat`, `open-hihat`, `tom`, `ride`, `crash`, `percussion`.
-- [ ] **3.2** Each registry entry must include:
-  - [ ] `type`: `"pitched" | "drum" | "noise" | "fx" | "loop"`
-  - [ ] `allowedNoteRange` (if pitched, e.g., `{ min: "C1", max: "C8" }`)
-  - [ ] `expectedFrequencyProfile` (if drum/noise, e.g., `{ bassEnergy: ">0.6" }` for kick)
-  - [ ] `validStrudelAliases`: e.g., kick → `["bd"]`, snare → `["sd"]`, hi-hat → `["hh"]`, clap → `["cp"]`
-  - [ ] `validationMethod`: `"pitch" | "transient" | "spectrum" | "sample-map"`
-- [ ] **3.3** Export typed `getInstrumentProfile(name: string)` helper.
+- [x] **3.2** Each registry entry must include:
+  - [x] `type`: `"pitched" | "drum" | "noise" | "fx" | "loop"`
+  - [x] `allowedNoteRange` (if pitched, e.g., `{ min: "C1", max: "C8" }`)
+  - [x] `expectedFrequencyProfile` (if drum/noise, e.g., `{ bassEnergy: ">0.6" }` for kick)
+  - [x] `validStrudelAliases`: e.g., kick → `["bd"]`, snare → `["sd"]`, hi-hat → `["hh"]`, clap → `["cp"]`
+  - [x] `validationMethod`: `"pitch" | "transient" | "spectrum" | "sample-map"`
+- [x] **3.3** Export typed `getInstrumentProfile(name: string)` helper.
 
 ---
 
@@ -79,7 +79,7 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
 
 > Goal: Extract musical intent from raw Strudel code strings.
 
-- [ ] **4.1** Implement parser that handles at minimum:
+- [x] **4.1** Implement parser that handles at minimum:
   - `note("c d eb f")` → extract note array
   - `s("bd sd hh*8")` → extract sample names (including repeat syntax `*N`)
   - `bank("RolandTR909")` → extract bank name
@@ -87,8 +87,8 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
   - `scale("C:minor")` / `trans(...)` → extract key/scale/transposition
   - `.tempo(120)` → extract BPM
   - Chained FX: `.reverb()`, `.delay()`, `.lpf()`, etc.
-- [ ] **4.2** Return a `ParsedStrudelIntent` object.
-- [ ] **4.3** Write unit tests: parse a cello melody line, parse a TR909 drum pattern.
+- [x] **4.2** Return a `ParsedStrudelIntent` object.
+- [x] **4.3** Write unit tests: parse a cello melody line, parse a TR909 drum pattern.
 
 ---
 
@@ -96,12 +96,12 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
 
 > Goal: Verify that Strudel functions and mini-notation are syntactically valid.
 
-- [ ] **5.1** Check that all used Strudel functions (`note`, `s`, `bank`, `n`, `scale`, `trans`, `tempo`) are on the supported-functions list.
-- [ ] **5.2** Validate mini-notation: brackets `[...]`, angle brackets `<...>`, `,` alternations, `*N` repeats, `!N` replicates, `_` rests.
-- [ ] **5.3** Detect unsupported helpers (reuse logic from existing `strudelValidation.ts` where possible).
-- [ ] **5.4** Detect unbalanced parentheses/quotes.
-- [ ] **5.5** Return `ValidationResult` with syntax errors listed.
-- [ ] **5.6** Write unit tests: valid code passes, code with unsupported helper fails.
+- [x] **5.1** Check that all used Strudel functions (`note`, `s`, `bank`, `n`, `scale`, `trans`, `tempo`) are on the supported-functions list.
+- [x] **5.2** Validate mini-notation: brackets `[...]`, angle brackets `<...>`, `,` alternations, `*N` repeats, `!N` replicates, `_` rests.
+- [x] **5.3** Detect unsupported helpers (reuse logic from existing `strudelValidation.ts` where possible).
+- [x] **5.4** Detect unbalanced parentheses/quotes.
+- [x] **5.5** Return `ValidationResult` with syntax errors listed.
+- [x] **5.6** Write unit tests: valid code passes, code with unsupported helper fails.
 
 ---
 
@@ -109,10 +109,10 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
 
 > Goal: Detect notes that fall outside the requested musical key/scale.
 
-- [ ] **6.1** Build a scale-note lookup table for common scales: major, natural minor, harmonic minor, pentatonic major/minor, blues, dorian, mixolydian, phrygian.
-- [ ] **6.2** Accept the target key (e.g., `"C minor"`) from the parsed intent or from the original prompt context.
-- [ ] **6.3** For each note in `ParsedStrudelIntent.notes`, check if it belongs to the scale.
-- [ ] **6.4** On violation, return:
+- [x] **6.1** Build a scale-note lookup table for common scales: major, natural minor, harmonic minor, pentatonic major/minor, blues, dorian, mixolydian, phrygian.
+- [x] **6.2** Accept the target key (e.g., `"C minor"`) from the parsed intent or from the original prompt context.
+- [x] **6.3** For each note in `ParsedStrudelIntent.notes`, check if it belongs to the scale.
+- [x] **6.4** On violation, return:
   ```json
   {
     "approved": false,
@@ -120,7 +120,7 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
     "suggestedPatch": "note('c d eb f').s('cello')"
   }
   ```
-- [ ] **6.5** Write unit tests: C minor melody with E natural is rejected; C minor with Eb is approved.
+- [x] **6.5** Write unit tests: C minor melody with E natural is rejected; C minor with Eb is approved.
 
 ---
 
@@ -128,10 +128,10 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
 
 > Goal: Ensure the generated Strudel code matches the instrument the user requested.
 
-- [ ] **7.1** Accept the original user intent string (e.g., `"hard techno kick"`).
-- [ ] **7.2** Look up the instrument in the registry to determine `type` and `validStrudelAliases`.
-- [ ] **7.3** Compare the code's `s()` sample aliases against the registry's `validStrudelAliases`.
-- [ ] **7.4** On mismatch, return:
+- [x] **7.1** Accept the original user intent string (e.g., `"hard techno kick"`).
+- [x] **7.2** Look up the instrument in the registry to determine `type` and `validStrudelAliases`.
+- [x] **7.3** Compare the code's `s()` sample aliases against the registry's `validStrudelAliases`.
+- [x] **7.4** On mismatch, return:
   ```json
   {
     "approved": false,
@@ -139,8 +139,8 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
     "suggestedPatch": "s('bd*4')"
   }
   ```
-- [ ] **7.5** For pitched instruments, ensure `note()` is used (not just `s()` without pitch).
-- [ ] **7.6** Write unit tests: kick intent with `sd` sample fails; kick with `bd` passes.
+- [x] **7.5** For pitched instruments, ensure `note()` is used (not just `s()` without pitch).
+- [x] **7.6** Write unit tests: kick intent with `sd` sample fails; kick with `bd` passes.
 
 ---
 
@@ -148,21 +148,21 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
 
 > Goal: Validate that sample names, banks, and n() indexes are within valid ranges.
 
-- [ ] **8.1** Build (or import) a sample map registry listing known banks and their sample counts:
+- [x] **8.1** Build (or import) a sample map registry listing known banks and their sample counts:
   - `RolandTR909`: `{ bd: 4, sd: 4, hh: 4, oh: 2, cp: 2, ... }`
   - `RolandTR808`: similar
   - Default/global: `bd, sd, hh, cp, oh, rim, ...`
-- [ ] **8.2** Check that `s()` sample names exist in the known map.
-- [ ] **8.3** Check that `bank()` value is a known bank.
-- [ ] **8.4** Check that `n()` indexes are within the sample count for that bank.
-- [ ] **8.5** If index is out of range, return a **warning** (not hard rejection) with normalized indexes:
+- [x] **8.2** Check that `s()` sample names exist in the known map.
+- [x] **8.3** Check that `bank()` value is a known bank.
+- [x] **8.4** Check that `n()` indexes are within the sample count for that bank.
+- [x] **8.5** If index is out of range, return a **warning** (not hard rejection) with normalized indexes:
   ```json
   {
     "warning": "Sample indexes 4 and 5 may wrap around.",
     "normalizedIndexes": [0, 1, 2, 3, 0, 1]
   }
   ```
-- [ ] **8.6** Write unit tests: index within range passes; index out of range returns warning.
+- [x] **8.6** Write unit tests: index within range passes; index out of range returns warning.
 
 ---
 
@@ -174,8 +174,8 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
 > This is the most complex skill. Start with a stub/mock in Phase 9A, then implement real audio analysis in Phase 9B.
 
 ### Phase 9A — Stub (render skip, return mock analysis)
-- [ ] **9A.1** Implement a `renderPreviewAndAnalyze` stub that accepts Strudel code and returns a mock `AudioAnalysisResult`.
-- [ ] **9A.2** Ensure the rest of the pipeline works end-to-end with the stub.
+- [x] **9A.1** Implement a `renderPreviewAndAnalyze` stub that accepts Strudel code and returns a mock `AudioAnalysisResult`.
+- [x] **9A.2** Ensure the rest of the pipeline works end-to-end with the stub.
 
 ### Phase 9B — Real audio capture and analysis
 - [ ] **9B.1** Research how Strudel's Web Audio API outputs can be captured (OfflineAudioContext or MediaStream recording).
@@ -198,18 +198,18 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
 
 > Goal: Compare what the code *should* produce vs. what the audio analysis *actually* detected.
 
-- [ ] **10.1** For **pitched instruments**:
-  - [ ] Compare `expectedNotes` (from `ParsedStrudelIntent.notes`) with `detectedNotes` (from pitchfinder/basic-pitch).
-  - [ ] Flag any note that differs (e.g., E detected where Eb was expected).
-  - [ ] Check cents deviation for tuning accuracy.
-- [ ] **10.2** For **drums**:
-  - [ ] Compare expected drum role (kick/snare/hihat) with the detected Meyda frequency profile:
+- [x] **10.1** For **pitched instruments**:
+  - [x] Compare `expectedNotes` (from `ParsedStrudelIntent.notes`) with `detectedNotes` (from pitchfinder/basic-pitch).
+  - [x] Flag any note that differs (e.g., E detected where Eb was expected).
+  - [x] Check cents deviation for tuning accuracy.
+- [x] **10.2** For **drums**:
+  - [x] Compare expected drum role (kick/snare/hihat) with the detected Meyda frequency profile:
     - Kick: `bassEnergy > 0.6`
     - Hi-hat: `highEnergy > 0.7`
     - Snare/clap: `midEnergy > 0.5 && transient detected`
-  - [ ] Flag mismatches.
-- [ ] **10.3** Return structured `ValidationResult` with `approved`, `confidence`, errors, and analysis.
-- [ ] **10.4** Write unit tests with mock audio analysis data.
+  - [x] Flag mismatches.
+- [x] **10.3** Return structured `ValidationResult` with `approved`, `confidence`, errors, and analysis.
+- [x] **10.4** Write unit tests with mock audio analysis data.
 
 ---
 
@@ -217,7 +217,7 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
 
 > Goal: When validation fails, produce a structured correction report for the AI.
 
-- [ ] **11.1** Implement `buildCorrectionReport(errors: CorrectionReport[])` that formats the full rejection JSON:
+- [x] **11.1** Implement `buildCorrectionReport(errors: CorrectionReport[])` that formats the full rejection JSON:
   ```json
   {
     "approved": false,
@@ -231,7 +231,7 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
     ]
   }
   ```
-- [ ] **11.2** Implement `buildApprovalReport(code, analysis)` for the approval JSON:
+- [x] **11.2** Implement `buildApprovalReport(code, analysis)` for the approval JSON:
   ```json
   {
     "approved": true,
@@ -241,8 +241,8 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
     "analysis": { ... }
   }
   ```
-- [ ] **11.3** Integrate correction reports into the `src/lib/music-agent` loop so the AI receives the report and can re-generate only the incorrect part.
-- [ ] **11.4** Limit correction loop to **max 3 retries** to avoid infinite loops.
+- [x] **11.3** Integrate correction reports into the `src/lib/music-agent` loop so the AI receives the report and can re-generate only the incorrect part.
+- [x] **11.4** Limit correction loop to **max 3 retries** to avoid infinite loops.
 
 ---
 
@@ -250,8 +250,8 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
 
 > Goal: Wire all skills into a single sequential validation pipeline.
 
-- [ ] **12.1** Implement the main `validateStrudelCode(code: string, intent: string, context?: MusicContext)` function in `index.ts`.
-- [ ] **12.2** Pipeline order:
+- [x] **12.1** Implement the main `validateStrudelCode(code: string, intent: string, context?: MusicContext)` function in `index.ts`.
+- [x] **12.2** Pipeline order:
   1. `parseStrudelCode(code)` → `ParsedStrudelIntent`
   2. `validateMusicalSyntax(parsed)` → fail-fast on syntax errors
   3. `validateNotesAgainstScale(parsed, intent)` → check scale/key
@@ -260,8 +260,8 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
   6. `renderPreviewAndAnalyze(code)` → audio capture + feature extraction (if enabled)
   7. `compareExpectedVsDetectedAudio(parsed, audioResult)` → final audio comparison
   8. Return final `ValidationResult`.
-- [ ] **12.3** Each step can short-circuit (return early rejection) or accumulate warnings.
-- [ ] **12.4** Add a feature flag `ENABLE_AUDIO_VALIDATION=true/false` to skip steps 6–7 in environments without Web Audio.
+- [x] **12.3** Each step can short-circuit (return early rejection) or accumulate warnings.
+- [x] **12.4** Add a feature flag `ENABLE_AUDIO_VALIDATION=true/false` to skip steps 6–7 in environments without Web Audio.
 
 ---
 
@@ -269,8 +269,8 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
 
 > Goal: Plug the agent into the existing music generation flow.
 
-- [ ] **13.1** Identify the exact point in `src/lib/music-agent` (or `/api/agent`) where generated code is sent to the Strudel engine.
-- [ ] **13.2** Insert the validation call **before** the code is dispatched:
+- [x] **13.1** Identify the exact point in `src/lib/music-agent` (or `/api/agent`) where generated code is sent to the Strudel engine.
+- [x] **13.2** Insert the validation call **before** the code is dispatched:
   ```ts
   const result = await validateStrudelCode(generatedCode, userPrompt);
   if (!result.approved) {
@@ -279,9 +279,9 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
   }
   // send approved code to Strudel engine
   ```
-- [ ] **13.3** Ensure the correction loop feeds back into the AI's generation step (not re-running the whole generation from scratch).
-- [ ] **13.4** Update `/api/agent` response shape if needed (stay compatible with existing `type: "update_tracks"` contract).
-- [ ] **13.5** Test end-to-end: prompt → AI code → validation → (rejection + fix) → approval → audio.
+- [x] **13.3** Ensure the correction loop feeds back into the AI's generation step (not re-running the whole generation from scratch).
+- [x] **13.4** Update `/api/agent` response shape if needed (stay compatible with existing `type: "update_tracks"` contract).
+- [x] **13.5** Test end-to-end: prompt → AI code → validation → (rejection + fix) → approval → audio.
 
 ---
 
@@ -289,29 +289,29 @@ Build a multi-skill validation agent (`StrudelCodeAudioValidationAgent`) that in
 
 > Goal: Ensure all skills and the full pipeline are tested.
 
-- [ ] **14.1** Run existing test suite: `npm run test:music-quality`
-- [ ] **14.2** Run lint: `npm run lint`
-- [ ] **14.3** Run build: `npm run build`
-- [ ] **14.4** Write unit tests for each skill:
-  - [ ] `parseStrudelCode` — parse cello melody, parse TR909 pattern
-  - [ ] `validateMusicalSyntax` — valid code passes, bad helper fails
-  - [ ] `validateNotesAgainstScale` — E in C minor fails, Eb passes
-  - [ ] `validateInstrumentIntent` — `sd` for kick fails, `bd` passes
-  - [ ] `validateSampleMap` — out-of-range n() returns warning
-  - [ ] `compareExpectedVsDetectedAudio` — mock audio mismatch detected
-- [ ] **14.5** Write integration test: full pipeline with a known bad prompt → correction → approval.
-- [ ] **14.6** Add regression test: "hard techno kick using sd" should be caught and corrected.
-- [ ] **14.7** Add negative example in `music-quality-evaluation` skill if validation was bypassed and bad audio was produced.
+- [x] **14.1** Run existing test suite: `npm run test:music-quality`
+- [x] **14.2** Run lint: `npm run lint`
+- [x] **14.3** Run build: `npm run build`
+- [x] **14.4** Write unit tests for each skill:
+  - [x] `parseStrudelCode` — parse cello melody, parse TR909 pattern
+  - [x] `validateMusicalSyntax` — valid code passes, bad helper fails
+  - [x] `validateNotesAgainstScale` — E in C minor fails, Eb passes
+  - [x] `validateInstrumentIntent` — `sd` for kick fails, `bd` passes
+  - [x] `validateSampleMap` — out-of-range n() returns warning
+  - [x] `compareExpectedVsDetectedAudio` — mock audio mismatch detected
+- [x] **14.5** Write integration test: full pipeline with a known bad prompt → correction → approval.
+- [x] **14.6** Add regression test: "hard techno kick using sd" should be caught and corrected.
+- [x] **14.7** Add negative example in `music-quality-evaluation` skill if validation was bypassed and bad audio was produced.
 
 ---
 
 ## Phase 15 — Documentation & Cleanup
 
-- [ ] **15.1** Update `AGENTS.md` with the new agent name and its role in the pipeline.
-- [ ] **15.2** Add a short description of `StrudelCodeAudioValidationAgent` to `README.md`.
-- [ ] **15.3** Document the output JSON format (approved + rejected shapes) in `src/agents/StrudelCodeAudioValidationAgent/LIBRARIES.md`.
-- [ ] **15.4** Mark deprecated/redundant validation code in `strudelValidation.ts` if now superseded.
-- [ ] **15.5** Tag a pre-release commit: `git tag v0.1.0-validator`.
+- [x] **15.1** Update `AGENTS.md` with the new agent name and its role in the pipeline.
+- [x] **15.2** Add a short description of `StrudelCodeAudioValidationAgent` to `README.md`.
+- [x] **15.3** Document the output JSON format (approved + rejected shapes) in `src/agents/StrudelCodeAudioValidationAgent/LIBRARIES.md`.
+- [x] **15.4** Mark deprecated/redundant validation code in `strudelValidation.ts` if now superseded.
+- [x] **15.5** Tag a pre-release commit: `git tag v0.1.0-validator`.
 
 ---
 
