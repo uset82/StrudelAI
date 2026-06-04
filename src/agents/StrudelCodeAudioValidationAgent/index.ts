@@ -85,7 +85,6 @@ export async function validateStrudelCode(
   const {
     userPrompt,
     targetKey,
-    enableAudioValidation: _enableAudioValidation = false, // consumed by renderPreviewAndAnalyze via env var
   } = context;
 
   // ── Step 1: Parse ──────────────────────────────────────────────────────────

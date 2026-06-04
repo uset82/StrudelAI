@@ -81,7 +81,12 @@ function isSilentPlaceholder(code: string) {
 
 function sanitizeTrack(value: string | null) {
     if (!value) return value;
-    const stripped = stripUnsupported(value);
+    let stripped = stripUnsupported(value).trim();
+    if ((stripped.startsWith('"') && stripped.endsWith('"')) ||
+        (stripped.startsWith("'") && stripped.endsWith("'")) ||
+        (stripped.startsWith('`') && stripped.endsWith('`'))) {
+        stripped = stripped.slice(1, -1).trim();
+    }
     return isSilentPlaceholder(stripped) ? null : stripped;
 }
 

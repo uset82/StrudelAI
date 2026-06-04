@@ -549,7 +549,22 @@ function tracesFor(brief: MusicBrief, theory: TheoryPlan, sound: SoundPlan, vali
     ];
 }
 
+let localPipelineOverride: ((input: PipelineInput) => MusicAgentPipelineResult) | null = null;
+let isExecutingOverride = false;
+
+export function setLocalPipelineOverride(fn: typeof localPipelineOverride) {
+    localPipelineOverride = fn;
+}
+
 export function buildLocalMusicAgentPipeline(input: PipelineInput): MusicAgentPipelineResult {
+    if (localPipelineOverride && !isExecutingOverride) {
+        isExecutingOverride = true;
+        try {
+            return localPipelineOverride(input);
+        } finally {
+            isExecutingOverride = false;
+        }
+    }
     const context = input.context || buildMusicContext({ currentState: input.currentState, currentCode: input.currentCode });
     const intent = input.intent || routeMusicIntent(input.prompt, context);
     const brief = buildMusicBrief(input.prompt, context, intent);

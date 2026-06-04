@@ -157,6 +157,9 @@ async function captureStrudelAudio(
   // 2. Feed code to Strudel engine via the JS API
   // 3. Render _durationBars of audio at _bpm
   // 4. Return the rendered buffer
+  void _code;
+  void _durationBars;
+  void _bpm;
   return null;
 }
 

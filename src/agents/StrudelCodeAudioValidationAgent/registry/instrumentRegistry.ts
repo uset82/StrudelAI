@@ -223,6 +223,17 @@ for (const profile of INSTRUMENT_REGISTRY) {
   }
 }
 
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function keywordMatchesIntent(intent: string, keyword: string) {
+  const parts = keyword.trim().split(/[\s-]+/).filter(Boolean).map(escapeRegExp);
+  if (parts.length === 0) return false;
+  const phrase = parts.join('[\\s-]+');
+  return new RegExp(`(^|[^a-z0-9])${phrase}($|[^a-z0-9])`, 'i').test(intent);
+}
+
 // ─── Public API ────────────────────────────────────────────────────────────────
 
 /**
@@ -253,7 +264,7 @@ export function findInstrumentFromIntent(intent: string): InstrumentProfile | nu
   for (const profile of INSTRUMENT_REGISTRY) {
     let score = 0;
     for (const kw of profile.intentKeywords) {
-      if (lower.includes(kw.toLowerCase())) {
+      if (keywordMatchesIntent(lower, kw.toLowerCase())) {
         // Longer keyword matches score higher
         score += kw.length;
       }

@@ -501,6 +501,11 @@ test('findInstrumentFromIntent("hard techno kick") → kick', () => {
   expect(p?.name).toBe('kick');
 });
 
+test('findInstrumentFromIntent("hard rock") does not match rd inside hard', () => {
+  const p = findInstrumentFromIntent('hard rock');
+  expect(p).toBeNull();
+});
+
 test('findInstrumentFromIntent("cello melody") → cello', () => {
   const p = findInstrumentFromIntent('cello melody');
   expect(p?.name).toBe('cello');
@@ -520,7 +525,6 @@ test('getProfileByAlias("hh") → closed-hihat', () => {
 
 async function main() {
   // Run async tests
-  const asyncTests: Array<Promise<void>> = [];
 
   // All sync tests have already run above.
   // Async tests (pipeline, render) are wrapped but execute synchronously when awaited.

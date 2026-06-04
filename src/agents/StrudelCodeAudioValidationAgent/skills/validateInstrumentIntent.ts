@@ -71,7 +71,7 @@ export function validateInstrumentIntent(
       errors.push({
         type: 'missing_note_pattern',
         message: `User requested "${expectedInstrument}" (pitched) but code has no note() pattern. Pitched instruments require note() to specify pitch.`,
-        suggestedPatch: `Add note("c4 d4 e4 f4").s("${expectedProfile.validStrudelAliases[0]}")`,
+        suggestedPatch: `note("c4 d4 e4 f4").s("${expectedProfile.validStrudelAliases[0]}")`,
       });
     }
 
@@ -110,8 +110,13 @@ export function validateInstrumentIntent(
       });
     }
 
-    // Check that the detected alias matches expected aliases
-    if (detectedInstrument && detectedInstrument !== expectedInstrument) {
+    // Check if user requested a multi-drum loop/pattern
+    const isMultiDrumLoop =
+      /loop|beat|drums|groove|pattern|kit/i.test(userIntent) ||
+      (userIntent.toLowerCase().includes('kick') && (userIntent.toLowerCase().includes('snare') || userIntent.toLowerCase().includes('hat') || userIntent.toLowerCase().includes('clap') || userIntent.toLowerCase().includes('hh') || userIntent.toLowerCase().includes('sd') || userIntent.toLowerCase().includes('cp')));
+
+    // Check that the detected alias matches expected aliases (skip if general/multi-drum loop)
+    if (!isMultiDrumLoop && detectedInstrument && detectedInstrument !== expectedInstrument) {
       const validAliases = expectedProfile.validStrudelAliases;
       const suggestAlias = validAliases[0];
 
@@ -137,7 +142,15 @@ export function validateInstrumentIntent(
       const hasMatch = parsed.sounds.some((s) =>
         validAliases.some((a) => s.toLowerCase().includes(a.toLowerCase()))
       );
-      if (!hasMatch && !detectedInstrument) {
+
+      // For multi-drum loops, we allow ANY valid drum alias in the registry.
+      // If it is not a multi-drum loop, we strictly require a match to the expected instrument's aliases.
+      let hasAnyValidDrumAlias = false;
+      if (isMultiDrumLoop) {
+        hasAnyValidDrumAlias = parsed.sounds.some((s) => getProfileByAlias(s)?.type === 'drum');
+      }
+
+      if (!hasMatch && !detectedInstrument && (!isMultiDrumLoop || !hasAnyValidDrumAlias)) {
         errors.push({
           type: 'instrument_mismatch',
           message: `Code uses s("${parsed.sounds.join(', ')}") but none match expected "${expectedInstrument}" aliases: [${validAliases.join(', ')}].`,

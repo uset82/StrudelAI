@@ -430,7 +430,14 @@ const extractBpmFromPrompt = (prompt: string): number | null => {
 };
 
 const sanitizeGeneratedCode = (input: string) => {
-    let output = input;
+    let output = input.trim();
+
+    // Strip surrounding quotes around the entire code string if present (e.g. "stack(...)")
+    if ((output.startsWith('"') && output.endsWith('"')) ||
+        (output.startsWith("'") && output.endsWith("'")) ||
+        (output.startsWith('`') && output.endsWith('`'))) {
+        output = output.slice(1, -1).trim();
+    }
 
     // Normalize smart quotes and odd unicode punctuation that can break JS parsing
     output = output

@@ -164,7 +164,7 @@ export function validateMusicalSyntax(code: string): SyntaxValidationResult {
     errors.push({
       type: 'syntax_error',
       message: `Code must start with a supported function: ${[...SUPPORTED_TOP_LEVEL].join(', ')}.`,
-      suggestedPatch: `Wrap your pattern in note("...") or s("...").`,
+      // Do not provide a suggestedPatch if we cannot programmatically guess how to wrap it safely
     });
   }
 
@@ -189,10 +189,29 @@ export function validateMusicalSyntax(code: string): SyntaxValidationResult {
   // 4. Unsupported methods
   for (const { pattern, name } of UNSUPPORTED_PATTERNS) {
     if (pattern.test(trimmed)) {
+      let patched = trimmed;
+      if (name === '.bank()') {
+        patched = patched.replace(/\.bank\([^)]*\)/g, '');
+      } else if (name === '.slider()') {
+        patched = patched.replace(/\.slider\([^)]*\)/g, '');
+      } else if (name === '._pianoroll()') {
+        patched = patched.replace(/\._pianoroll\([^)]*\)/g, '');
+      } else if (name === '.analyze()') {
+        patched = patched.replace(/\.analyze\([^)]*\)/gi, '');
+      } else if (name === 'analyze()') {
+        patched = patched.replace(/\banalyze\([^)]*\)/gi, '');
+      } else if (name === 'setcpm()') {
+        patched = patched.replace(/\bsetcpm\([^)]*\)/gi, '');
+      } else if (name === '.cpm()') {
+        patched = patched.replace(/\.cpm\([^)]*\)/gi, '');
+      } else if (name === 'cpm()') {
+        patched = patched.replace(/\bcpm\([^)]*\)/gi, '');
+      }
+
       errors.push({
         type: 'unsupported_method',
         message: `Unsupported Strudel method: ${name}. This method is not available in the current runtime.`,
-        suggestedPatch: `Remove ${name} from the code.`,
+        suggestedPatch: patched !== trimmed ? patched : undefined,
       });
     }
   }
@@ -210,10 +229,11 @@ export function validateMusicalSyntax(code: string): SyntaxValidationResult {
   // 6. Valid vowel values
   const vowelCheck = hasValidVowels(trimmed);
   if (!vowelCheck.ok) {
+    const patched = trimmed.replace(/\.vowel\(\s*(['"])(.*?)\1\s*\)/gi, '.vowel("a")');
     errors.push({
       type: 'syntax_error',
       message: vowelCheck.detail,
-      suggestedPatch: `Use .vowel("a"), .vowel("e"), .vowel("i"), .vowel("o"), or .vowel("u").`,
+      suggestedPatch: patched !== trimmed ? patched : undefined,
     });
   }
 

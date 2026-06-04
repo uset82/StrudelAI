@@ -160,7 +160,6 @@ export function validateSampleMap(parsed: ParsedStrudelIntent): SampleMapValidat
       errors.push({
         type: 'bank_not_found',
         message: `Bank "${parsed.bank}" is not recognized. Known banks: ${Object.keys(SAMPLE_BANKS).filter(k => k !== 'default').join(', ')}.`,
-        suggestedPatch: `Use bank("RolandTR909") or bank("RolandTR808"), or remove the bank() call.`,
       });
     }
   }
@@ -175,7 +174,6 @@ export function validateSampleMap(parsed: ParsedStrudelIntent): SampleMapValidat
       errors.push({
         type: 'sample_not_found',
         message: `Sample token "${sound}" is not in the known sample map. It may be unavailable in this runtime.`,
-        suggestedPatch: `Use a known token: bd, sd, hh, cp, oh, rim, or a prefixed RolandTR909_bd style token.`,
       });
     }
   }
