@@ -107,6 +107,13 @@ function includesAny(value: string, patterns: RegExp[]) {
     return patterns.some((pattern) => pattern.test(value));
 }
 
+function numericMethodValues(value: string, method: string) {
+    const matches = value.matchAll(new RegExp(`\\.${method}\\(\\s*(-?(?:\\d+(?:\\.\\d+)?|\\.\\d+))\\s*\\)`, 'gi'));
+    return Array.from(matches)
+        .map((match) => Number(match[1]))
+        .filter(Number.isFinite);
+}
+
 function validateTemplateRequirements(tracks: TrackMap, template: GenreTemplate, prompt: string): TrackValidationIssue[] {
     const issues: TrackValidationIssue[] = [];
 
@@ -145,6 +152,14 @@ function validateTemplateRequirements(tracks: TrackMap, template: GenreTemplate,
         }
         if (includesAny(joined, [/rolandtr909_bd\*4.*rolandtr909_hh\*16.*resonance\(1[0-9]/])) {
             issues.push({ trackId: 'drums', reason: 'rock-family output looks like generic techno' });
+        }
+
+        if (genre === 'rock' || template.id === 'clean_rock' || template.id === 'humanized_rock') {
+            const melody = (tracks.melody || '').toLowerCase();
+            const excessiveDistortion = numericMethodValues(melody, 'distort').some((value) => value > 0.18);
+            if (excessiveDistortion) {
+                issues.push({ trackId: 'melody', reason: 'rock guitar distortion should stay controlled at 0.18 or lower' });
+            }
         }
     }
 

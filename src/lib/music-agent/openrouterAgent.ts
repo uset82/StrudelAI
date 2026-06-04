@@ -70,13 +70,27 @@ function stripUnsupported(code: string) {
         .trim();
 }
 
+function isSilentPlaceholder(code: string) {
+    const compact = code.replace(/\s+/g, '');
+    if (/^s\((['"])~\1\)(?:\.gain\(0(?:\.0+)?\))?$/i.test(compact)) return true;
+    if (/^note\(/i.test(compact) && /\.gain\(0(?:\.0+)?\)$/i.test(compact)) return true;
+    if (/^sound\(/i.test(compact) && /\.gain\(0(?:\.0+)?\)$/i.test(compact)) return true;
+    return false;
+}
+
+function sanitizeTrack(value: string | null) {
+    if (!value) return value;
+    const stripped = stripUnsupported(value);
+    return isSilentPlaceholder(stripped) ? null : stripped;
+}
+
 function sanitizeTracks(tracks: TrackMap): TrackMap {
     return {
-        drums: tracks.drums ? stripUnsupported(tracks.drums) : tracks.drums,
-        bass: tracks.bass ? stripUnsupported(tracks.bass) : tracks.bass,
-        melody: tracks.melody ? stripUnsupported(tracks.melody) : tracks.melody,
-        voice: tracks.voice ? stripUnsupported(tracks.voice) : tracks.voice,
-        fx: tracks.fx ? stripUnsupported(tracks.fx) : tracks.fx,
+        drums: sanitizeTrack(tracks.drums),
+        bass: sanitizeTrack(tracks.bass),
+        melody: sanitizeTrack(tracks.melody),
+        voice: sanitizeTrack(tracks.voice),
+        fx: sanitizeTrack(tracks.fx),
     };
 }
 
@@ -160,6 +174,8 @@ export async function refineWithOpenRouterAgent(params: {
         'Use examples and traits as reference material only. Do not simply copy examples unless the deterministic candidate is already the best musical answer.',
         'Avoid robotic repetition, random notes, unsupported helpers, fake genre claims, and muddy gain stacking.',
         'For rock-family requests, include realistic backbeat drums, bass, and a guitar-like riff/chord track.',
+        'For rock and hard rock, harder means tighter rhythm, stronger backbeat, and E-minor root/fifth pairs such as E/B, G/D, and A/E; do not raise guitar distortion above 0.18.',
+        'Do not add silent placeholder tracks such as s("~").gain(0) or note(m("c4")).gain(0); use null instead.',
         'Before final JSON, use validate_tracks when you change any track.',
         grounding,
         `Current deterministic candidate:\n${JSON.stringify(candidate)}`,

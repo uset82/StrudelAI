@@ -447,16 +447,32 @@ function hasRoboticMelody(tracks: TrackMap) {
     return repeatedNote || repeatedStar;
 }
 
+function numericMethodValues(value: string, method: string) {
+    const matches = value.matchAll(new RegExp(`\\.${method}\\(\\s*(-?(?:\\d+(?:\\.\\d+)?|\\.\\d+))\\s*\\)`, 'gi'));
+    return Array.from(matches)
+        .map((match) => Number(match[1]))
+        .filter(Number.isFinite);
+}
+
+function hasExcessiveControlledRockDistortion(brief: MusicBrief, tracks: TrackMap) {
+    if (brief.genre !== 'rock' && brief.genre !== 'clean_rock' && brief.genre !== 'humanized_rock') {
+        return false;
+    }
+    return numericMethodValues(tracks.melody || '', 'distort').some((value) => value > 0.18);
+}
+
 export function reviewMusicQuality(brief: MusicBrief, generated: GeneratedTrackSet, validation: ValidationReport): QualityReview {
     const problems: string[] = [];
     const improvements: string[] = [];
+    const roboticMelody = hasRoboticMelody(generated.tracks);
+    const excessiveRockDistortion = hasExcessiveControlledRockDistortion(brief, generated.tracks);
 
     if (!validation.valid) {
         problems.push(...validation.issues.map((issue) => `${issue.trackId}: ${issue.reason}`));
         improvements.push('Repair validation issues before playback.');
     }
 
-    if (hasRoboticMelody(generated.tracks)) {
+    if (roboticMelody) {
         problems.push('Melody is too repetitive or robotic.');
         improvements.push('Add rests, contour, or a shorter hook instead of repeated identical notes.');
     }
@@ -466,8 +482,13 @@ export function reviewMusicQuality(brief: MusicBrief, generated: GeneratedTrackS
         improvements.push('Use layered root/fifth saw or square parts with controlled distortion.');
     }
 
+    if (excessiveRockDistortion) {
+        problems.push('Rock guitar layer is too distorted.');
+        improvements.push('Keep rock and hard-rock guitar distortion at or below 0.18; use tighter rhythm and root/fifth notes for intensity.');
+    }
+
     const matchesIntent = problems.length === 0 || validation.valid;
-    const listenability = validation.valid && !hasRoboticMelody(generated.tracks);
+    const listenability = validation.valid && !roboticMelody && !excessiveRockDistortion;
     const score = Math.max(0, Math.min(1, 1 - problems.length * 0.2));
 
     return {
@@ -505,6 +526,9 @@ export function refineGeneratedTracks(
         } else {
             tracks.melody = "note(m('c4 ~ eb4 g4 ~ bb4 g4 ~')).s('sine').att(0.01).decay(0.18).room(0.22).gain(0.28).slow(2)";
         }
+    }
+    if (hasExcessiveControlledRockDistortion(brief, tracks)) {
+        tracks.melody = rockFamilyTracks({ ...brief, genre: 'rock', variationSeed: brief.variationSeed + 5 }).melody;
     }
     return {
         ...generated,

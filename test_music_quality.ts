@@ -23,6 +23,9 @@ import {
 import type { SonicSessionState, InstrumentType } from './src/types/sonic';
 
 const hasTrack = (value: string | null) => typeof value === 'string' && value.trim().length > 0;
+const numericMethodValues = (value: string, method: string) => Array.from(
+    value.matchAll(new RegExp(`\\.${method}\\(\\s*(-?(?:\\d+(?:\\.\\d+)?|\\.\\d+))\\s*\\)`, 'gi')),
+).map((match) => Number(match[1])).filter(Number.isFinite);
 
 const currentRockCode = Object.values(GENRE_TEMPLATES.rock.tracks)
     .filter(Boolean)
@@ -347,6 +350,39 @@ assert.ok(hasTrack(localRockPipeline.tracks.bass), 'local pipeline rock needs ba
 assert.ok(hasTrack(localRockPipeline.tracks.melody), 'local pipeline rock needs guitar-like melody');
 assert.notEqual(localRockPipeline.tracks.melody, GENRE_TEMPLATES.rock.tracks.melody, 'local pipeline should not only copy the rock template melody');
 assert.match(localRockPipeline.tracks.melody || '', /distort|sawtooth|square/i, 'local rock pipeline should sound guitar-like');
+
+const hardRockContext = buildMusicContext({
+    currentState: {
+        bpm: localRockPipeline.bpm,
+        tracks: localRockPipeline.tracks,
+    } as unknown as Partial<SonicSessionState>,
+});
+const hardRockIntent = routeMusicIntent('hard rock', hardRockContext);
+const overDistortedHardRock = validateGeneratedTracks({
+    drums: "stack(s('RolandTR909_bd ~ RolandTR909_bd ~ ~ RolandTR909_bd ~ ~').gain(0.92), s('~ RolandTR909_sd ~ RolandTR909_sd').gain(0.75).hpf(450), s('RolandTR909_hh*8').gain(0.2).hpf(6000), s('~ ~ RolandTR909_oh ~').gain(0.15))",
+    bass: "note(m('e1 e1 ~ e1 g1 ~ a1 g1')).s('sawtooth').att(0.01).decay(0.18).lpf(520).gain(0.68)",
+    melody: "stack(note(m('e2 ~ g2 a2 ~ g2 e2 ~')).s('sawtooth').att(0.01).decay(0.15).hpf(120).lpf(2600).distort(0.25).gain(0.4), note(m('b2 ~ d3 e3 ~ d3 b2 ~')).s('sawtooth').att(0.01).decay(0.15).hpf(120).lpf(2600).distort(0.2).gain(0.3))",
+    voice: null,
+    fx: null,
+}, 'hard rock', undefined, hardRockIntent);
+assert.equal(overDistortedHardRock.valid, false, 'hard rock should reject excessive guitar distortion');
+assert.ok(
+    overDistortedHardRock.issues.some((issue) => /distortion/i.test(issue.reason)),
+    JSON.stringify(overDistortedHardRock.issues),
+);
+
+const hardRockPipeline = buildLocalMusicAgentPipeline({
+    prompt: 'hard rock',
+    context: hardRockContext,
+    intent: hardRockIntent,
+    enableOpenRouter: false,
+});
+assert.equal(hardRockPipeline.validation.valid, true, JSON.stringify(hardRockPipeline.validation.issues));
+assert.ok(
+    numericMethodValues(hardRockPipeline.tracks.melody || '', 'distort').every((value) => value <= 0.18),
+    'local hard rock should keep guitar distortion controlled',
+);
+assert.match(hardRockPipeline.tracks.melody || '', /e2|b2|g2|d3|a2|e3/i, 'local hard rock should stay tuned to E-minor root/fifth riff notes');
 
 const localFunkPipeline = buildLocalMusicAgentPipeline({ prompt: 'funky groove', enableOpenRouter: false });
 assert.equal(localFunkPipeline.brief.genre, 'funk');

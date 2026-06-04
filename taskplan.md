@@ -44,6 +44,7 @@ Use this table during manual listening passes after automated tests pass.
 | Prompt | Expected Traits | Generated Code Summary | Genre Match | Listenability | Issues | Pass/Fail |
 | --- | --- | --- | --- | --- | --- | --- |
 | play some rock | Backbeat, bass, guitar-like riff, controlled distortion | TBD | TBD | TBD | TBD | TBD |
+| hard rock | Stronger backbeat and E-minor root/fifth riff, distortion still controlled at 0.18 or lower | Reject OpenRouter refinements that raise guitar distortion to 0.2+ | TBD | TBD | Prior output sounded over-distorted and out of tune | TBD |
 | make a guitar riff | Riff-focused rock texture, root/fifth relationship | TBD | TBD | TBD | TBD | TBD |
 | funky groove | Syncopated drums, active bass, clipped chords | TBD | TBD | TBD | TBD | TBD |
 | calm ambient music | Slow pads, no forced drums, spacious FX | TBD | TBD | TBD | TBD | TBD |
