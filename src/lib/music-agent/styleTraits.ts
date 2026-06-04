@@ -347,7 +347,7 @@ export const GENRE_STYLE_TRAITS: Record<GenreKey, GenreStyleTraits> = {
         failureModes: ['adding bass or melody', 'tonal synth pretending to be drums'],
     },
     clean_drums: {
-        ...templateTraitsFrom('drums', 'clean_drums', 'Clean drum-only backbeat with lower gains.'),
+        ...templateTraitsFrom('drums', 'clean_drums', 'Clean drum-only backbeat with balanced sample-safe gains.'),
     },
     tight_clean_drums: {
         ...templateTraitsFrom('drums', 'tight_clean_drums', 'Extra-tight clean drums with minimal high end.'),

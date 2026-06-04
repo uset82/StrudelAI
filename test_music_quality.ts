@@ -142,6 +142,8 @@ const plainDrumsTurn = applyIntentTurn('play some drums');
 assert.equal(plainDrumsTurn.intent.kind, 'track_only');
 assert.equal(plainDrumsTurn.intent.templateId, 'drums');
 assert.notEqual(plainDrumsTurn.response.tracks.drums, cleanDrumsTurn.response.tracks.drums, 'plain drums and clean drums must not replay the same template');
+assert.match(plainDrumsTurn.response.tracks.drums || '', /RolandTR909_bd/i, 'plain drums should use audible sample-safe kick material');
+assert.doesNotMatch(plainDrumsTurn.response.tracks.drums || '', /lpf\(145\)|gain\(0\.095\)|gain\(0\.045\)/i, 'plain drums should not use the old muffled low-output synth template');
 
 const cleanAfterPlainTurn = applyIntentTurn('clean drums', plainDrumsTurn.response);
 assert.equal(cleanAfterPlainTurn.intent.templateId, 'clean_drums');
