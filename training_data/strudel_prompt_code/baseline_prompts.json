@@ -127,6 +127,97 @@
       "currentOutputSummary": "Model risk: generic C-minor fallback or stale drum-only validation after a previous drum request.",
       "failureLabels": ["generic-fallback", "drum-only-carryover", "artist-copy-risk"],
       "acceptanceTarget": "Original pop-funk groove with drums, syncopated bass, short hook, and no copied melody."
+    },
+    {
+      "id": "baseline-019",
+      "prompt": "play grimes music 4 machines cover",
+      "currentOutputSummary": "No deterministic grimes_m4m cover existed; model improvisation or generic fallback.",
+      "failureLabels": ["missing-genre-template", "wrong-genre-risk"],
+      "acceptanceTarget": "Grimes cover template with full arrangement in melody track."
+    },
+    {
+      "id": "baseline-020",
+      "prompt": "play charli xcx 360 remix",
+      "currentOutputSummary": "No deterministic charli_360 cover existed; model improvisation or generic fallback.",
+      "failureLabels": ["missing-genre-template", "wrong-genre-risk"],
+      "acceptanceTarget": "Charli XCX 360 cover template with full arrangement in melody track."
+    },
+    {
+      "id": "baseline-021",
+      "prompt": "play bug from heaven by eefano",
+      "currentOutputSummary": "No deterministic bug_from_heaven cover existed; model improvisation or generic fallback.",
+      "failureLabels": ["missing-genre-template", "wrong-genre-risk"],
+      "acceptanceTarget": "Bug From Heaven cover template with full arrangement in melody track."
+    },
+    {
+      "id": "baseline-022",
+      "prompt": "play stranger things theme song",
+      "currentOutputSummary": "No deterministic stranger_things cover existed; model improvisation or generic fallback.",
+      "failureLabels": ["missing-genre-template", "wrong-genre-risk"],
+      "acceptanceTarget": "Stranger Things Netflix theme cover template with separated bass and melody tracks."
+    },
+    {
+      "id": "baseline-023",
+      "prompt": "play radiohead pyramid song cover",
+      "currentOutputSummary": "No deterministic pyramid_song cover existed; model improvisation or generic fallback.",
+      "failureLabels": ["missing-genre-template", "wrong-genre-risk"],
+      "acceptanceTarget": "Radiohead Pyramid Song cover template with full arrangement in melody track."
+    },
+    {
+      "id": "baseline-024",
+      "prompt": "play rhythm of the night by corona",
+      "currentOutputSummary": "No rhythm of the night cover template; fallback to generic C minor loop.",
+      "failureLabels": ["missing-genre-template", "wrong-genre-risk"],
+      "acceptanceTarget": "Rhythm of the Night cover template with full arrangement in melody track."
+    },
+    {
+      "id": "baseline-025",
+      "prompt": "play pump up the jam cover",
+      "currentOutputSummary": "No deterministic pump_up_the_jam template existed; model improvisation or generic fallback.",
+      "failureLabels": ["missing-genre-template", "wrong-genre-risk"],
+      "acceptanceTarget": "Pump Up the Jam cover template with full arrangement in melody track."
+    },
+    {
+      "id": "baseline-026",
+      "prompt": "play happy birthday song",
+      "currentOutputSummary": "No deterministic happy_birthday template existed; model improvisation or generic fallback.",
+      "failureLabels": ["missing-genre-template", "wrong-genre-risk"],
+      "acceptanceTarget": "Happy Birthday song template with separated bass and melody tracks."
+    },
+    {
+      "id": "baseline-027",
+      "prompt": "play shostakovich waltz 2",
+      "currentOutputSummary": "No deterministic waltz template existed; model improvisation or generic waltz w/o precise notation.",
+      "failureLabels": ["missing-genre-template", "wrong-genre-risk"],
+      "acceptanceTarget": "Shostakovich Waltz 2 cover template with full arrangement in melody track."
+    },
+    {
+      "id": "baseline-028",
+      "prompt": "play old macdonald song",
+      "currentOutputSummary": "No deterministic old_macdonald template existed; model improvisation or generic child song.",
+      "failureLabels": ["missing-genre-template", "wrong-genre-risk"],
+      "acceptanceTarget": "Old Macdonald song template with separated bass and melody tracks."
+    },
+    {
+      "id": "baseline-029",
+      "prompt": "play blue monday remix by new order",
+      "currentOutputSummary": "No deterministic blue_monday template existed; model improvisation or generic pop/synthwave loop.",
+      "failureLabels": ["missing-genre-template", "wrong-genre-risk"],
+      "acceptanceTarget": "Blue Monday cover template with full arrangement in melody track."
+    },
+    {
+      "id": "baseline-030",
+      "prompt": "play determination theme from undertale",
+      "currentOutputSummary": "No deterministic undertale_determination template existed; model improvisation or generic loop.",
+      "failureLabels": ["missing-genre-template", "wrong-genre-risk"],
+      "acceptanceTarget": "Undertale Determination theme cover template with full arrangement in melody track."
+    },
+    {
+      "id": "baseline-031",
+      "prompt": "play billie eilish birds of a feather cover",
+      "currentOutputSummary": "No deterministic billie_birds template existed; model improvisation or generic pop/ballad loop.",
+      "failureLabels": ["missing-genre-template", "wrong-genre-risk"],
+      "acceptanceTarget": "Birds of a Feather cover template with full arrangement in melody track."
     }
   ]
 }

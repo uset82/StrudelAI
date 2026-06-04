@@ -38,6 +38,19 @@ export type GenreKey =
     | 'dnb_breakbeat'
     | 'clean_rock'
     | 'humanized_rock'
+    | 'grimes_m4m'
+    | 'charli_360'
+    | 'bug_from_heaven'
+    | 'stranger_things'
+    | 'pyramid_song'
+    | 'rhythm_of_the_night'
+    | 'pump_up_the_jam'
+    | 'happy_birthday'
+    | 'shostakovich_waltz'
+    | 'old_macdonald'
+    | 'blue_monday'
+    | 'undertale_determination'
+    | 'billie_birds'
     | 'generic';
 
 export type AgentUpdateResponse = {
@@ -644,6 +657,240 @@ export const GENRE_TEMPLATES: Record<GenreKey, GenreTemplate> = {
         requiredTracks: ['drums', 'bass', 'melody'],
         qualityNotes: ['Syncopated but stable', 'Keeps snare anchor', 'Not a random Euclidean groove'],
     },
+    bug_from_heaven: {
+        id: 'bug_from_heaven',
+        aliases: ["bug from heaven"],
+        intentTags: ['cover', 'bug_from_heaven'],
+        bpm: 128,
+        key: 'C minor',
+        scale: 'C minor',
+        thought: "Bug From Heaven by eefano. Full arrangement in melody track.",
+        tracks: tracks({
+            drums: "silence",
+            bass: "silence",
+            melody: "// \"Bug From Heaven (wip)\"\n// song @by Tim Smith\n// script @by eefano\nconst standardtuning = [40,45,50,55,59,64];\nconst fingering = \n{A:\"0:0:2:2:2:0\",Am:\"0:0:2:2:1:0\",A7:\"x:0:2:0:2:0\",D:\"x:0:0:2:3:2\",Dm:\"x:0:0:2:3:1\",D7:\"x:0:0:2:1:2\",\n E:\"0:2:2:1:0:0\",Em:\"0:2:2:0:0:0\",E7:\"0:2:2:1:3:0\",G7:\"3:2:0:0:0:1\",C:\"x:3:2:0:1:0\",\n // guitar only chords\n Dx:\"x:0:0:2:3:2\",Ds:\"x:0:0:1:3:0\",\n Ax:\"0:0:2:2:2:0\",Amx:\"0:0:2:2:1:0\",\n Ex:\"0:2:2:1:0:0\",Emx:\"0:2:2:0:0:0\",\n};\nconst gstrum = \n{u:\"<[[1,[~ 3@10],4]@2 ~]!2 [1,4,5]>*3\", \n v:\"<[[0,[~ 3@10],5]@2 ~]!2 [0,3,4]>*3\", \n w:\"<[[1,[~ 3@10],4]@2 ~]!2 [1,2,3]>*3\", \n x:\"<[1,[~ 2@50],[~ ~ 4@50]] ~@3>/4\",\n z:\"<[[3,4,5] ~]*2>\", \n k:\"<[[2,3,4] ~]*2>\",\n n:\"~\"\n};\nconst bstrum = {u:\"<[1 2]>\", v:\"<[2 1]>\", w:\"<[1 0]>\", x:\"~\", z:\"~\", k:\"~\", n:\"0\"};\n\nconst gString = register('gString', (n, pat) => \n  (pat.fmap((v) => { if(v[n]=='x') return note(0).velocity(0);\n      return note(v[n]+standardtuning[n]); } \n  ).innerJoin()));\nconst guitar = (strums,fingers,tuning=standardtuning) => (strums.pickOut(\n    [fingers.pickOut(fingering).gString(0),fingers.pickOut(fingering).gString(1),fingers.pickOut(fingering).gString(2)\n    ,fingers.pickOut(fingering).gString(3),fingers.pickOut(fingering).gString(4),fingers.pickOut(fingering).gString(5)]));\nconst split = register('split', (deflt, callback, pat) => callback(deflt.map((d,i)=> pat.withValue((v)=>{\n  const isobj = v.value !== undefined; const value = isobj ? v.value : v;\n  const result = Array.isArray(value)?(i<value.length?value[i]:d):(i==0?value:d);\n  return (i==0 && isobj) ? {...v,value:result} : result; }))));\n\ngtr: \"<~@2 [[0 1]!2]@16 2@3 3@13 4@3 3@4 5@2 3@13 4@3 3@4 5@2 3@4 3@2 6@11 3@4 5@2 3@13 4@3 3@4 5@2 3@4 3@2 6@11 3@4 5@2 7@8 [[0 1]!2]@16 8@5>\"\n  .pickRestart([\n  \"<Am:u:6 E:v:5 Am:u:4 E:v:3>\",\"<Am:u:2 A:w:7>\",\"<Am:u:2 E:x A:x>\",\n  \"<Dx:z Ds:z>\",\"<Ax:z Emx:k:2 Ax:z:2>\",\"<Ax:k:2 Ex:z:5>\",\n  \"<A:n:2 E:n A:n E:n E:n:4 A:n:4 E:n:2 E:n:6 A:n:6 A:n:11 E:n:9>\",\n  \"<E:k:2!3 A:k:1 E:k:5!3 A:k:2 >\",/* 157 */\"<Am:u:2 E:x@2 ~@2>\"\n  ]).split([0,0,0],s=>s[0].layer(\n  x=>guitar(s[1].pick(gstrum),x).s(\"gm_acoustic_guitar_steel:1\").release(.1).gain(.75).room(.5).hpf(300).lpf(5000).late(1/64),\n  x=>guitar(s[1].pick(bstrum),x).s(\"gm_pizzicato_strings:1\").transpose(-12).release(.1).gain(.65).room(.6).lpf(1000),\n  x=>chord(x).anchor(\"g5\").voicing().s(\"gm_string_ensemble_1\").gain(.15).room(1).layer(p=>p.pan(1),p=>p.pan(0).late(.1))\n    ).transpose(s[2]))\n\nvox: \"<~@25 0@22 0@22 1@13 2@10 0@22 1@13 3@8 ~@30>\".pickRestart([\n \"<f#4@2 f#4@3 [e4!2]@6 [f#4!2]@6 g#4@19 f#4@2 f#4@3 [e4!2]@6 [f#4!2]@6 c#4@13 b3@3 f#3@13 ~@100>*6\",\n /*69*/\"<f#4@2 f#4@3 [e4!2]@6 [f#4!2]@6 [g#4!2]@6 [a4!2]@6 [g#4!3]@9 d#4@3 [f4!2]@6 [f#4!2]@6 [f4!2]@6 [d#4!4]@12 c#4@3 f4@3 f#4@3>*6\",\n /*82*/\"<f#4@2 f#4@3 [e4!2]@6 [f#4!2]@6 b3@16 c#4@3 d4@12 ~@100>*6\",\n /*127*/\"<f#4 e4 [d4@2 ~] e4 [f#4@2 ~] a4 f#4@2>\"\n]).s(\"sawtooth\").note().attack(.05).release(.05).gain(.30).hpf(500).clip(0.95)\n\ndrm: \"< 0@2 [0,1]@17 2 ~ 0@32>\".pick([\n     s(\"<rd>*2\"),\n     s(\"<~ sd>*2\"),\n     s(\"<rd>\")\n  ]).bank(\"BossDR110\").room(1).lpf(1800).gain(.6)\n\nuff: \"<[gm_acoustic_guitar_steel:1,gm_string_ensemble_1,gm_pizzicato_strings:1] ~@1000>\".gain(0)",
+            voice: "silence",
+            fx: "silence",
+        }),
+        requiredTracks: ["melody"],
+        qualityNotes: ['Authentic cover of Bug From Heaven', 'Cleaned syntax and sanitised helpers'],
+    },
+    charli_360: {
+        id: 'charli_360',
+        aliases: ["360","charli 360","charli xcx 360"],
+        intentTags: ['cover', 'charli_360'],
+        bpm: 120,
+        key: 'E minor',
+        scale: 'E minor',
+        thought: "Charli XCX 360 cover/remix in E minor. Full arrangement in melody track.",
+        tracks: tracks({
+            drums: "silence",
+            bass: "silence",
+            melody: "/*\n  @title Charli xcx - 360 (cover / remix)\n  @by KAIXI\n  @details Brat  and it's  the same  but \n           we're live coding so it's not\n*/\n\nlet cpm = 120/4;\n\nsamples({\n  camera_flash: '360_camera_flash.wav',\n  vox: '360_vocals.wav'\n}, 'https://raw.githubusercontent.com/kai-xi/360/main/samples/');\n\n// section 1: intro\nlet lead_synth = arrange(\n  [3, \"<[[e3,b3] - c4 -] [e3 - f3 c4] [- c4 a4 -] [- - - -]>*4\"],\n  [1, \"<[- - [g3,b3] -] [g3 - a3 c4] [- c4 c5 -] [c4 - g4 -]>*4\"]\n)\n  .note().sound(\"sawtooth\")\n  .attack(0).decay(.25).sustain(0).release(.3)\n  .lpf(300).lpq(0).lpenv(3).lpa(0).lpd(.15).lps(0)\n  .delay(.2).delaytime(.25).delayfeedback(.1);\n\nlet section_1 = lead_synth;\n\n// section 2: i went my own way and i made it\nlet bass = arrange(\n  [2, \"<[e2 -] [- - e2 f2] [- f1] [-]>*4\"],\n  [1, \"<[- e2] [e2 - e2 f2] [- f1] [-]>*4\"],\n  [1, \"<[g2 -] [g2 - g2 a2] [-] [-]>*4\"],\n)\n  .note().sound(\"gm_synth_bass_2:0\")\n  .attack(0).decay(.5).release(.3)\n  .lpf(1800);\n\nlet sub_bass = bass.transpose(-12);\n\nlet bass_drum = arrange(\n  [2, \"<[bd -] [- - bd bd] [- bd] [-]>*4\"],\n  [1, \"<[- bd] [bd - bd bd] [- bd] [-]>*4\"],\n  [1, \"<[bd -] [bd - bd bd] [-] [-]>*4\"],\n)\n  .sound().bank(\"RolandTR808\").gain(1.5);\n\nlet clap = arrange(\n  [4, \"<[-] [cp] [-] [cp]>*4\"]\n)\n  .sound().bank(\"RolandTR808\").gain(1.15);\n\nlet drums = stack(bass_drum, clap);\n \nlet section_2 = stack(lead_synth, bass, sub_bass, drums);\n\n// section 3: drop down, yeah\nlet lead_saw = arrange(\n  [4, \"<[g4 - g4 g4] [g4 g4@2 g4] [g4 g4 g4@2] [g4@2 g4 g4]>*4\"]\n)\n  .note().sound(\"gm_lead_2_sawtooth:0\")\n  .attack(0).decay(.3).sustain(0).release(.15)\n  .lpf(3000).lpenv(10).lpa(0).lpd(.25).lps(0).lpr(0)\n  .gain(.25);\n\nlet camera_flash = s(\"<[- [- camera_flash] - -] [-]>/4\");\nlet section_3 = stack(\n  lead_synth, \n  bass,\n  sub_bass,\n  drums.mask(\"<[1 [1 0] 1 1] [1 1 1 [1 0]]>/4\"),\n  lead_saw.mask(\"<1 [1 1 1 [1 0]]>/4\"),\n  camera_flash\n);\n\n// section 4: yeah, 360\nlet section_4 = stack(\n  lead_synth, \n  bass.lpf(\"<20000 [20000 20000 20000 500]>/4\"), \n  sub_bass.lpf(\"<20000 [20000 20000 20000 500]>/4\"), \n  drums.mask(\"<1 [1 1 1 [1 0]]>/4\")\n);\n\n// section 5: bumpin' that\nlet bass_modified = arrange(\n  [1, \"<[e2 -] [- - e2 f2] [- f1] [-]>*4\"],\n  [1, \"<[e2 -] [- - e2 f2] [- f1] [e2 e2 e2 -]>*4\"],\n  [1, \"<[e2 e2] [- - e2 f2] [- f1] [-]>*4\"],\n  [1, \"<[g2 -] [g2 - g2 a2] [-] [-]>*4\"],\n)\n  .note().sound(\"gm_synth_bass_2:0\")\n  .attack(0).decay(.5).release(.3)\n  .lpf(1800);\n\nlet sub_bass_modified = bass_modified.transpose(-12);\n\nlet bass_drum_modified = arrange(\n  [1, \"<[bd -] [- - bd bd] [- bd] [-]>*4\"],\n  [1, \"<[bd -] [- - bd bd] [- bd] [bd bd bd -]>*4\"],\n  [1, \"<[bd bd] [- - bd bd] [- bd] [-]>*4\"],\n  [1, \"<[bd -] [bd - bd bd] [-] [-]>*4\"],\n)\n  .sound().bank(\"RolandTR808\").gain(1.5);\n\nlet section_5 = stack(\n  lead_synth, \n  bass_modified,\n  sub_bass_modified,\n  bass_drum_modified,\n  clap.mask(\"<1 [1 1 1 [1 0]]>/4\"),\n  lead_saw.mask(\"<[1 1 1 [1 0]]>/4\")\n);\n\n// instrumental arrangement\nlet instrumental = arrange(\n  [4, section_1],\n  [8, section_2],\n  [8, section_3],\n  [8, section_4],\n  [4, section_5]\n);\n\n// slicing the vocals so it stops playing after each cycle\nlet vocals = s(\"vox\")\n  .slice(32, \n         \"<0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31>\")\n  ;\n\n// cover (1st half of the song)\nlet cover = stack(instrumental, vocals);\n\n// WORKING IT OUT ON THE REMIX !!!\n// extending section 5\nlet section_5_ext = stack(\n  lead_synth, \n  bass,\n  sub_bass,\n  bass_drum,\n  clap.mask(\"<1 [1 1 1 [1 0]]>/4\"),\n  lead_saw.mask(\"<1 [1 1 1 [1 0]]>/4\")\n);\n\n// bumpin' that\nlet vox_chop_1 = s(\"vox\").slice(32, \"<30 30 30 30>\");\n// ah-ah ah-ah-ah\nlet vox_chop_2 = \n    s(\"<- - - vox>\").begin((27*4 + 1)/(32 *4)).end(\"0.89\").late(1/4).gain(.8);\n\nlet remix_vox = arrange(\n  [4, stack(vox_chop_1.mask(\"<1 1 1 1 1 1 1 0>\"), vox_chop_2.mask(\"<0 1>/4\"))]\n);\n\n// section 6\nlet hihats = arrange(\n  [4, \"<[hh - hh hh] [hh hh@2 hh] [hh hh hh@2] [hh@2 hh hh]>*4\"]\n)\n  .sound().bank(\"RolandTR808\").gain(.85);\n\nlet section_6 = stack(\n  bass_modified, \n  sub_bass_modified, \n  bass_drum_modified,\n  clap.mask(\"<1 [1 1 1 [1 0]]>/4\"),\n  hihats.mask(\"<1 [1 1 1 [1 0]]>/4\")\n);\n\n// section 7\nlet bass_modified_2 = arrange(\n  [1, \"<[e2 -] [- - e2 f2] [- - f1 -] [-]>*4\"],\n  [1, \"<[e2 -] [- - e2 f2] [- - f1 -] [e2 e2 e2 -]>*4\"],\n  [1, \"<[e2 e2] [- - e2 f2] [- - f1 - ] [-]>*4\"],\n  [1, \"<[g2 -] [g2 - g2 a2] [-] [-]>*4\"],\n).transpose(24).gain(1.1)\n  .note().sound(\"gm_fx_brightness:4\")\n  .attack(0).decay(.5).release(.3)\n  .lpf(8000).lpa(0).lpd(.08).lpq(10);\n\nlet section_7 = stack(\n  bass_modified_2,\n  sub_bass_modified,\n  clap.mask(\"<1 [1 1 1 [1 0]]>/4\")\n);\n\n// section 8\nlet bass_modified_3 = arrange(\n  [1, \"<[e2 -] [- - e2 f2] [- f1] [-]>*4\"],\n  [1, \"<[e2 -] [- - e2 f2] [- f1] [e2 e2 e2 -]>*4\"],\n  [1, \"<[e2 e2] [- - e2 f2] [- f1] [-]>*4\"],\n  [1, \"<[g2 -] [g2 - g2 a2] [-] [-]>*4\"],\n).transpose(24)\n  .note().sound(\"gm_lead_2_sawtooth:0\")\n  .attack(0).decay(.4).release(.3)\n  .lpf(500).lpa(0).lpd(.03).lpq(0);\n\n// 360\nlet vox_chop_3 = s(\"<vox - - ->*4\").begin(79 / (32 * 4)).end((0.630)).gain(.5);\n\nlet section_8 = stack(\n  bass_modified_3.lpf(\"<500 600 700 [[800 [1000 1200]] 1200]>\"),\n  sub_bass_modified,\n  clap.mask(\"<1 [1 1 1 [1 0]]>/4\")\n);\n\n// section 9\nlet section_9 = stack(section_5, hihats.gain(.8).mask(\"<1 [1 1 1 [1 0]]>/4\"));\n\n// down\nlet vox_chop_4 = s(\"vox\").slice(32 * 4, \"<- 50 - 50 - 50 - 50>*4\");\n// bumping that beat\nlet vox_chop_5 = s(\"<- - - - vox@2 vox@2>*4\").begin(99 / (32 * 4)).end(0.7852)\n  .delay(.2).delaytime(.25).delayfeedback(.1);\n// i'm everwhere, i'm so julia\nlet vox_chop_6 = s(\"vox\").slice(32 * 4, \"<- - - - 89 90 91 92>*4\").gain(.8);\n\narrange(\n  [32, cover],\n  [8, stack(section_5_ext, remix_vox.lpf(\"<1500 1500 1500 1500 1500 1500 1500 2000>\"))],\n  [8, stack(section_6)],\n  [4, stack(section_7)],\n  [4, stack(section_8, vox_chop_3.lpf(\"<600 1000 1350 0>\").mask(\"<1 1 1 0>\"))],\n  [8, stack(\n    section_9, \n    vox_chop_4.mask(\"<[1 0] [1 0] [1 0] [1 0]>/2\"), \n    vox_chop_5.mask(\"<[0 1] [0 1] [0 1] [0 0]>/2\"), \n    vox_chop_6.lpf(1500).lpa(.25).lpd(.25).pan(sine).mask(\"<[0 0] [0 0] [0 0] [0 1]>/2\"), \n    vox_chop_2.mask(\"<0 1>/4\")\n  )],\n  [8, stack(section_5, remix_vox.mask(\"<1 1 1 0 1 1 1 1>\"))],\n  [4, vox_chop_1.delay(.25).delayt(.5).dfb(.2).mask(\"<1 0 0 0>\")]\n)\n  \n  .theme(\"<[greenText whitescreen] [blackscreen whitescreen]>/2\")\n  .color(\"<[#99CC3E #FFFFFF] [#99CC3E #000000]>\")\n  .fontFamily(\"x3270\")\n  .punchcard({\n    vertical: 1, flipTime: 1, fold: 0, stroke: 1,\n    playheadColor: 'rgba(0, 0, 0, 0)'\n  });\n\n// @version 1.2",
+            voice: "silence",
+            fx: "silence",
+        }),
+        requiredTracks: ["melody"],
+        qualityNotes: ['Authentic cover of 360', 'Cleaned syntax and sanitised helpers'],
+    },
+    grimes_m4m: {
+        id: 'grimes_m4m',
+        aliases: ["music 4 machines","grimes music 4 machines"],
+        intentTags: ['cover', 'grimes_m4m'],
+        bpm: 135,
+        key: 'F major',
+        scale: 'F major',
+        thought: "Music 4 Machines (Grimes cover) in F major. Full arrangement in melody track.",
+        tracks: tracks({
+            drums: "silence",
+            bass: "silence",
+            melody: "/*\n  @title Grimes - Music 4 Machines (cover)\n  @by KAIXI\n  @details THIS IS MUSIC FOR MACHINES\n           an intro to live coding on strudel\n           ability to divide by 2 recommended\n*/\n\n// the song should be 135 beats per minute, in 4/4 time\n// 1 beat = 1 quarter note\n// 4 quarter notes = 1 measure = 1 \"cycle\"\n// 135 quarter notes per minute = 135/4 cycles per min\nlet cpm = 135/4;\n\n// load in the vocals\n// these are just from the original song by grimes ai\nsamples({\n  vox: 'vox_chorus.wav',\n}, 'https://raw.githubusercontent.com/kai-xi/music4machines/main/samples/');\n\nlet drums = stack(\n  // when you do sound() you are writing what goes in one cycle (measure)\n  // you can write 4 quarter notes for the cycle like so:\n  // sound(\"bd bd bd bd\").bank(\"RolandTR909\"),\n  // or just writing it once and multiplying by 4\n  // sound(\"<bd>*4\").bank(\"RolandTR909\"),\n  // alternate between the sound and a rest using a '-'\n  // sound(\"<- sd:10>*4\").bank(\"RolandTR909\"),\n  // you could combine these like this\n  // and layer a clap\n  sound(`\n    <bd>*4,\n    <- sd>*4,\n    <- cp:3>*4\n  `).bank(\"RolandTR909\"),\n  // add a hihat on the off beat (8th note)\n  sound(\"<- hh>*8\").bank(\"LinnDrum\").gain(.2),\n  // add a shaker on every 8th note\n  sound(\"<sh>*8\").bank(\"RolandTR808\").gain(.25)\n);\n\n// you can concatenate cycles to change up the notes on each measure\nlet bass = cat(\n  \"<c2>*4\",\n  \"<g1>*4\",\n  // use flats with b and sharps with #\n  \"<eb1>*4\",\n  // !n will repeat the note n times\n  // this is equivalent to \"<eb1 eb1 f1 f1>*4\"\n  \"<eb1!2 f1!2>*4\",\n  \"<c2>*4\",\n  \"<g1!2 bb1!2>*4\",\n  \"<eb1>*4\",\n  \"<f1>*4\"\n).note()\n  .n(3).sound(\"gm_synth_bass_1\")\n  // use effects to modify a sound\n  // low pass filter allows low frequencies to pass through\n  .lpf(200).lpenv(5).lpa(.5).lps(.8).lpd(.1);\n\n// you can also write notes based on a scale\n// let scaleExample = cat(\n//   \"<3>*4\",\n//   \"<0>*4\",\n//   \"<-2>*4\",\n//   \"<-2!2 -1!2>*4\",\n//   \"<3>*4\",\n//   \"<0!2 2!2>*4\",\n//   \"<-2>*4\",\n//   \"<-1!2>*4\",\n// ).n()\n//   .scale(\"G:minor\")\n//   // lower by 2 octaves\n//   .scaleTranspose(-7 * 2)\n//   .n(3)\n//   .sound(\"gm_synth_bass_1\")\n//   .lpf(200).lpenv(5).lpa(.5).lps(.8).lpd(.1);\n\nlet synth_arpeggio = cat(\n  \"<c3 c4 eb5 c3 c4 d5 c3 bb4>*8\",\n  \"<g2 g3 bb4 g2 g3 a4 g2 g4>*8\",\n  \"<eb2 eb3 g4 eb2 eb3 f4 eb2 g4>*8\",\n  \"<eb2 eb3 g4 eb2 eb3 f4 f2 g4>*8\",\n  \"<c3 c4 eb5 c3 c4 d5 c3 bb4>*8\",\n  \"<g2 g3 bb4 g2 bb4 c5 bb2 g4>*8\",\n  \"<eb2 eb3 g4 eb2 eb3 f4 eb2 g4>*8\",\n  \"<f2 f3 g4 f2 f3 a4 f2 a4>*8\",\n).note()\n  .n(1).sound(\"gm_pad_poly\")\n  .decay(.95).lpf(5000).lpenv(-3).lpa(.2)\n  // add delay & reverb for an echo effect\n  // format delay as \"level:time:feedback\"\n  // delay level: relative volume (0 - 1)\n  // delay time: in seconds\n  // delay feedback: amt fed back into delay (0 - 1)\n  .delay(\".3:.225:.45\")\n  // room: reverb volume\n  // rsize: reverb size\n  .room(.8).rsize(2);\n\nlet synth_bass = cat(\n  \"<c3 c4 - c3 c4 - c3 ->*8\",\n  \"<g2 g3 - g2 g3 - g2 ->*8\",\n  \"<eb2 eb3 - eb2 eb3 - eb2 ->*8\",\n  \"<eb2 eb3 - eb2 eb3 - f2 ->*8\",\n  \"<c3 c4 - c3 c4 - c3 ->*8\",\n  \"<g2 g3 - g2 g3 - bb2 ->*8\",\n  \"<eb2 eb3 - eb2 eb3 - eb2 ->*8\",\n  \"<f2 f3 - f2 f3 - f2 ->*8\"\n).note()\n  .n(0).sound(\"gm_synth_bass_1\")\n  .attack(.1).decay(.25).release(.25)\n  .lpf(2250).lpenv(2).lpa(.03).lpr(.2).lpd(.3)\n  .gain(.5);\n\nlet synth_lead = cat(\n  \"<- - eb5 - - d5 - bb4>*8\",\n  \"<- - bb4 - - a4 - g4>*8\",\n  \"<- - g4 - - f4 - g4>*8\",\n  \"<- - g4 - - f4 - g4>*8\",\n  \"<- - eb5 - - d5 - bb4>*8\",\n  \"<- - bb4 - bb4 c5 - g4>*8\",\n  \"<- - g4 - - f4 - g4>*8\",\n  \"<- - g4 - - a4 - a4>*8\",\n).note()\n  .n(1).sound(\"gm_pad_metallic\")\n  .decay(.95).delay(\".3:.225:.45\")\n  .room(.4).rsize(2).gain(.6);\n\n// use custom samples based on the name you assigned them earlier\nlet intro_vocals = s(\"vox\").room(.3).rsize(2);\n\n// modify when the sample begins and ends\n// this sample has 4 lines and we want the first one\n// so start at 0 and cut it just after 1/4\nlet vocals01 = s(\"vox\").begin(0).end(.25 + (.25 * .25 * .5))\n  .attack(.25).delay(\".25:.45:.4\").room(.2).rsize(2);\n// start the second one at 1/4 and cut it just after 2/4\nlet vocals02 = s(\"vox\").begin(.25).end(.5 + (.25 * .25 * .5))\n  .attack(.25).delay(\".25:.45:.4\").room(.2).rsize(2);\n\n// create sections to divide up your song\nlet section00 = stack(\n  intro_vocals.mask(\"<1 0 0 0 0 0 0 0>\")\n);\n\nlet section01 = stack(\n  drums,\n  bass,\n  synth_arpeggio,\n  synth_bass,\n  synth_lead\n);\n\nlet section02 = stack(\n  drums,\n  bass,\n  synth_arpeggio,\n  synth_bass,\n  synth_lead,\n  vocals01.mask(\"<1 0 0 0 0 0 0 0>\"),\n  vocals02.mask(\"<0 0 0 0 1 0 0 0>\")\n);\n\nlet end = stack(\n  vocals01.mask(\"<1 0 0 0 0 0 0 0>\")\n);\n\n// arrange the number of cycles for each section\narrange (\n  [8, section00],\n  [8, section01],\n  [8, section02],\n  [8, end]\n);\n\n\n// @version 1.0",
+            voice: "silence",
+            fx: "silence",
+        }),
+        requiredTracks: ["melody"],
+        qualityNotes: ['Authentic cover of Music 4 Machines', 'Cleaned syntax and sanitised helpers'],
+    },
+    happy_birthday: {
+        id: 'happy_birthday',
+        aliases: ["happy birthday"],
+        intentTags: ['cover', 'happy_birthday'],
+        bpm: 120,
+        key: 'F major',
+        scale: 'F major',
+        thought: "Happy Birthday song. Drums, bass, and harmonica melody separated.",
+        tracks: tracks({
+            drums: "s(\"hh*3, <bd ~>, ~ ~ rim\").bank(\"RolandTR909\").gain(0.2)",
+            bass: "const chrds = \"F@3 C@6 F@6 Bb@3 F@2 C F@3\".slow(8);\nsetDefaultVoicings('legacy');\nn(\"2 ~ ~ 2 1 ~\").chord(chrds).anchor(chrds.rootNotes(2)).voicing().s(\"gm_electric_bass_finger\").lpf(190).gain(1).color('blue')",
+            melody: "const chrds = \"F@3 C@6 F@6 Bb@3 F@2 C F@3\".slow(8);\nsetDefaultVoicings('legacy');\nstack(\n  \"[C4@3 C4] D4 C4 F4 E4@2 [C4@3 C4] D4 C4 G4 F4@2 [C4@3 C4] C5 A4 F4 E4 D4 [Bb4@3 Bb4] A4 F4 G4 F4@2\".slow(8).early(1/3).note().s(\"gm_harmonica\").gain(0.4).color('green'),\n  chord(chrds).anchor(\"G4\").struct(\"x*3\").voicing().piano().gain(0.2).color('yellow')\n)",
+            voice: "silence",
+            fx: "silence",
+        }),
+        requiredTracks: ["drums","bass","melody"],
+        qualityNotes: ['Authentic cover of Happy Birthday', 'Cleaned syntax and sanitised helpers'],
+    },
+    blue_monday: {
+        id: 'blue_monday',
+        aliases: ["blue monday","blue monday remix","blue monday new order"],
+        intentTags: ['cover', 'blue_monday'],
+        bpm: 130,
+        key: 'F minor',
+        scale: 'F minor',
+        thought: "New Order - Blue Monday cover. Full arrangement in melody track.",
+        tracks: tracks({
+            drums: "silence",
+            bass: "silence",
+            melody: "/*\n  @title New Order - Blue Monday (cover / remix)\n  @by Lewis\n*/\n\nconst kick1 = sound(\"<[bd bd [bd*4] [bd*4]] [bd*4]>\").bank(\"linn\").decay(0.15)\nconst kick2 = sound(\"[bd*4]\").bank(\"linn\").decay(.15)\n\nconst hats1 = sound(\"[oh oh*2]*4\").bank(\"dmx\").decay(.1).gain(.12)\nconst hats2 = sound(\"[- oh]*4\").bank(\"dmx\").decay(.2).sustain(0.1).gain(.12)\n\nconst snare = stack(\n  sound(\"[- sd]*2\").bank(\"linn\").gain(.5),\n  sound(\"[- cp]*2\").bank(\"linn\").gain(.1)\n)\n\nconst drums1 = stack(kick1,hats1,snare)\nconst drums2 = stack(kick2,hats2,snare)\n\nconst drums3 = stack(\n  sound(\"bd bd bd bd -\").bank(\"linn\").decay(0.15),\n  sound(\"oh oh oh oh -\").bank(\"dmx\").decay(0.2).sustain(0.1).gain(0.2)\n)\n\nconst bass1 = stack(\n  note(\"<<[f1 f2*2]*2 [g1 g2*2]*2> [c1 c2*2]*2 [d1 d2*2]*2 [d1 d2*2]*2>*2\"),\n).sound(\"<sine, gm_synth_bass_1>\").decay(.2).sustain(.1)\n\nconst bass2 = stack(\n  note(\"<<[f1 f2]*2 [g1 g2]*2> [c1 c2]*2 [d1 d2]*2 [d1 d2]*2>*2\"),\n).sound(\"<sine, gm_synth_bass_1>\").decay(.2).sustain(.4)\n\nconst synth = stack(\n  n(\"<[[2 ~] [2 ~] 2 3] [[3 ~] [3 ~] 3 3]>@4 [-1 ~] -1 -1 [0 ~] 0 0 [0 ~] 0 0 [0 ~] 0 0\"),\n).sound(\"<gm_lead_2_sawtooth>\").slow(2).scale(\"d4:minor\").attack(.05).hpf(\"<1000 2000>*12\").gain(\".4\")\n\nstack(\n  arrange([16,kick1],[16,drums1],[2,drums3],[16,drums2],[1,silence]).room(0.1),\n  arrange([8,silence],[24,synth],[19,silence]).room(0.05),\n  arrange([16,silence],[16,bass1],[2,silence],[16,bass2],[1,silence])\n  )",
+            voice: "silence",
+            fx: "silence",
+        }),
+        requiredTracks: ["melody"],
+        qualityNotes: ['Authentic cover of Blue Monday', 'Cleaned syntax and sanitised helpers'],
+    },
+    old_macdonald: {
+        id: 'old_macdonald',
+        aliases: ["old mcdonalds"],
+        intentTags: ['cover', 'old_macdonald'],
+        bpm: 70,
+        key: 'F major',
+        scale: 'F major',
+        thought: "Old McDonalds song with animal sounds. Full arrangement in melody track.",
+        tracks: tracks({
+            drums: "silence",
+            bass: "silence",
+            melody: "// old mcdonalds has bad samples\r\nsetDefaultVoicings('legacy')\r\nconst beast = [\"crow\",\"space\",\"gm_bird_tweet\",\"space:4\",\"clash\",\"space:1\"]\r\nconst bsequ = \"<~@2 0 ~@3 1 0 ~@3 2 1 0 ~@3 3 2 1 0 ~@3 4 3 2 1 0 ~@2>\".pick(beast)\r\nconst chrds = \"F [A# F] [F C] [F@3 ~]\";\r\nconst strct = \"[[x ~]!2] [[x ~]!2 x  ~]\";\r\nconst bstrc = \"[[~ x]!2] [[~ x]!2 ~  x]\";\r\nconst trnsp = \"<0!4 1!5 2!6 3!7 4!8 ~>\";\r\n\r\n\"<[0,3] [0,1] 2 0!2 [0,1] [2,1] 2 0!2 [0,1] [2,1]!2 2 0!2 [0,1] [2,1]!3 2 0!2 [0,1] [2,1]!4 2 [0@7 ~] ~>\".pick(\r\n[stack(\r\n  \"F5*2 [F5 C5] D5*2 C5 A5*2 G5*2 F5@2\".note().clip(0.9),\r\n  chord(chrds).anchor(\"G4\").voicing().struct(\"[~ x]*4 [[~ x]*2 [x@3 ~]]\").gain(0.6),\r\n  n(\"[2 1]*4\").chord(chrds).anchor(\"F2\").voicing().struct(\"[x ~]*8\").gain(0.6),\r\n ).piano().add(note(trnsp))\r\n,\"~@7 [C5 D5]\".note().clip(0.8).piano().add(note(trnsp)) \r\n,stack(\r\n  stack(\r\n  \"[[F5*2 ~]!2] [[F5 ~]!2 F5*2 ~]\".note(),\r\n chord(\"F\").anchor(\"G4\").voicing().struct(strct).gain(0.6),\r\n  \"F2\".struct(strct).note().gain(0.6)\r\n    ).clip(0.8).piano().add(note(trnsp)),\r\n \"F\".struct(bstrc).s(bsequ).release(0))\r\n \r\n,\"0,1,2,3,4,5\".pick(beast).gain(0) // samples preload trick\r\n]).room(0.4)",
+            voice: "silence",
+            fx: "silence",
+        }),
+        requiredTracks: ["melody"],
+        qualityNotes: ['Authentic cover of Old McDonalds', 'Cleaned syntax and sanitised helpers'],
+    },
+    pump_up_the_jam: {
+        id: 'pump_up_the_jam',
+        aliases: ["pump up the jam"],
+        intentTags: ['cover', 'pump_up_the_jam'],
+        bpm: 124,
+        key: 'F minor',
+        scale: 'F minor',
+        thought: "Technotronic - Pump Up The Jam cover in F minor. Full arrangement in melody track.",
+        tracks: tracks({
+            drums: "silence",
+            bass: "silence",
+            melody: "// \"Pump Up The Jam\" - Work In Progress\n// song @by Technotronic\n// script @by eefano\nconst pickRestart = register('pickRestart', (arr, pat) => pat.pick(arr.map((x)=>x.restart(pat.collect().fmap(v=>v+1)))))\nconst as = register('as', (mapping, pat) => { mapping = Array.isArray(mapping) ? mapping : [mapping];\n  return pat.fmap((v) => { v = Array.isArray(v) ? v : [v, 0];\n    return Object.fromEntries(mapping.map((prop, i) => [prop, v[i]])); }); });\nstack(\"~\"\n,\"<~@8 0@4 1@4 ~@8>\".pickRestart(\n  [\"[u [u e] a [u i] [u ~] [a u] [i a] [o@3 i] ~ [a e] [a i] [o@3 i] [~ u@2 a] [e e] [o i] [o@3 i]]/4\"\n  ,\"~ [u i] [u ~ ~ a] [i i@2 o]\"\n]).vowel().s(\"z_sawtooth\").clip(0.8).gain(1.4)\n             \n,\"<~@16 0@8>\".pickRestart(\n  [\"[ ~@2 4 [5:1 ~] ~ [~ 0] [3:-1@5 3:1@2 2]@2 ~ [4@3:1 3 3@3 2 2@3 3 4:1@3 0 0@2 2:2@2]@5 [~ ~ 0@2 ~ 0@2 -2:-3]@2 ]/4\"\n]).as(\"n:penv\").scale(\"c4:minor\").clip(0.90).patt(\"0.15\").s(\"square\").delay(0.3).dfb(0.3).dt(60/128).gain(0.7)\n            \n,\"<0@32>\".pickRestart(\n  [\"[~@13 [[~@3 [0,-2,-4]@2 ~]@3 [0,-2,-4] [1,-1,-3]!2]@3 ]/4\"\n]).scale(\"c4:minor\").note().clip(0.7).s(\"z_sawtooth\").color(\"red\").adsr(\"0.07:.1:0.6:0.1\").gain(0.5)\n\n,\"<0@12 0 1 ~@2 3@8>\".pickRestart(\n  [\"[0 ~@23]/2\"\n  ,\"~@2 [~ [e2 ~]] [[0 2] ~]\"\n  ,\"[0 ~ ~ 0 ~ ~ 0 ~] <[[~ [0 1]] [2 ~]] ~>\"\n]).scale(\"c2:minor\").note().clip(0.9)\n      .layer(x=>x.s(\"z_sawtooth\").delay(0.6).dfb(0.5).dt(60/125*3/4).pan(0.55).gain(0.8)\n            ,x=>x.s(\"z_square\").lpf(300).lpe(2).lpa(-1.5).lpd(0.1).lpr(0.05).pan(0.45).gain(1)).color(\"green\")\n\n,\"<0@4 [0,1]@12 [0,1,2]@4 [0,1,2,3]@4>\".pickRestart(\n [stack(s(\"oh*16\").pan(0.45).gain(\"[0.08 0.16]*4\").release(0),s(\"hh*4\").pan(0.7).gain(0.20))\n ,s(\"bd*4\").lpf(150).gain(1)\n ,s(\"[~ cp]*2\").gain(0.5).pan(0.25)\n ,s(\"[~ rd]*4\").gain(0.15).release(0).hpf(1500).pan(0.75)\n ,s(\"[~ sd!3]!4 [sd*4]!4\").slow(2).gain(run(32).slow(2).mul(1/31).add(0.1).mul(0.4))\n ,s(\"cr\").gain(0.2)\n ,s(\"bd\").gain(0.8)\n ]).bank(\"RolandTR909\").color(\"yellow\").velocity(0.7)\n \n).room(0.3)",
+            voice: "silence",
+            fx: "silence",
+        }),
+        requiredTracks: ["melody"],
+        qualityNotes: ['Authentic cover of Pump Up The Jam', 'Cleaned syntax and sanitised helpers'],
+    },
+    pyramid_song: {
+        id: 'pyramid_song',
+        aliases: ["pyramid song"],
+        intentTags: ['cover', 'pyramid_song'],
+        bpm: 104,
+        key: 'F# minor',
+        scale: 'F# minor',
+        thought: "Radiohead Pyramid Song cover. Full arrangement in melody track.",
+        tracks: tracks({
+            drums: "silence",
+            bass: "silence",
+            melody: "// \"Pyramid Song (wip)\"\n// song @by Radiohead\n// script @by eefano\nconst split = register('split', (deflt, callback, pat) => callback(deflt.map((d,i)=> pat.withValue((v)=>{\n  const isobj = v.value !== undefined; const value = isobj ? v.value : v;\n  const result = Array.isArray(value)?(i<value.length?value[i]:d):(i==0?value:d);\n  return (i==0 && isobj) ? {...v,value:result} : result; }))));\n\nlet chr = {X:\"f#2,c#3,a#3,c#4,f#4\", Y:\"g2,d3,b3,d4,f#4\", Z:\"a2,e3,a3,c#4,f#4\", J:\"g2,d3,b3,d4,g4\", K:\"f#2,c#3,a#3,c#4,g4\",\n           V:\"f#2,c#3,a3,c#4,f#4\", W:\"e2,b2,g#3,b3,f#4\"}\n\npiano: \"<[i1 i2 i3 i4] ooooh [v1 v2]!4 ooooh@2 [v1 v2]!3 [v1 v3] [v3 v2] [i1 i2 i3 i2] [i3 i2 i3 i2] end>/8\".pickRestart(\n {i1:`<[[X:.6 X:.8]@3 Y:.5@2 [Z:.5 Z:.5]@3]>/2`, i2: `<[[Z:.4 Y:.4]@3 Y:.3@2 [J:.6 J:.9]@3]>/2`, \n  i3:`<[[K:.8 X:.6]@3 Y:.5@2 [Z:.5 Z:.5]@3]>/2`, i4: `<[[Z:.4 Y:.4]@3 Y:.4@2 [Y:.4 Y:.7]@3]>/2`,\n  ooooh:`<[[X X]@3 Y@2 [Z Z]@3] [[Z Y]@3 Y@2 [X X]@3] [[X X]@3 Y@2 [Z Z]@3] [[Z Y]@3 Y@2 [Y Y]@3]>/2`,\n  v1:`<[[X X]@3 Y@2 [Z Z]@3] [[Z Y]@3 Y@2 [X X]@3]>/2`,\n  v2:`<[[V V]@3 W@2 [W W]@3] [[Y Y]@3 Y@2 [Y Y]@3]>/2`,\n  v3:`<[[V V]@3 W@2 [W W]@3] [[Y Y]@3 X@2 [X X]@3]>/2`,\n  end:`<X:1>/8`, \n }).split([0,.5],(x)=>x[0].pickOut(chr).velocity(x[1])).note().piano().gain(0.8).room(.6)\n\nooooh: \"<~ 0 ~@4 0@2 ~@8>/8\".pickRestart([\n  \"<f#5@11 e5:-2 g#5:4 e5:-4 [f#5:2 ~] [~ g#5 e5] f#5@4 g#5 f#5 e5 d5 c#5@5 ~@3>*4\"\n  ]).split([0,0],(x)=>x[0].penv(x[1])).patt(0.04).s(\"triangle\").attack(.08).release(.08).note().vmod(.1).vib(5).gain(0.3).lpf(2000).room(1.5)\n\ndrums: \"<~@6 [~@15 0@15 1@2] [2,3]@8 3>/8\".pick([\n  \"<[bd,rd] ~ [~ sf*3] [bd,rd] ~ [~ sf*3] [bd,rd] ~ ~ [~ sf*3] [bd,rd] ~ [~ sf*3] [bd,rd] ~ [~ sf*3]>*8\",\n  \"<[sd sf bd] [sf sd sd]>*4\",\n  \"<[rd*4],[<~ ~ ~ bd ~ bd ~ ~ bd ~ bd ~ ~ bd ~ bd> <~!14 sf!2> <~ sd bd ~ sd ~ sd bd ~ sd ~ ~ sd ~ sd sd>]*4>\",\n  \"<cr,bd>/8\",\n]).pickOut({\n  bd: s('bd').bank('Linn9000').lpf(1000),\n  sd: s('sd').bank('RolandMT32').velocity(.5),\n  sf: s('sd').bank('RolandMT32').velocity(.2),\n  rd: s('rd').bank('Linn9000').velocity(0.3).hpf(8000),\n  mt: s('mt').bank('RolandMT32'),\n  lt: s('lt').bank('RolandMT32'),\n  cr: s('cr').bank('Linn9000').speed(0.4).velocity(0.3).hpf(4000),\n}).room(.2).gain(0.5)",
+            voice: "silence",
+            fx: "silence",
+        }),
+        requiredTracks: ["melody"],
+        qualityNotes: ['Authentic cover of Pyramid Song', 'Cleaned syntax and sanitised helpers'],
+    },
+    rhythm_of_the_night: {
+        id: 'rhythm_of_the_night',
+        aliases: ["the rhythm of the night"],
+        intentTags: ['cover', 'rhythm_of_the_night'],
+        bpm: 128,
+        key: 'G minor',
+        scale: 'G minor',
+        thought: "Corona - The Rhythm of the Night cover. Full arrangement in melody track.",
+        tracks: tracks({
+            drums: "silence",
+            bass: "silence",
+            melody: "// \"The Rhythm Of The Night\" - Work In Progress\n// song @by Corona\n// script @by eeefano\nsetDefaultVoicings('legacy')\nconst as = register('as', (mapping, pat) => { mapping = Array.isArray(mapping) ? mapping : [mapping];\n  return pat.fmap((v) => { v = Array.isArray(v) ? v : [v, 0];\n    return Object.fromEntries(mapping.map((prop, i) => [prop, v[i]])); }); });\n\nconst crdpart = \"<~ 0@10 1@24 0@19>\".pickRestart(\n[\"Ab Cm Bb F@2\".slow(5)\n,\"Bb@3 Ab@3 Cm@2\".slow(8)\n]);\nstack \n(\"<0 1@4 0 1@4 ~@8 2 3@7 2 3@7 0 1@4 0 1@4 0 1@4 0 1@4>\".pickRestart(\n  [\"~ [4@3 ~]!3 7:5 6 4 3\"\n  ,\"2:-1 0:-2 ~@4 6:1 4:-1 6 4:2 ~@4 [4:2 3]@3 ~@6 4 7:5 6 [4@2 ~] [3:-1 2@3]@2 0 ~@2\".slow(4)\n  ,\"~@6 [6 ~]!2\"\n  ,\"6 5@0.5 [5 ~] [4 ~]!2 [3 ~] 3:2@1.5 ~@7 6@2 6:2 [5 ~ ]!2 4 3@2 4 2 0:-2 ~@7 [0 2]@3 3@2 4 6:4 4:-4 ~ 0 2 0 4 ~ 0 0:2@2 ~@7\".slow(7)\n]).as(\"n:penv\").scale(\"c4:minor\").patt(\"0.07\").s(\"gm_lead_1_square\").room(0.4).delay(0.3).dfb(0.35).dt(60/128).gain(0.85)\n\n,crdpart.chord().anchor(\"F4\").voicing().s(\"gm_synth_strings_1\").color(\"blue\").gain(0.4)\n\n,\"<~@11 1@23 ~ 0@19>\".pickRestart(\n  [\"2 ~@2 2 ~@2 2 ~@3 2 ~@3 2 ~\"\n  ,\"[2 ~@2 2 ~@2 2 ~]!2\"\n]).n().chord(crdpart).anchor(crdpart.rootNotes(2)).voicing().s(\"gm_synth_bass_1\").lpf(1500).room(0.5).color(\"green\").gain(0.9)\n\n,\"<~@11 1@8 ~@16 0@19>\".pickRestart(\n  [\"<5 7 6 3!2> ~ 9 ~ 10 ~ ~ 12 ~ 11 ~ 10 ~ 11 9 ~\"\n  ,\"<6!3 5!3 7!2> ~ 9 ~ 10 ~ ~ 12 ~ 11 ~ 10 ~ 11 9 ~\"\n]).scale(\"c3:minor\").note().s(\"gm_lead_2_sawtooth\").room(0.3).delay(0.3).dfb(0.5).dt(60/128*2).color(\"red\").gain(0.6)\n\n,\"<[2,3] ~@10 0@6 [0,1]@2 [0,2] 0@5 [0,1]@2 [0,2] 0@6 [2,3] 0@8 [0,1]@2 [0,2] 0@8>\".pickRestart(\n [stack(s(\"bd*4\").gain(0.8),s(\"[~ oh]*4\").gain(0.14),s(\"hh*16\").gain(0.09),s(\"[~ cp]*2\").gain(0.4))\n ,s(\"[~ sd!3]!4 [sd*4]!4\").slow(2).gain(run(32).slow(2).mul(1/31).add(0.1).mul(0.4))\n ,s(\"cr\").gain(0.2)\n ,s(\"bd\").gain(0.8)\n ]).bank(\"RolandTR909\").room(0.2).color(\"yellow\").velocity(1)\n \n)",
+            voice: "silence",
+            fx: "silence",
+        }),
+        requiredTracks: ["melody"],
+        qualityNotes: ['Authentic cover of The Rhythm of the Night', 'Cleaned syntax and sanitised helpers'],
+    },
+    stranger_things: {
+        id: 'stranger_things',
+        aliases: ["stranger things theme","stranger things theme","stranger things theme song"],
+        intentTags: ['cover', 'stranger_things'],
+        bpm: 168,
+        key: 'C major',
+        scale: 'C major',
+        thought: "Stranger Things Netflix theme. Bass and melody separated.",
+        tracks: tracks({
+            drums: "silence",
+            bass: "\"<a1 e2>/8\".clip(0.8).struct(\"x*8\").s(\"supersaw\").note()",
+            melody: "n(\"0 2 4 6 7 6 4 2\")\n  .scale(\"<c3:major>/2\")\n  .s(\"supersaw\")\n  .distort(0.7)\n  .superimpose((x) => x.detune(\"<0.5>\"))\n  .lpenv(perlin.slow(3).range(1, 4))\n  .lpf(perlin.slow(2).range(100, 2000))\n  .gain(0.3)",
+            voice: "silence",
+            fx: "silence",
+        }),
+        requiredTracks: ["bass","melody"],
+        qualityNotes: ['Authentic cover of Stranger Things Theme', 'Cleaned syntax and sanitised helpers'],
+    },
+    undertale_determination: {
+        id: 'undertale_determination',
+        aliases: ["determination"],
+        intentTags: ['cover', 'undertale_determination'],
+        bpm: 115,
+        key: 'F# minor',
+        scale: 'F# minor',
+        thought: "Undertale Determination (Toby Fox cover) in F# minor. Full arrangement in melody track.",
+        tracks: tracks({
+            drums: "silence",
+            bass: "silence",
+            melody: "/*@Determination · Toby Fox(cover)\n  @by Claffystic\n  @details: This is an unofficial fanmade content. I made this to learn about Strudel and that's it\n            Reference: https://soundcloud.com/radixan/undertale-determination-midi-in-description\n            Pulled from YouTube description below. (https://www.youtube.com/watch?v=sRLQnlglfrI)\n            \n  Determination · Toby Fox\n  UNDERTALE Soundtrack\n  ℗ Toby Fox under license to Materia Collective\n  Released on: 2015-09-15\n  Producer: Toby Fox\n  Music  Publisher: Materia Collective Music Publishing\n  Composer: Toby Fox\n*/\n\n$lead: note(`<\n[F#5 F5 D#5 C#5 D#5 A#4 C5 ~]\n[G#4 ~ D#5 F5 F#5 ~ G#5 ~]\n[C#6 ~ A#5@5 ~]\n[F#5 F5 D#5 C#5 D#5 A#4 C5 ~]\n[G#4 ~ D#4 F4 F#4 ~ F4 ~]\n[C#4 ~ D#4@5 ~]\n\n[F#5 F5 D#5 C#5 D#5 A#4 C5 ~]\n[G#4 ~ D#5 F5 F#5 ~ G#5 ~]\n[C#6 ~ A#5@5 ~]\n[F#5 F5 D#5 C#5 D#5 A#4 C5 ~]\n[G#4 ~ D#4 F4 F#4 ~ F4 ~]\n[C#4 ~ D#4@5 ~] \n\n[[G#5,F5] [F#5,D#5] [E5,C#5] [D#5,B4] [C#5,A#4] [E5,C#5] [D#5,A#4] ~]\n[[A#4,F#4] ~ [A#4,F#4] [D#5,A#4] [G#5,E5] [F#5,D#5] [E5,C#5] [D#5,B4]]\n[[C#5,A#4] [E5,C#5] [D#5,A#4]@3 ~ [D#4,A#3] [G#4,D#4]]\n[[C#5,A#4] [C5,G#4] [A#4,F#4] [G#4,F4] [A#4,F#4] [C5,G#4] [A#4,F#4] ~]\n[[D#4,A#3] ~ [D#4,A#3] [F4,C#4] [F#4,D#4] ~ [B4,F#4] ~]\n[[D#5,B4]@2 [D5,A#4]@4 ~@2]\n\n[[G#5,F5] [F#5,D#5] [E5,C#5] [D#5,B4] [C#5,A#4] [E5,C#5] [D#5,A#4] ~]\n[[A#4,F#4] ~ [A#4,F#4] [D#5,A#4] [G#5,E5] [F#5,D#5] [E5,C#5] [D#5,B4]]\n[[C#5,A#4] [E5,C#5] [D#5,A#4]@3 ~ [D#4,A#3] [G#4,D#4]]\n[[C#5,A#4] [C5,G#4] [A#4,F#4] [G#4,F4] [A#4,F#4] [C5,G#4] [A#4,F#4] ~]\n[[D#4,A#3] ~ [D#4,A#3] [F4,C#4] [F#4,D#4] ~ [F4,C#4] ~]\n[[C#4,G#3]@2 [D#4,A#3]@4 ~@2]\n\n[~@8]\n>`).sound(\"square\").room(.5).roomsize(6).gain(.25).detune(\"[-5, 5]\")\n\n$harmony: note(`<\n[~ D#4 F#4 G#4 A#4 F#4 ~ G#4]\n[C5 D#5 C5 G#4 ~ D#4 F4 D#4]\n[G#4 F4 F#4 F4 D#4 C#4 D#4 A#3]\n[~ D#4 F#4 G#4 A#4 F#4 ~ D#4] \n[F#4 G#4 A#4 F#4 ~ D#4 F4 A#4]\n[F4 C#4 F#4 F4 D#4 C#4 D#4 F4]\n\n[~ D#4 F#4 G#4 A#4 F#4 ~ G#4]\n[C5 D#5 C5 G#4 ~ D#4 F4 D#4]\n[G#4 F4 F#4 F4 D#4 C#4 D#4 A#3]\n[~ D#4 F#4 G#4 A#4 F#4 ~ D#4] \n[F#4 G#4 A#4 F#4 ~ D#4 F4 A#4]\n[F4 C#4 F#4 F4 D#4 C#4 D#4 A#3]\n\n[G#3 D#4 G#4 F#4 A#4 G#4 F#4 G#4]\n[D#4 F#4 C#4 D#4 G#3 D#4 G#4 F#4]\n[A#4 G#4 F#4@3 ~@3]\n[~ D#3 C#4 A#3 G#4 F4 D#4 F4]\n[F#4 F4 d#4 F4 F#4 ~@3]\n[B4 ~ G#4 F#4 F4 D#4 D4 F4]\n\n[G#3 D#4 G#4 F#4 A#4 G#4 F#4 G#4]\n[D#4 F#4 C#4 D#4 G#3 D#4 G#4 F#4]\n[A#4 G#4 F#4@3 ~@3]\n[~@8]\n[~@2 D#4 F4 F#4 ~ F4 ~]\n[C#4@2 D#4@4 ~@2]\n\n[~@8]\n>`)",
+            voice: "silence",
+            fx: "silence",
+        }),
+        requiredTracks: ["melody"],
+        qualityNotes: ['Authentic cover of Determination', 'Cleaned syntax and sanitised helpers'],
+    },
+    shostakovich_waltz: {
+        id: 'shostakovich_waltz',
+        aliases: ["waltz #2","shostakovich waltz 2","waltz 2"],
+        intentTags: ['cover', 'shostakovich_waltz'],
+        bpm: 180,
+        key: 'C minor',
+        scale: 'C minor',
+        thought: "Dmitri Shostakovich Waltz #2 cover in C minor. Full arrangement in melody track.",
+        tracks: tracks({
+            drums: "silence",
+            bass: "silence",
+            melody: "// \"Waltz #2\" (cps function demo)\n// composed @by Dmitri Shostakovich\n// script @by eefano\nsetDefaultVoicings('legacy')\n\nmelody: \"<~@4 0@16 1@7 2@11.5 ~@3.5>\".pickRestart([\n  `<4 [2@2 1] [0@4 0 1]@2 [2 0 2] [4@2 5] 4 3 \n    3 [1@2 0] [0b@4 -3 0b]@2 [1 0b 1] [3 4 5] 4b 4>`,\n    \"<[9,7] [[8,6]@2 [7,5]] [[6,4]@2 [5,3]] [3,0] [8,6] [[7,5]@2 [6,4]] [6,4]>\", \n  \"<[~ [2 ~] [3 ~]] [[4 ~] [4 3] [4 5]] [[3 ~] [3 2] [3 4]] [[2 ~] ~ [4 ~]] > \".sub(\"<0 0 [0,2]>/4\") ])\n      .scale(\"c4:minor\").note().s(\"gm_oboe:2\").gain(0.7)\n   \npiano: \"<0@28 1@10 0@4>\".pickRestart([\n     n(\"<<0 -1> [4,5]!2>*3\").chord(\"<Cm@10 Fm@4 G@4 Cm@4 Fm@2 Bb@2 Eb Ab>\"),\n     n(\"<3 <[4,5] > ~>*3\").chord(\"<G Ab Cm Ab>\")\n          ]).anchor('f2').mode('root').voicing().piano()\n\ntempochanges: cps(sine.segment(32).slow(16).mul(30).add(160).div(60*3)).gain(0)\n\nall(x=>x\n  //.ribbon(24,16)\n  .room(0.6))",
+            voice: "silence",
+            fx: "silence",
+        }),
+        requiredTracks: ["melody"],
+        qualityNotes: ['Authentic cover of Waltz #2', 'Cleaned syntax and sanitised helpers'],
+    },
+    billie_birds: {
+        id: 'billie_birds',
+        aliases: ["birds of a feather", "birds of feather", "feather"],
+        intentTags: ['cover', 'billie_birds'],
+        bpm: 105,
+        key: 'D major',
+        scale: 'D major',
+        thought: "Birds of a Feather (Billie Eilish cover) in D major. Full arrangement in melody track.",
+        tracks: tracks({
+            drums: "silence",
+            bass: "silence",
+            melody: "/*\n@title BIRDS OF A FEATHER (REMAKE)\n@by saga_3k <https://linktr.ee/saga3k>\n@license CC BY-NC-SA\n*/\n\n// melody (1 bar loop)\nlet m1 = \nnote(\"<[D@3 A@2 ~ D@2] [Cs@2 ~ A@2 ~ Cs@2]>\".add(\"12,24\")).s(\"gm_kalimba:3\").legato(1.5).fast(2)\n.attack(.025).release(.2).lp(1000)\n.room(\".6:2\").postgain(1.5).color('#4dbcf4')\n\n// melody with guitar layer (1 bar loop)\nlet m2 = \nnote(\"<[D@3 A@2 ~ D@2] [Cs@2 ~ A@2 ~ Cs@2]>\".add(\"12,24\"))\n.layer(\nx=>x.s(\"gm_kalimba:3\").legato(1.5).attack(.025).release(.2).lp(1000).room(\".6:2\").postgain(2),\nx=>x.s(\"gm_acoustic_guitar_steel:6\").clip(1.5).release(.2).room(\".6:2\").postgain(1)\n).fast(2)\n\n// drum pattern (1 bar loop)\nlet dr =\nstack( s(\"[bd:<1 0>(<3 1>,8,<0 2>:1.3)] , [~ sd:<15>:2.5]\").note(\"B1\").bank(\"LinnDrum\")\n.decay(.3).room(\".3:2\").fast(2),\n\ns(\"[LinnDrum_hh(<3 2>,8)]\").hp(\"1000\").lp(\"9000\").decay(.3).velocity([\".8 .6\"]).room(\".3:2\").fast(2),\ns(\"sh*8\").note(\"B1\").bank(\"RolandTR808\").room(\".6:2\").velocity(\"[.8 .5]!4\").postgain(1.5).fast(2))\n\n// chord progression (8 bar loop)\nlet chord =\nn(`<[[0,2,4,6] ~!3] ~ ~ ~\n[[-1,0,2,4] ~!3] ~ ~ ~ \n[[1,3,5,7] ~!3]  ~ ~ ~\n[[-2,0,1,3] ~!3]  ~ [[-2,-1,1,3] ~!3] ~ \n>`).scale(\"D:major\").s(\"gm_epiano1:6\")  //gm_epiano1:6 or gm_bandoneon:6\n.decay(1.5).release(.25).lp(2500).delay(\".45:.1:.3\").room(\".6:2\")\n.postgain(1.5).fast(2)\n\n// bass root note (8 bar loop)\nlet bass1note =\nn(\"<0 -1 1 -2>/2\").scale(\"D1:major\").s(\"gm_lead_8_bass_lead:1\")\n.lp(800).clip(.1).attack(.2).release(.12)\n.delay(\".45:.1:.3\").room(\".6:2\")\n.postgain(1.3)\n\n// bassline fast guitar (8 bar loop)\nlet bassline =\nnote(\"<[D2!28 Cs2!4] B1*32 [E2!28 D2!4] A1*32>/2\").s(\"gm_electric_bass_pick\")\n.decay(.5).velocity(rand.range(.7,1).fast(4))\n.lp(1000).compressor(\"-20:20:10:.002:.02\").room(\".6:2\")\n.postgain(1.5).color('white')\n\n// chord progession organ layer (8 bar loop)\nlet chordOrg =\nn(`<[0,2,4,6]\n[-1,0,2,4]\n[1,3,5,7]\n[-2,0,1,3]\n>/2`).scale(\"D2:major\").s(\"gm_church_organ:4\")\n.legato(1).delay(\".45:.1:.3\").room(\".6:2\")\n.postgain(.6)\n\n// chord progession arp layer (8 bar loop)\nlet chordArp =\nn(`<[0 2 4 6]*8\n[-1 0 2 4]*8\n[1 3 5 7]*8\n[-2 0 1 3]*8\n>/2`).scale(\"D4:major\").s(\"gm_electric_guitar_jazz:<2 3>\")\n.legato(.08).delay(\".45:.1:.3\").room(\".6:2\").velocity(saw.range(.8,1).fast(4))\n.juxBy(1,rev())\n.postgain(1.8)\n\n// arrangement\n$:arrange(\n  [2,stack(m1,dr)],\n  [8,s_polymeter(m1,dr,chord,bass1note)],\n  [8,s_polymeter(m1,dr,chord,bass1note,bassline)],\n  [8,s_polymeter(m2,dr,chord,bass1note,bassline,chordArp)],\n  [8,s_polymeter(m2,dr,chord,bass1note,bassline,chordOrg,chordArp)],\n  [4,s_polymeter(m2,dr,chord,bass1note,bassline,chordOrg,chordArp)],\n  [4,s_polymeter(m2,arrange([2,dr],[2,silence]).fast(4),bass1note,bassline,chordOrg)]\n  )",
+            voice: "silence",
+            fx: "silence",
+        }),
+        requiredTracks: ["melody"],
+        qualityNotes: ['Authentic cover of Birds of a Feather', 'Cleaned syntax and sanitised helpers'],
+    },
     generic: {
         id: 'generic',
         aliases: ['music', 'loop'],
@@ -733,7 +980,29 @@ export function inferGenreFromCode(currentCode?: string): GenreKey | null {
     return null;
 }
 
+export function detectSpecificSong(prompt: string): GenreKey | null {
+    const p = prompt.toLowerCase();
+    if (p.includes('blue monday')) return 'blue_monday';
+    if (p.includes('stranger things')) return 'stranger_things';
+    if (p.includes('music 4 machines') || p.includes('music4machines') || (p.includes('grimes') && p.includes('machines'))) return 'grimes_m4m';
+    if (p.includes('360') && (p.includes('charli') || p.includes('xcx'))) return 'charli_360';
+    if (p.includes('birds of a feather') || (p.includes('billie') && p.includes('feather'))) return 'billie_birds';
+    if (p.includes('bug from heaven') || p.includes('bugfromheaven')) return 'bug_from_heaven';
+    if (p.includes('pyramid song') || (p.includes('radiohead') && p.includes('pyramid'))) return 'pyramid_song';
+    if (p.includes('rhythm of the night') || p.includes('rhythmofthenight') || p.includes('rhythm of night')) return 'rhythm_of_the_night';
+    if (p.includes('pump up the jam') || p.includes('pumpupthejam')) return 'pump_up_the_jam';
+    if (p.includes('happy birthday')) return 'happy_birthday';
+    if (p.includes('waltz 2') || p.includes('waltz #2') || p.includes('shostakovich waltz')) return 'shostakovich_waltz';
+    if (p.includes('old macdonald') || p.includes('old mcdonald')) return 'old_macdonald';
+    if (p.includes('determination') || (p.includes('undertale') && p.includes('determination'))) return 'undertale_determination';
+    return null;
+}
+
 export function getTemplateForPrompt(prompt: string, currentCode?: string): GenreTemplate {
+    const songKey = detectSpecificSong(prompt);
+    if (songKey) {
+        return GENRE_TEMPLATES[songKey];
+    }
     if (isMichaelJacksonPrompt(prompt)) {
         return GENRE_TEMPLATES.pop_funk;
     }
@@ -762,6 +1031,7 @@ export function getTemplateForPrompt(prompt: string, currentCode?: string): Genr
 }
 
 export function shouldUseDeterministicTemplate(prompt: string) {
+    if (detectSpecificSong(prompt)) return true;
     if (isMichaelJacksonPrompt(prompt)) return true;
     if (isDrumOnlyPrompt(prompt)) return true;
     if (/\bdrums?\b/i.test(prompt) && /\bblink\s*-?\s*182\b|\bblink182\b/i.test(prompt)) return true;

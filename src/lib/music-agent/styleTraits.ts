@@ -405,6 +405,45 @@ export const GENRE_STYLE_TRAITS: Record<GenreKey, GenreStyleTraits> = {
     humanized_rock: {
         ...templateTraitsFrom('rock', 'humanized_rock', 'Humanized rock with syncopated kick and riff gaps.'),
     },
+    grimes_m4m: {
+        ...templateTraitsFrom('generic', 'grimes_m4m', 'Authentic Grimes Music 4 Machines cover.'),
+    },
+    charli_360: {
+        ...templateTraitsFrom('generic', 'charli_360', 'Authentic Charli XCX 360 cover.'),
+    },
+    bug_from_heaven: {
+        ...templateTraitsFrom('generic', 'bug_from_heaven', 'Authentic Bug From Heaven cover.'),
+    },
+    stranger_things: {
+        ...templateTraitsFrom('generic', 'stranger_things', 'Authentic Stranger Things theme cover.'),
+    },
+    pyramid_song: {
+        ...templateTraitsFrom('generic', 'pyramid_song', 'Authentic Radiohead Pyramid Song cover.'),
+    },
+    rhythm_of_the_night: {
+        ...templateTraitsFrom('generic', 'rhythm_of_the_night', 'Authentic Corona Rhythm of the Night cover.'),
+    },
+    pump_up_the_jam: {
+        ...templateTraitsFrom('generic', 'pump_up_the_jam', 'Authentic Pump Up The Jam cover.'),
+    },
+    happy_birthday: {
+        ...templateTraitsFrom('generic', 'happy_birthday', 'Authentic Happy Birthday song arrangement.'),
+    },
+    shostakovich_waltz: {
+        ...templateTraitsFrom('generic', 'shostakovich_waltz', 'Authentic Shostakovich Waltz #2 cover.'),
+    },
+    old_macdonald: {
+        ...templateTraitsFrom('generic', 'old_macdonald', 'Authentic Old Macdonald traditional song.'),
+    },
+    blue_monday: {
+        ...templateTraitsFrom('generic', 'blue_monday', 'Authentic New Order Blue Monday cover.'),
+    },
+    undertale_determination: {
+        ...templateTraitsFrom('generic', 'undertale_determination', 'Authentic Undertale Determination theme cover.'),
+    },
+    billie_birds: {
+        ...templateTraitsFrom('generic', 'billie_birds', 'Authentic Billie Eilish Birds of a Feather cover.'),
+    },
     generic: {
         genre: 'generic',
         aliases: template('generic').aliases,
@@ -434,6 +473,7 @@ function templateTraitsFrom(baseGenre: GenreKey, genre: GenreKey, arrangement: s
         hiphop: [78, 104],
         dnb: [168, 178],
         drums: [90, 140],
+        generic: [80, 140],
     };
     const baseDescriptions: Partial<Record<GenreKey, Pick<GenreStyleTraits, 'drumFeel' | 'bassRole' | 'harmony' | 'leadRole' | 'soundPalette' | 'density'>>> = {
         rock: {
@@ -484,8 +524,16 @@ function templateTraitsFrom(baseGenre: GenreKey, genre: GenreKey, arrangement: s
             soundPalette: ['synth kick', 'pink snare', 'quiet hats'],
             density: 'balanced',
         },
+        generic: {
+            drumFeel: 'Balanced groove.',
+            bassRole: 'Simple root support.',
+            harmony: 'Safe tonal progression.',
+            leadRole: 'Hook or melody.',
+            soundPalette: ['909 drums', 'synth bass', 'saw/sine hook'],
+            density: 'balanced',
+        },
     };
-    const description = baseDescriptions[baseGenre] || baseDescriptions.drums!;
+    const description = baseDescriptions[baseGenre] || baseDescriptions.generic!;
     return {
         genre,
         aliases: source.aliases,

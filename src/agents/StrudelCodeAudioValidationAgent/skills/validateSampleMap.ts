@@ -55,6 +55,34 @@ const SAMPLE_BANKS: Record<string, BankDefinition> = {
       clave: 1,
     },
   },
+  LinnDrum: {
+    label: 'LinnDrum',
+    samples: { bd: 16, sd: 16, hh: 16, oh: 16, cp: 16, perc: 16, rim: 16, cr: 16, rs: 16 },
+  },
+  linn: {
+    label: 'LinnDrum (alias)',
+    samples: { bd: 16, sd: 16, hh: 16, oh: 16, cp: 16, perc: 16, rim: 16, cr: 16, rs: 16 },
+  },
+  dmx: {
+    label: 'DMX',
+    samples: { bd: 16, sd: 16, hh: 16, oh: 16, cp: 16, perc: 16, rim: 16, cr: 16 },
+  },
+  BossDR110: {
+    label: 'Boss DR-110',
+    samples: { bd: 16, sd: 16, hh: 16, oh: 16, cp: 16, perc: 16, rim: 16, cr: 16 },
+  },
+  KorgDDM110: {
+    label: 'Korg DDM-110',
+    samples: { bd: 16, sd: 16, hh: 16, oh: 16, cp: 16, perc: 16, rim: 16, cr: 16 },
+  },
+  Linn9000: {
+    label: 'Linn 9000',
+    samples: { bd: 16, sd: 16, hh: 16, oh: 16, cp: 16, perc: 16, rim: 16, cr: 16 },
+  },
+  RolandMT32: {
+    label: 'Roland MT-32',
+    samples: { bd: 16, sd: 16, hh: 16, oh: 16, cp: 16, perc: 16, rim: 16, cr: 16, sf: 16, mt: 16, lt: 16 },
+  },
   // Default global sample tokens (no bank prefix needed)
   default: {
     label: 'Global Default',
@@ -98,6 +126,14 @@ const GLOBAL_SAMPLE_TOKENS = new Set([
   // Pitched instrument names used in s() — always valid
   'cello', 'piano', 'guitar', 'violin', 'bass', 'lead', 'pad', 'synth',
   'flute', 'trumpet', 'organ', 'harp', 'strings',
+  // Custom cover-specific sample tokens and General MIDI aliases
+  'vox', 'camera_flash', 'crow', 'space', 'gm_bird_tweet', 'clash', 'sf',
+  'gm_acoustic_guitar_steel', 'gm_pizzicato_strings', 'gm_string_ensemble_1',
+  'gm_lead_2_sawtooth', 'gm_synth_bass_1', 'gm_synth_bass_2', 'gm_fx_brightness',
+  'gm_oboe', 'gm_synth_strings_1', 'gm_harmonica', 'gm_electric_bass_finger',
+  'gm_lead_1_square', 'gm_pad_poly', 'gm_pad_metallic', 'z_sawtooth', 'z_square',
+  'gm_lead_2_sawtooth:0', 'gm_synth_bass_2:0', 'gm_acoustic_guitar_steel:1',
+  'gm_pizzicato_strings:1', 'gm_oboe:2',
   // Misc
   '~', '_',
 ]);

@@ -53,6 +53,19 @@
     { "id": "context-010", "prompt": "come on", "templateId": "repaired_drums", "tags": ["complaint", "repair", "drum-only"] },
     { "id": "context-011", "prompt": "come one", "templateId": "repaired_drums", "tags": ["complaint", "repair", "typo"] },
     { "id": "context-012", "prompt": "techno italo 80s", "templateId": "italo_80s", "tags": ["italo", "80s", "style"] },
-    { "id": "context-013", "prompt": "techno italo 80s again", "templateId": "italo_80s_alt", "tags": ["italo", "80s", "variation"] }
+    { "id": "context-013", "prompt": "techno italo 80s again", "templateId": "italo_80s_alt", "tags": ["italo", "80s", "variation"] },
+    { "id": "song-001", "prompt": "play grimes music 4 machines cover", "templateId": "grimes_m4m", "tags": ["song", "cover", "grimes"] },
+    { "id": "song-002", "prompt": "play charli xcx 360 remix", "templateId": "charli_360", "tags": ["song", "cover", "remix", "charli"] },
+    { "id": "song-003", "prompt": "play bug from heaven by eefano", "templateId": "bug_from_heaven", "tags": ["song", "cover", "eefano"] },
+    { "id": "song-004", "prompt": "play stranger things theme song", "templateId": "stranger_things", "tags": ["song", "theme", "netflix"] },
+    { "id": "song-005", "prompt": "play radiohead pyramid song cover", "templateId": "pyramid_song", "tags": ["song", "cover", "radiohead"] },
+    { "id": "song-006", "prompt": "play rhythm of the night by corona", "templateId": "rhythm_of_the_night", "tags": ["song", "cover", "corona"] },
+    { "id": "song-007", "prompt": "play pump up the jam cover", "templateId": "pump_up_the_jam", "tags": ["song", "cover", "technotronic"] },
+    { "id": "song-008", "prompt": "play happy birthday song", "templateId": "happy_birthday", "tags": ["song", "birthday"] },
+    { "id": "song-009", "prompt": "play shostakovich waltz 2", "templateId": "shostakovich_waltz", "tags": ["song", "classical", "waltz"] },
+    { "id": "song-010", "prompt": "play old macdonald song", "templateId": "old_macdonald", "tags": ["song", "traditional", "children"] },
+    { "id": "song-011", "prompt": "play blue monday remix by new order", "templateId": "blue_monday", "tags": ["song", "cover", "new-order"] },
+    { "id": "song-012", "prompt": "play determination theme from undertale", "templateId": "undertale_determination", "tags": ["song", "theme", "undertale", "toby-fox"] },
+    { "id": "song-013", "prompt": "play billie eilish birds of a feather cover", "templateId": "billie_birds", "tags": ["song", "cover", "billie-eilish", "saga-3k"] }
   ]
 }

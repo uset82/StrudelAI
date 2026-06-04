@@ -6,6 +6,7 @@ import {
     isHumanizePrompt,
     isRepairPrompt,
 } from './genreTemplates';
+import { formatAwesomeStrudelReferencesForPrompt } from './awesomeStrudelReferences';
 
 export type StrudelTrainingExample = {
     id: string;
@@ -289,11 +290,28 @@ const negativeExamples: StrudelTrainingExample[] = [
     },
 ];
 
+const awesomeStrudelSongExamples: StrudelTrainingExample[] = [
+    fromTemplate('song-001', 'play grimes music 4 machines cover', 'grimes_m4m', ['song', 'cover', 'grimes'], ['Reference-inspired Grimes-style synth arrangement', 'Valid track-separated Strudel']),
+    fromTemplate('song-002', 'play charli xcx 360 remix', 'charli_360', ['song', 'cover', 'remix', 'charli'], ['Reference-inspired electropop groove', 'Valid track-separated Strudel']),
+    fromTemplate('song-003', 'play bug from heaven by eefano', 'bug_from_heaven', ['song', 'cover', 'eefano'], ['Reference-inspired guitar song traits', 'Valid track-separated Strudel']),
+    fromTemplate('song-004', 'play stranger things theme song', 'stranger_things', ['song', 'theme', 'netflix'], ['Reference-inspired arpeggiated synth theme', 'Bass and melody split']),
+    fromTemplate('song-005', 'play radiohead pyramid song cover', 'pyramid_song', ['song', 'cover', 'radiohead'], ['Reference-inspired piano and vocal-pad feel', 'Valid track-separated Strudel']),
+    fromTemplate('song-006', 'play rhythm of the night by corona', 'rhythm_of_the_night', ['song', 'cover', 'corona'], ['Reference-inspired Eurodance groove', 'Valid track-separated Strudel']),
+    fromTemplate('song-007', 'play pump up the jam cover', 'pump_up_the_jam', ['song', 'cover', 'technotronic'], ['Reference-inspired 90s dance groove', 'Valid track-separated Strudel']),
+    fromTemplate('song-008', 'play happy birthday song', 'happy_birthday', ['song', 'birthday'], ['Recognizable public-domain melody shape', 'Drums, bass, and melody split']),
+    fromTemplate('song-009', 'play shostakovich waltz 2', 'shostakovich_waltz', ['song', 'classical', 'waltz'], ['Reference-inspired minor waltz feel', 'Valid track-separated Strudel']),
+    fromTemplate('song-010', 'play old macdonald song', 'old_macdonald', ['song', 'traditional', 'children'], ['Traditional melody reference', 'Valid track-separated Strudel']),
+    fromTemplate('song-011', 'play blue monday remix by new order', 'blue_monday', ['song', 'cover', 'new-order'], ['Reference-inspired Blue Monday traits', 'Valid track-separated Strudel']),
+    fromTemplate('song-012', 'play determination theme from undertale', 'undertale_determination', ['song', 'theme', 'undertale', 'toby-fox'], ['Reference-inspired chiptune square lead', 'Valid track-separated Strudel']),
+    fromTemplate('song-013', 'play billie eilish birds of a feather cover', 'billie_birds', ['song', 'cover', 'billie-eilish'], ['Reference-inspired soft pop guitar traits', 'Valid track-separated Strudel'])
+];
+
 export const STRUDEL_TRAINING_CORPUS: StrudelTrainingExample[] = [
     ...rockFamilyExamples,
     ...broadGenreExamples,
     ...drumIntentExamples,
     ...contextualCorrectionExamples,
+    ...awesomeStrudelSongExamples,
     ...negativeExamples,
 ];
 
@@ -332,7 +350,8 @@ export function getRelevantTrainingExamples(prompt: string, limit = 4) {
 
 export function formatTrainingExamplesForPrompt(prompt: string, limit = 3) {
     const examples = getRelevantTrainingExamples(prompt, limit);
-    if (examples.length === 0) return '';
+    const awesomeReferences = formatAwesomeStrudelReferencesForPrompt(prompt, 2);
+    if (examples.length === 0 && !awesomeReferences) return '';
 
     const lines = ['## RETRIEVED CURATED EXAMPLES'];
     for (const example of examples) {
@@ -343,5 +362,6 @@ export function formatTrainingExamplesForPrompt(prompt: string, limit = 3) {
         lines.push(`Tracks: ${JSON.stringify(example.expected.tracks)}`);
         lines.push(`Quality: ${example.qualityNotes.join('; ')}`);
     }
+    if (awesomeReferences) lines.push(awesomeReferences);
     return lines.join('\n');
 }
