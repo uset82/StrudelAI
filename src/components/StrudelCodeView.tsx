@@ -340,9 +340,9 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
                 </div>
             )}
 
-            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-white/[0.07] bg-[#101010] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
-                <div className="flex h-8 shrink-0 items-center justify-between border-b border-white/[0.06] bg-[#151515] px-3">
-                    <span className="text-xs text-[#7d8590]">javascript</span>
+            <div className="strudel-code-shell relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-white/[0.08] bg-[#0d0f12] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
+                <div className="flex h-8 shrink-0 items-center justify-between border-b border-white/[0.06] bg-[#121417] px-3">
+                    <span className="text-xs text-[#8a94a6]">javascript</span>
                     <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.12em] text-[#4b5563]">
                         {isLoadingCompletion && (
                             <>
@@ -367,7 +367,7 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
                     {/* Highlighted code view behind the textarea */}
                     <pre
                         ref={highlightRef}
-                        className="studio-scrollbar pointer-events-none absolute inset-0 z-0 h-full w-full overflow-hidden whitespace-pre py-3 pl-16 pr-4 font-mono text-[13px] leading-6 text-[#e6edf3] max-sm:pl-12 max-sm:text-base max-sm:leading-6"
+                        className="strudel-code-highlight studio-scrollbar pointer-events-none absolute inset-0 z-0 h-full w-full overflow-hidden whitespace-pre py-3 pl-16 pr-4 font-mono text-[13px] leading-6 text-[#e6edf3] max-sm:pl-12 max-sm:text-base max-sm:leading-6"
                         dangerouslySetInnerHTML={{ __html: combinedHtml }}
                         aria-hidden="true"
                     />
@@ -513,25 +513,25 @@ function highlightJS(code: string): string {
 
     return escaped.replace(tokenRegex, (match, comment, string, number, keyword, func, punctuation, operator) => {
         if (comment) {
-            return `<span class="text-sky-300/60 italic font-normal">${comment}</span>`;
+            return `<span class="strudel-token strudel-token-comment">${comment}</span>`;
         }
         if (string) {
-            return `<span class="text-lime-300 font-normal">${string}</span>`;
+            return `<span class="strudel-token strudel-token-string">${string}</span>`;
         }
         if (number) {
-            return `<span class="text-violet-300 font-medium">${number}</span>`;
+            return `<span class="strudel-token strudel-token-number">${number}</span>`;
         }
         if (keyword) {
-            return `<span class="text-amber-400 font-bold">${keyword}</span>`;
+            return `<span class="strudel-token strudel-token-keyword">${keyword}</span>`;
         }
         if (func) {
-            return `<span class="text-yellow-300 font-semibold">${func}</span>`;
+            return `<span class="strudel-token strudel-token-function">${func}</span>`;
         }
         if (punctuation) {
-            return `<span class="text-[#7d8590]">${punctuation}</span>`;
+            return `<span class="strudel-token strudel-token-punctuation">${punctuation}</span>`;
         }
         if (operator) {
-            return `<span class="text-cyan-300/70">${operator}</span>`;
+            return `<span class="strudel-token strudel-token-operator">${operator}</span>`;
         }
         return match;
     });

@@ -296,7 +296,7 @@ export function useSonicSocket() {
             .join('|');
         const hash = `${state.bpm}:${state.isPlaying}:${trackPatterns}`;
 
-        if (hash !== lastDisplayedRef.current) {
+        if (hash !== lastDisplayedRef.current || currentCodeRef.current.trim() !== displayCode.trim()) {
             lastDisplayedRef.current = hash;
             setCurrentCode(displayCode);
         }
@@ -429,6 +429,56 @@ export function useSonicSocket() {
         }
         return p;
     }, []);
+
+    const applyAgentTrackUpdate = useCallback((
+        baseState: SonicSessionState,
+        data: { bpm?: unknown; thought?: unknown; tracks?: unknown }
+    ): SonicSessionState => {
+        const nextState: SonicSessionState = {
+            ...baseState,
+            tracks: { ...baseState.tracks },
+            trackDescription: typeof data.thought === 'string' ? data.thought : baseState.trackDescription,
+        };
+
+        if (typeof data.bpm === 'number' && Number.isFinite(data.bpm)) {
+            nextState.bpm = Math.max(40, Math.min(240, Math.round(data.bpm)));
+        }
+
+        const incomingTracks = data.tracks && typeof data.tracks === 'object'
+            ? data.tracks as Record<string, unknown>
+            : null;
+
+        if (incomingTracks) {
+            Object.entries(incomingTracks).forEach(([key, pattern]) => {
+                if (!(key in nextState.tracks)) return;
+
+                const trackId = key as InstrumentType;
+                const patternText = typeof pattern === 'string' ? pattern : String(pattern ?? '');
+                const trimmed = patternText.trim();
+                const lowered = trimmed.toLowerCase();
+
+                if (trimmed && lowered !== 'null' && lowered !== 'silence') {
+                    nextState.tracks[trackId] = {
+                        ...nextState.tracks[trackId],
+                        pattern: normalizeLocalPattern(trackId, trimmed),
+                        muted: false,
+                    };
+                    return;
+                }
+
+                if (lowered === 'silence' || lowered === 'null') {
+                    nextState.tracks[trackId] = {
+                        ...nextState.tracks[trackId],
+                        pattern: 'expr:silence',
+                        muted: false,
+                    };
+                }
+            });
+        }
+
+        nextState.isPlaying = true;
+        return nextState;
+    }, [normalizeLocalPattern]);
 
     // ... (existing code)
 
@@ -586,56 +636,10 @@ export function useSonicSocket() {
                     setMessages(prev => [...prev, `AI Thought: ${data.thought}`]);
                 }
 
-                // Update local state with new tracks
-                setState(prevState => {
-                    const baseState = createBaseState(prevState);
-
-                    const nextState = {
-                        ...baseState,
-                        tracks: { ...baseState.tracks },
-                        trackDescription: data.thought || baseState.trackDescription
-                    };
-
-                    // Optional tempo update (keeps the engine locked to a stable BPM)
-                    if (typeof data.bpm === 'number' && Number.isFinite(data.bpm)) {
-                        nextState.bpm = Math.max(40, Math.min(240, Math.round(data.bpm)));
-                    }
-
-                    // Apply updates - tracks with patterns get updated, tracks with null/silence get cleared/preserved
-                    if (data.tracks) {
-                        Object.entries(data.tracks).forEach(([key, pattern]) => {
-                            if (key in nextState.tracks) {
-                                const trackId = key as InstrumentType;
-                                const patternText = typeof pattern === 'string' ? pattern : String(pattern ?? '');
-                                const trimmed = patternText.trim();
-                                if (trimmed && trimmed !== 'null' && trimmed !== 'silence') {
-                                    // Update track with new pattern
-                                    nextState.tracks[trackId] = {
-                                        ...nextState.tracks[trackId],
-                                        pattern: normalizeLocalPattern(trackId, trimmed),
-                                        muted: false // Unmute if updated
-                                    };
-                                } else if (trimmed === 'silence' || trimmed === 'null') {
-                                    // Explicitly clear/silence track if it is 'silence' or 'null'
-                                    nextState.tracks[trackId] = {
-                                        ...nextState.tracks[trackId],
-                                        pattern: 'expr:silence',
-                                        muted: false
-                                    };
-                                }
-                                // Note: We don't clear patterns for null tracks (empty trimmed) - 
-                                // this preserves existing patterns when user adds new layers
-                                // If user wants to clear, they should say "clear" or "stop"
-                            }
-                        });
-                    }
-
-                    // Ensure playing
-                    nextState.isPlaying = true;
-
-                    console.log('[useSonicSocket] Updated state from tracks:', nextState);
-                    return nextState;
-                });
+                const nextState = applyAgentTrackUpdate(createBaseState(stateRef.current), data);
+                console.log('[useSonicSocket] Updated state from tracks:', nextState);
+                setState(nextState);
+                setCurrentCode(buildStrudelCode(nextState));
 
                 // Check if this was a YouTube analysis
                 if (data.youtube) {
@@ -728,7 +732,7 @@ export function useSonicSocket() {
         } finally {
             setIsThinking(false);
         }
-    }, [ensureAudioReady, isAudioReady, createBaseState, normalizeLocalPattern]);
+    }, [ensureAudioReady, isAudioReady, createBaseState, normalizeLocalPattern, applyAgentTrackUpdate]);
 
     const startSession = useCallback(async () => {
         try {
