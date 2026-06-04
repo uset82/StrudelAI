@@ -183,10 +183,16 @@ function validateIntentRequirements(tracks: TrackMap, prompt: string, intent: Mu
         return issues;
     }
 
-    const expectsDrumOnly = intent.isDrumOnly || (
+    const expectsDrumOnly = (
         intent.targetTracks.length === 1 &&
         intent.targetTracks[0] === 'drums' &&
-        intent.clearTracks.some((trackId) => trackId !== 'drums')
+        (
+            intent.kind === 'track_only' ||
+            intent.kind === 'modify_current_track' ||
+            intent.kind === 'style_reference' ||
+            intent.kind === 'repair_current_context' ||
+            intent.clearTracks.some((trackId) => trackId !== 'drums')
+        )
     );
 
     if (expectsDrumOnly) {
@@ -205,6 +211,11 @@ function validateIntentRequirements(tracks: TrackMap, prompt: string, intent: Mu
             const drums = tracks.drums || '';
             if (!/\*16|\[[^\]]+\]|c6\*16/i.test(drums)) {
                 issues.push({ trackId: 'drums', reason: 'pop-punk drum reference needs fast hats or energetic subdivisions' });
+            }
+            if (!/(?:RolandTR(?:808|909)_bd|\bbd\b|kick)/i.test(drums) ||
+                !/(?:RolandTR(?:808|909)_sd|\bsd\b|snare)/i.test(drums) ||
+                !/(?:RolandTR(?:808|909)_hh|\bhh\b|hat)/i.test(drums)) {
+                issues.push({ trackId: 'drums', reason: 'pop-punk drum reference needs sample-safe kick, snare, and hat roles' });
             }
         }
 

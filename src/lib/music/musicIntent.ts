@@ -4,6 +4,7 @@ import {
     detectGenre,
     isDoubleTapDrumPrompt,
     isDrumOnlyPrompt,
+    isMichaelJacksonPrompt,
     isHumanizePrompt,
     isRepairPrompt,
 } from './genreTemplates';
@@ -145,12 +146,17 @@ function parseRequestedBpm(prompt: string) {
 }
 
 function buildIntent(params: Omit<MusicIntent, 'currentBpm' | 'isDrumOnly'>, context: MusicContext): MusicIntent {
+    const targetsOnlyDrums = params.targetTracks.length === 1 && params.targetTracks[0] === 'drums';
     return {
         ...params,
         currentBpm: context.currentBpm,
-        isDrumOnly: params.targetTracks.length === 1 && params.targetTracks[0] === 'drums'
-            ? true
-            : context.isDrumOnly,
+        isDrumOnly: targetsOnlyDrums && (
+            params.kind === 'track_only' ||
+            params.kind === 'modify_current_track' ||
+            params.kind === 'style_reference' ||
+            params.kind === 'repair_current_context' ||
+            params.clearTracks.some((trackId) => trackId !== 'drums')
+        ),
     };
 }
 
@@ -230,6 +236,19 @@ export function routeMusicIntent(prompt: string, context: MusicContext): MusicIn
             referenceStyle: 'pop-punk drum traits',
             nextBpm: 176,
             reason: 'Artist reference mapped to safe pop-punk drum traits, not exact imitation.',
+        }, context);
+    }
+
+    if (isMichaelJacksonPrompt(normalized)) {
+        return buildIntent({
+            kind: 'create_full_style',
+            targetTracks: ['drums', 'bass', 'melody'],
+            preserveTracks: [],
+            clearTracks: [],
+            templateId: 'pop_funk',
+            referenceStyle: 'safe pop-funk dance traits',
+            nextBpm: 116,
+            reason: 'Artist reference mapped to safe pop-funk dance traits, not exact imitation.',
         }, context);
     }
 

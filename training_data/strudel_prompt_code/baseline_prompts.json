@@ -120,6 +120,13 @@
       "currentOutputSummary": "Follow-up could add chaotic rhythms or switch genres.",
       "failureLabels": ["context-loss", "bad-humanization", "overcomplicated-response"],
       "acceptanceTarget": "Preserve the current context and add controlled syncopation, rests, and variation."
+    },
+    {
+      "id": "baseline-018",
+      "prompt": "play some michael jackson",
+      "currentOutputSummary": "Model risk: generic C-minor fallback or stale drum-only validation after a previous drum request.",
+      "failureLabels": ["generic-fallback", "drum-only-carryover", "artist-copy-risk"],
+      "acceptanceTarget": "Original pop-funk groove with drums, syncopated bass, short hook, and no copied melody."
     }
   ]
 }

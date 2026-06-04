@@ -8,6 +8,7 @@ export type GenreKey =
     | 'punk'
     | 'metal'
     | 'funk'
+    | 'pop_funk'
     | 'pop'
     | 'jazz'
     | 'hiphop'
@@ -132,6 +133,23 @@ export const GENRE_TEMPLATES: Record<GenreKey, GenreTemplate> = {
         }),
         requiredTracks: ['drums', 'bass'],
         qualityNotes: ['Syncopation stays readable', 'Bass leads the groove'],
+    },
+    pop_funk: {
+        id: 'pop_funk',
+        aliases: ['pop funk', 'dance pop funk', 'michael jackson', 'mj pop'],
+        intentTags: ['pop-funk', 'dance-pop', 'funk', 'artist-reference'],
+        bpm: 116,
+        key: 'F minor',
+        scale: 'F minor pentatonic',
+        thought: 'Pop-funk dance traits: tight backbeat, syncopated bass, and a bright short hook without copying any artist melody.',
+        tracks: tracks({
+            drums: "stack(s('RolandTR808_bd ~ ~ RolandTR808_bd ~ RolandTR808_bd ~ ~').gain(0.9), s('~ ~ RolandTR909_sd ~ ~ ~ RolandTR909_sd ~').gain(0.72).hpf(520), s('RolandTR909_hh*16').gain(0.16).hpf(7000), s('~ RolandTR909_cp ~ ~ ~ RolandTR909_cp ~ ~').gain(0.26).hpf(1400))",
+            bass: "note(m('f1 ~ f1 ab1 ~ c2 eb2 ~')).s('triangle').att(0.006).decay(0.15).lpf(760).gain(0.72)",
+            melody: "note(m('~ f4 ab4 ~ c5 ~ eb5 c5')).s('square').att(0.004).decay(0.08).hpf(520).lpf(3400).gain(0.3)",
+            fx: "s('pink').hpf(sine.range(1800, 7000).slow(8)).gain(sine.range(0.025, 0.09).slow(8)).room(0.18)",
+        }),
+        requiredTracks: ['drums', 'bass', 'melody'],
+        qualityNotes: ['Safe artist reference maps to genre traits only', 'Syncopated bass', 'Short hook is original', 'Dance-pop backbeat'],
     },
     pop: {
         id: 'pop',
@@ -511,16 +529,16 @@ export const GENRE_TEMPLATES: Record<GenreKey, GenreTemplate> = {
         bpm: 176,
         key: 'N/A',
         scale: 'N/A',
-        thought: 'Pop-punk drum traits: fast hats, punchy backbeat, and energetic kick doubles without copying any artist.',
+        thought: 'Pop-punk drum traits: loud sample-safe kick doubles, punchy snare backbeat, and fast 16th-note hats without copying any artist.',
         tracks: tracks({
-            drums: "stack(note(m('[c2 c2] ~ c2 ~ c2 ~ [c2 c2] ~')).s('square').decay(0.065).lpf(150).gain(0.78), note(m('~ c4 ~ c4')).s('pink').decay(0.034).hpf(980).gain(0.24), note(m('c6*16')).s('pink').decay(0.009).hpf(8200).gain(0.075), note(m('~ ~ ~ c6 ~ ~ ~ c6')).s('pink').decay(0.015).hpf(6500).gain(0.045))",
+            drums: "stack(s('RolandTR909_bd RolandTR909_bd ~ RolandTR909_bd ~ RolandTR909_bd RolandTR909_bd ~').gain(1.04).lpf(270), s('~ ~ RolandTR909_sd ~ ~ ~ RolandTR909_sd ~').gain(0.78).hpf(520), s('RolandTR909_hh*16').gain(0.26).hpf(6800), s('~ ~ ~ RolandTR909_oh ~ ~ ~ RolandTR909_oh').gain(0.16).hpf(5400))",
             bass: 'silence',
             melody: 'silence',
             voice: 'silence',
             fx: 'silence',
         }),
         requiredTracks: ['drums'],
-        qualityNotes: ['Reference maps to genre traits only', 'Fast hats', 'Backbeat remains clear'],
+        qualityNotes: ['Reference maps to genre traits only', 'Fast hats', 'Sample-safe kick and snare', 'Backbeat remains clear'],
     },
     punk_fast_hats: {
         id: 'punk_fast_hats',
@@ -531,7 +549,7 @@ export const GENRE_TEMPLATES: Record<GenreKey, GenreTemplate> = {
         scale: 'N/A',
         thought: 'Fast punk drum-only loop: straight fast hats, backbeat snare, and compact kick accents.',
         tracks: tracks({
-            drums: "stack(note(m('c2 ~ c2 c2 ~ c2 ~ c2')).s('square').decay(0.06).lpf(150).gain(0.76), note(m('~ ~ c4 ~ ~ ~ c4 ~')).s('pink').decay(0.034).hpf(980).gain(0.23), note(m('c6*16')).s('pink').decay(0.008).hpf(8200).gain(0.072))",
+            drums: "stack(s('RolandTR909_bd ~ RolandTR909_bd RolandTR909_bd ~ RolandTR909_bd ~ RolandTR909_bd').gain(0.98).lpf(260), s('~ ~ RolandTR909_sd ~ ~ ~ RolandTR909_sd ~').gain(0.76).hpf(520), s('RolandTR909_hh*16').gain(0.24).hpf(6900))",
             bass: 'silence',
             melody: 'silence',
             voice: 'silence',
@@ -646,6 +664,7 @@ export const GENRE_TEMPLATES: Record<GenreKey, GenreTemplate> = {
 
 const GENRE_PATTERNS: Array<[GenreKey, RegExp]> = [
     ['dnb', /\b(dnb|drum\s*(?:and|&)\s*bass|jungle|breakbeat)\b/i],
+    ['pop_funk', /\b(michael\s+jackson|mj|pop\s*funk|dance\s*pop\s*funk)\b/i],
     ['italo_80s', /\b(italo|italo\s*disco|80s\s*techno|techno\s+italo\s+80s|italo\s+80s)\b/i],
     ['hiphop', /\b(hip\s*hop|hip-hop|rap|boom\s*bap|trap)\b/i],
     ['metal', /\b(metal|heavy\s*metal|chug|double\s*kick)\b/i],
@@ -685,6 +704,10 @@ export function isBroadMusicRequest(prompt: string) {
     return wordCount <= 5 || /\b(play|make|create|generate|start|give\s+me|some|music|loop|beat|song)\b/i.test(p);
 }
 
+export function isMichaelJacksonPrompt(prompt: string) {
+    return /\bmichael\s+jackson\b|\bmj\b/i.test(prompt);
+}
+
 export function isDrumOnlyPrompt(prompt: string) {
     const p = prompt.toLowerCase();
     const explicitOnly = /\b(?:pure|only|just|solo)\s+(?:drums?|percussion|beat|beats)\b/.test(p);
@@ -711,6 +734,9 @@ export function inferGenreFromCode(currentCode?: string): GenreKey | null {
 }
 
 export function getTemplateForPrompt(prompt: string, currentCode?: string): GenreTemplate {
+    if (isMichaelJacksonPrompt(prompt)) {
+        return GENRE_TEMPLATES.pop_funk;
+    }
     if (/\bdrums?\b/i.test(prompt) && /\bblink\s*-?\s*182\b|\bblink182\b/i.test(prompt)) {
         return GENRE_TEMPLATES.pop_punk_drums;
     }
@@ -736,6 +762,7 @@ export function getTemplateForPrompt(prompt: string, currentCode?: string): Genr
 }
 
 export function shouldUseDeterministicTemplate(prompt: string) {
+    if (isMichaelJacksonPrompt(prompt)) return true;
     if (isDrumOnlyPrompt(prompt)) return true;
     if (/\bdrums?\b/i.test(prompt) && /\bblink\s*-?\s*182\b|\bblink182\b/i.test(prompt)) return true;
     if (isRepairPrompt(prompt) || isHumanizePrompt(prompt)) return true;

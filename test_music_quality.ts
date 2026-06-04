@@ -71,6 +71,7 @@ assert.equal(detectGenre('make a guitar riff'), 'rock');
 assert.equal(detectGenre('play fast punk'), 'punk');
 assert.equal(detectGenre('drum and bass'), 'dnb');
 assert.equal(detectGenre('techno italo 80s'), 'italo_80s');
+assert.equal(detectGenre('play some michael jackson'), 'pop_funk');
 
 const fallbackRock = buildFallbackResponse('make a guitar riff', 'fallback');
 assert.equal(fallbackRock.bpm, GENRE_TEMPLATES.rock.bpm);
@@ -187,8 +188,18 @@ assert.equal(blinkDrumsTurn.intent.kind, 'style_reference');
 assert.equal(blinkDrumsTurn.intent.templateId, 'pop_punk_drums');
 assert.match(blinkDrumsTurn.response.thought, /pop-punk|punk/i, 'Blink-182 reference should map to pop-punk traits');
 assert.ok(hasTrack(blinkDrumsTurn.response.tracks.drums), 'pop-punk reference should produce drums');
+assert.match(blinkDrumsTurn.response.tracks.drums || '', /RolandTR909_bd/i, 'pop-punk drums should use audible sample-safe kick material');
+assert.match(blinkDrumsTurn.response.tracks.drums || '', /RolandTR909_hh\*16/i, 'pop-punk drums need energetic 16th-note hats');
+assert.doesNotMatch(blinkDrumsTurn.response.tracks.drums || '', /gain\(0\.075\)|gain\(0\.045\)|lpf\(150\)/i, 'pop-punk drums should not use the old quiet synth placeholder template');
 assert.equal(blinkDrumsTurn.response.tracks.bass, 'silence', 'drums like blink182 should stay drum-only');
 assert.equal(blinkDrumsTurn.response.tracks.melody, 'silence', 'drums like blink182 should stay drum-only');
+
+const awkwardBlinkDrumsTurn = applyIntentTurn('make the drums some blink 182', repairedDrumsTurn.response);
+assert.equal(awkwardBlinkDrumsTurn.intent.kind, 'style_reference');
+assert.equal(awkwardBlinkDrumsTurn.intent.templateId, 'pop_punk_drums');
+assert.match(awkwardBlinkDrumsTurn.response.tracks.drums || '', /RolandTR909_bd/i, 'awkward Blink phrasing should still use audible sample-safe drums');
+assert.equal(awkwardBlinkDrumsTurn.response.tracks.bass, 'silence');
+assert.equal(awkwardBlinkDrumsTurn.response.tracks.melody, 'silence');
 
 const looseBlinkDrumsTurn = applyIntentTurn('some blink182 drums', repairedDrumsTurn.response);
 assert.equal(looseBlinkDrumsTurn.intent.kind, 'style_reference');
@@ -196,6 +207,39 @@ assert.equal(looseBlinkDrumsTurn.intent.templateId, 'pop_punk_drums');
 assert.match(looseBlinkDrumsTurn.response.thought, /pop-punk|punk/i, 'loose Blink phrasing should map to pop-punk traits');
 assert.equal(looseBlinkDrumsTurn.response.tracks.bass, 'silence');
 assert.equal(looseBlinkDrumsTurn.response.tracks.melody, 'silence');
+
+const invalidQuietPopPunkDrums = validateGeneratedTracks({
+    drums: "stack(note(m('[c2 c2] ~ c2 ~ c2 ~ [c2 c2] ~')).s('square').decay(0.065).lpf(150).gain(0.78), note(m('~ c4 ~ c4')).s('pink').decay(0.034).hpf(980).gain(0.24), note(m('c6*16')).s('pink').decay(0.009).hpf(8200).gain(0.075), note(m('~ ~ ~ c6 ~ ~ ~ c6')).s('pink').decay(0.015).hpf(6500).gain(0.045))",
+    bass: 'silence',
+    melody: 'silence',
+    voice: 'silence',
+    fx: 'silence',
+}, 'make the drums some blink 182', undefined, blinkDrumsTurn.intent);
+assert.equal(invalidQuietPopPunkDrums.valid, false, 'old quiet synth pop-punk placeholder should be rejected');
+
+const michaelAfterBlinkContext = buildMusicContext({
+    currentState: {
+        bpm: looseBlinkDrumsTurn.response.bpm,
+        tracks: looseBlinkDrumsTurn.response.tracks,
+    } as unknown as Partial<SonicSessionState>,
+});
+assert.equal(michaelAfterBlinkContext.isDrumOnly, true, 'test setup should reproduce a previous drum-only context');
+const michaelIntent = routeMusicIntent('play some michael jackson', michaelAfterBlinkContext);
+assert.equal(michaelIntent.kind, 'create_full_style');
+assert.equal(michaelIntent.templateId, 'pop_funk');
+const michaelPipeline = buildLocalMusicAgentPipeline({
+    prompt: 'play some michael jackson',
+    context: michaelAfterBlinkContext,
+    intent: michaelIntent,
+    enableOpenRouter: false,
+});
+assert.equal(michaelPipeline.validation.valid, true, JSON.stringify(michaelPipeline.validation.issues));
+assert.ok(hasTrack(michaelPipeline.tracks.drums), 'Michael Jackson-style request should include drums');
+assert.ok(hasTrack(michaelPipeline.tracks.bass), 'Michael Jackson-style request should include bass');
+assert.ok(hasTrack(michaelPipeline.tracks.melody), 'Michael Jackson-style request should include a hook');
+assert.notEqual(michaelPipeline.tracks.bass, 'silence', 'full artist-style request must not inherit drum-only clearing');
+assert.doesNotMatch(michaelPipeline.thought, /drum-only intent|deterministic fallback/i, 'full artist-style request should not expose drum-only validation fallback');
+assert.doesNotMatch(Object.values(michaelPipeline.tracks).join(' '), /c2 ~ eb2 ~ g1 ~ eb2|c4 eb4 g4 bb4/i, 'Michael Jackson-style request should not use generic C-minor fallback notes');
 
 const responseShapedContext = buildMusicContext({
     currentState: {
