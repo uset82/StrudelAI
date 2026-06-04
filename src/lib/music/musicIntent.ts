@@ -207,6 +207,10 @@ function isVocalBedHipHopPrompt(prompt: string) {
         && !/\b(melod(?:y|ic)|hook|lead|topline|piano|sample|chords?|keys|arp|arpeggio)\b/.test(prompt);
 }
 
+function isRapArtistReferencePrompt(prompt: string) {
+    return /\b(eminem|eminen|slim\s+shady)\b/.test(prompt);
+}
+
 function contextLooksLikeItalo(context: MusicContext) {
     const joined = [context.currentCode, ...Object.values(context.tracks).filter(Boolean)]
         .join(' ')
@@ -254,6 +258,19 @@ export function routeMusicIntent(prompt: string, context: MusicContext): MusicIn
             referenceStyle: 'safe pop-funk dance traits',
             nextBpm: 116,
             reason: 'Artist reference mapped to safe pop-funk dance traits, not exact imitation.',
+        }, context);
+    }
+
+    if (isRapArtistReferencePrompt(normalized)) {
+        return buildIntent({
+            kind: 'create_full_style',
+            targetTracks: ['drums', 'bass'],
+            preserveTracks: [],
+            clearTracks: ['melody', 'voice'],
+            templateId: 'hiphop',
+            referenceStyle: 'safe rap vocal-bed traits',
+            nextBpm: 92,
+            reason: 'Artist reference mapped to safe rap vocal-bed traits, not exact imitation.',
         }, context);
     }
 

@@ -30,6 +30,7 @@
     { "id": "metal-004", "prompt": "aggressive guitar metal", "templateId": "metal", "tags": ["metal", "guitar"] },
     { "id": "hiphop-002", "prompt": "play some rap", "templateId": "hiphop", "tags": ["hiphop", "rap", "vocal-space"] },
     { "id": "hiphop-003", "prompt": "something like eminen", "templateId": "hiphop", "tags": ["hiphop", "rap", "artist-reference", "typo", "vocal-space"] },
+    { "id": "hiphop-004", "prompt": "thats no even close to eminen", "templateId": "hiphop", "tags": ["hiphop", "rap", "artist-reference", "complaint", "typo", "vocal-space"] },
     { "id": "drums-001", "prompt": "play some clean drums", "templateId": "clean_drums", "tags": ["drums", "track-only", "context-seed"] },
     { "id": "drums-002", "prompt": "double tap drums", "templateId": "double_tap_drums", "tags": ["drums", "modify-current-track", "contextual-followup"] },
     { "id": "drums-003", "prompt": "triple tap drums", "templateId": "triple_tap_drums", "tags": ["drums", "modify-current-track", "triple-tap"] },

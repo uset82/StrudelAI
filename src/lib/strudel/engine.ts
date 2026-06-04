@@ -566,6 +566,62 @@ function replaceSampleCalls(src: string) {
     });
 }
 
+function prettifyNestedStack(expr: string, indent: string = '  '): string {
+    const trimmed = expr.trim();
+    if (!trimmed.startsWith('stack(') || !trimmed.endsWith(')')) {
+        return expr;
+    }
+
+    const inner = trimmed.slice(6, -1);
+    const tracks: string[] = [];
+    let currentTrack = '';
+    let depth = 0;
+    let inSingleQuote = false;
+    let inDoubleQuote = false;
+
+    for (let i = 0; i < inner.length; i++) {
+        const char = inner[i];
+
+        if (char === "'" && inner[i - 1] !== '\\' && !inDoubleQuote) {
+            inSingleQuote = !inSingleQuote;
+        } else if (char === '"' && inner[i - 1] !== '\\' && !inSingleQuote) {
+            inDoubleQuote = !inDoubleQuote;
+        }
+
+        if (!inSingleQuote && !inDoubleQuote) {
+            if (char === '(' || char === '[' || char === '{') {
+                depth++;
+            } else if (char === ')' || char === ']' || char === '}') {
+                depth--;
+            }
+        }
+
+        if (char === ',' && depth === 0 && !inSingleQuote && !inDoubleQuote) {
+            tracks.push(currentTrack.trim());
+            currentTrack = '';
+        } else {
+            currentTrack += char;
+        }
+    }
+    if (currentTrack.trim()) {
+        tracks.push(currentTrack.trim());
+    }
+
+    if (tracks.length <= 1) {
+        return expr;
+    }
+
+    const childIndent = indent + '  ';
+    const formattedTracks = tracks.map(t => {
+        if (t.startsWith('stack(')) {
+            return prettifyNestedStack(t, childIndent);
+        }
+        return t;
+    });
+
+    return `stack(\n${childIndent}${formattedTracks.join(',\n' + childIndent)}\n${indent})`;
+}
+
 export function buildStrudelCode(state: SonicSessionState) {
     // If arrangement mode is enabled, use the arrangement builder
     if (state.useArrangement && state.arrangement) {
@@ -587,11 +643,21 @@ export function buildStrudelCode(state: SonicSessionState) {
     }
 
     if (tracks.length === 1) {
+        if (tracks[0].startsWith('stack(')) {
+            return prettifyNestedStack(tracks[0], '');
+        }
         return `(${tracks[0]})`;
     }
 
-    // Use single-line format to avoid potential parsing issues
-    return `stack(${tracks.join(', ')})`;
+    // Format each track's stacks recursively and build multi-line stack
+    const formattedTracks = tracks.map(t => {
+        if (t.startsWith('stack(')) {
+            return prettifyNestedStack(t, '  ');
+        }
+        return t;
+    });
+
+    return `stack(\n  ${formattedTracks.join(',\n  ')}\n)`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

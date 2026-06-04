@@ -50,3 +50,4 @@ Use this table during manual listening passes after automated tests pass.
 | calm ambient music | Slow pads, no forced drums, spacious FX | TBD | TBD | TBD | TBD | TBD |
 | drum and bass | 174 BPM, broken beat, rolling bass | TBD | TBD | TBD | TBD | TBD |
 | something like eminen | Safe artist-reference rap traits, punchy half-time drums, low sub bass, no melodic lead unless requested | Prior output used generic C-minor triangle bass and clean sine hook | Fail | Fail | Too melodic; typo missed rap vocal-bed routing | Fail |
+| thats no even close to eminen | Correction stays in safe rap vocal-bed traits with tighter drums/sub and no lead hook | Prior output added a C-minor square-wave hook and saw bass | Fail | Fail | Complaint plus typo still routed to melodic hook behavior | Fail |

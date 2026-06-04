@@ -77,6 +77,13 @@
       "badOutputSummary": "Repeats the exact same generated pattern with no variation.",
       "rejectionReason": "Humanize request must change timing/density while preserving context.",
       "fixTarget": "Add controlled syncopation, riff gaps, fills, or rests without switching genre."
+    },
+    {
+      "id": "negative-012",
+      "prompt": "thats no even close to eminen",
+      "badOutputSummary": "Adds a C-minor saw bass and square-wave hook while claiming grittier Eminem-style energy.",
+      "rejectionReason": "Rap artist-reference correction still crowds the vocal pocket with a melodic lead.",
+      "fixTarget": "Map typo artist complaint to safe rap vocal-bed traits: tighter drums, low sub bass, and silence for melody/voice."
     }
   ]
 }

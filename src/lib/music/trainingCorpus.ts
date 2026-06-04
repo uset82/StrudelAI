@@ -83,6 +83,7 @@ const broadGenreExamples: StrudelTrainingExample[] = [
     fromTemplate('hiphop-001', 'boom bap hip hop beat', 'hiphop', ['hiphop'], ['Half-time drum feel']),
     fromTemplate('hiphop-002', 'play some rap', 'hiphop', ['hiphop', 'rap', 'vocal-space'], ['Rap requests need drums and low bass first', 'No melodic lead unless requested']),
     fromTemplate('hiphop-003', 'something like eminen', 'hiphop', ['hiphop', 'rap', 'artist-reference', 'typo', 'vocal-space'], ['Map misspelled artist reference to safe rap traits only', 'No melodic lead unless requested']),
+    fromTemplate('hiphop-004', 'thats no even close to eminen', 'hiphop', ['hiphop', 'rap', 'artist-reference', 'complaint', 'typo', 'vocal-space'], ['Treat complaint plus misspelled artist reference as safe rap traits', 'Do not add a square-wave hook']),
     fromTemplate('latin-001', 'latin percussion groove', 'latin', ['latin'], ['Bright percussion at low gain']),
     fromTemplate('reggae-001', 'play reggae', 'reggae', ['reggae'], ['Offbeat chord chops']),
     fromTemplate('techno-001', 'dark techno beat', 'techno', ['techno'], ['Four-on-floor remains appropriate']),
@@ -335,6 +336,29 @@ const negativeExamples: StrudelTrainingExample[] = [
         qualityNotes: ['Reject generic C-minor hook for misspelled rap artist prompt', 'Use safe rap traits without copying the artist'],
         negative: true,
         rejectionReason: 'Wrong feel for artist-style rap: generic C-minor melody and sine hook crowd the vocal pocket.',
+    },
+    {
+        id: 'negative-011',
+        version: STRUDEL_CORPUS_VERSION,
+        userPrompt: 'thats no even close to eminen',
+        intentTags: ['negative', 'hiphop', 'rap', 'artist-reference', 'complaint', 'typo', 'too-melodic'],
+        expected: {
+            type: 'update_tracks',
+            thought: 'Rejected: correction prompt added a gritty square-wave hook instead of fixing the rap vocal pocket.',
+            bpm: 92,
+            tracks: {
+                drums: "stack(s('RolandTR909_bd ~ RolandTR909_bd ~ RolandTR909_bd ~ ~ ~').gain(0.85), s('~ ~ RolandTR909_sd ~ ~ ~ RolandTR909_sd ~').gain(0.7).hpf(400), s('RolandTR909_hh*16').gain(0.15).hpf(7000))",
+                bass: "note(m('c2 ~ c2 eb2 ~ g1 ~ bb1')).s('sawtooth').att(0.01).decay(0.25).lpf(600).gain(0.55)",
+                melody: "note(m('c4 ~ eb4 ~ g4 ~ bb4 ~')).s('square').att(0.01).decay(0.15).lpf(1200).gain(0.25)",
+                voice: null,
+                fx: "s('pink').decay(0.1).hpf(2000).gain(0.05)",
+            },
+        },
+        bpm: 92,
+        key: 'F minor',
+        qualityNotes: ['Reject square-wave hook on rap correction prompts', 'Complaint should tighten drums and sub while preserving vocal space'],
+        negative: true,
+        rejectionReason: 'Still too melodic for a rap vocal bed; adding a square hook does not address the artist-reference complaint.',
     },
 ];
 
