@@ -622,42 +622,66 @@ function prettifyNestedStack(expr: string, indent: string = '  '): string {
     return `stack(\n${childIndent}${formattedTracks.join(',\n' + childIndent)}\n${indent})`;
 }
 
+const DISPLAY_TRACK_ORDER: InstrumentType[] = ['drums', 'bass', 'melody', 'voice', 'fx'];
+
+const DISPLAY_TRACK_LABELS: Record<InstrumentType, string> = {
+    drums: 'Drums',
+    bass: 'Bass',
+    melody: 'Melody',
+    voice: 'Voice',
+    fx: 'FX',
+};
+
+function isAudibleDisplayCode(code: string) {
+    const trimmed = code.trim();
+    return Boolean(trimmed) && trimmed !== 'silence' && trimmed !== 's("~")' && trimmed !== "s('~')";
+}
+
+function indentCodeBlock(code: string, indent: string) {
+    return code.split('\n').map((line) => `${indent}${line}`).join('\n');
+}
+
+function formatDisplayTrackExpression(code: string) {
+    const trimmed = code.trim();
+    if (trimmed.startsWith('stack(')) {
+        return prettifyNestedStack(trimmed, '');
+    }
+    return trimmed;
+}
+
 export function buildStrudelCode(state: SonicSessionState) {
     // If arrangement mode is enabled, use the arrangement builder
     if (state.useArrangement && state.arrangement) {
         return buildArrangementCode(state.arrangement);
     }
 
-    // Build simple stacked pattern from tracks
-    // Filter out silent/muted/empty tracks
-    const tracks = [
-        formatTrack(state.tracks.drums),
-        formatTrack(state.tracks.bass),
-        formatTrack(state.tracks.melody),
-        formatTrack(state.tracks.fx),
-        formatTrack(state.tracks.voice)
-    ].filter(t => t !== 'silence' && t !== 's("~")' && t.trim() !== '');
+    const sections = DISPLAY_TRACK_ORDER
+        .map((trackId) => {
+            const code = formatTrack(state.tracks[trackId]);
+            if (!isAudibleDisplayCode(code)) return null;
+            return {
+                trackId,
+                code: formatDisplayTrackExpression(code),
+            };
+        })
+        .filter((section): section is { trackId: InstrumentType; code: string } => Boolean(section));
 
-    if (tracks.length === 0) {
+    if (sections.length === 0) {
         return 'silence';
     }
 
-    if (tracks.length === 1) {
-        if (tracks[0].startsWith('stack(')) {
-            return prettifyNestedStack(tracks[0], '');
-        }
-        return `(${tracks[0]})`;
-    }
+    const lines: string[] = [];
+    sections.forEach((section, index) => {
+        lines.push(`  // ${index + 1}. ${DISPLAY_TRACK_LABELS[section.trackId]}`);
 
-    // Format each track's stacks recursively and build multi-line stack
-    const formattedTracks = tracks.map(t => {
-        if (t.startsWith('stack(')) {
-            return prettifyNestedStack(t, '  ');
+        const expressionLines = indentCodeBlock(section.code, '  ').split('\n');
+        if (index < sections.length - 1) {
+            expressionLines[expressionLines.length - 1] += ',';
         }
-        return t;
+        lines.push(...expressionLines);
     });
 
-    return `stack(\n  ${formattedTracks.join(',\n  ')}\n)`;
+    return `stack(\n${lines.join('\n')}\n)`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

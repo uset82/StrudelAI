@@ -323,11 +323,11 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
     const editorLineCount = Math.max(16, editableCode.split('\n').length + 4);
 
     const highlightedCode = highlightJS(editableCode);
-    const suggestionHtml = suggestion ? `<span class="bg-cyan-300/10 text-cyan-200/70">${escapeHtml(suggestion)}</span>` : '';
+    const suggestionHtml = suggestion ? `<span class="bg-lime-300/10 text-lime-200/70">${escapeHtml(suggestion)}</span>` : '';
     const combinedHtml = highlightedCode + suggestionHtml;
 
     return (
-        <div className="relative flex h-full min-h-0 min-w-0 flex-col font-mono text-[13px] text-slate-100 max-sm:text-base">
+        <div className="relative flex h-full min-h-0 min-w-0 flex-col font-mono text-[13px] text-[#e6edf3] max-sm:text-base">
             {runError && (
                 <div className="mb-3 flex items-center justify-between rounded-md border border-rose-400/20 bg-rose-400/10 px-3 py-2">
                     <div className="text-xs font-medium text-rose-200">{runError}</div>
@@ -340,14 +340,22 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
                 </div>
             )}
 
-            <div className="relative min-h-0 min-w-0 flex-1">
-                {isLoadingCompletion && (
-                    <div className="absolute right-0 top-0 z-30">
-                        <div className="h-2 w-2 animate-pulse rounded-full bg-cyan-300"></div>
+            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-white/[0.07] bg-[#101010] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)]">
+                <div className="flex h-8 shrink-0 items-center justify-between border-b border-white/[0.06] bg-[#151515] px-3">
+                    <span className="text-xs text-[#7d8590]">javascript</span>
+                    <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.12em] text-[#4b5563]">
+                        {isLoadingCompletion && (
+                            <>
+                                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-lime-300" />
+                                <span>Suggesting</span>
+                            </>
+                        )}
                     </div>
-                )}
+                </div>
+
+                <div className="relative min-h-0 min-w-0 flex-1">
                 <div
-                    className="pointer-events-none absolute inset-y-0 left-0 z-20 w-10 border-r border-white/10 pr-2 pt-0 text-right font-mono text-[11px] leading-6 text-slate-700 max-sm:w-8 max-sm:pr-1.5 max-sm:text-[10px] max-sm:leading-5"
+                    className="pointer-events-none absolute inset-y-0 left-0 z-20 w-11 border-r border-white/[0.06] pr-3 pt-3 text-right font-mono text-[11px] leading-6 text-[#3f4652] max-sm:w-9 max-sm:pr-2 max-sm:text-[10px] max-sm:leading-6"
                     aria-hidden="true"
                 >
                     {Array.from({ length: editorLineCount }).map((_, index) => (
@@ -359,7 +367,7 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
                     {/* Highlighted code view behind the textarea */}
                     <pre
                         ref={highlightRef}
-                        className="studio-scrollbar pointer-events-none absolute inset-0 z-0 h-full w-full overflow-hidden whitespace-pre-wrap break-all py-0 pl-14 pr-2 font-mono text-[13px] leading-6 text-slate-100 max-sm:pl-11 max-sm:text-base max-sm:leading-6"
+                        className="studio-scrollbar pointer-events-none absolute inset-0 z-0 h-full w-full overflow-hidden whitespace-pre py-3 pl-16 pr-4 font-mono text-[13px] leading-6 text-[#e6edf3] max-sm:pl-12 max-sm:text-base max-sm:leading-6"
                         dangerouslySetInnerHTML={{ __html: combinedHtml }}
                         aria-hidden="true"
                     />
@@ -370,8 +378,9 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
                         id="strudel-code-editor"
                         name="strudelCode"
                         aria-label="Strudel code editor"
-                        className="studio-scrollbar relative z-10 h-full min-h-[260px] min-w-0 w-full cursor-text resize-none overflow-auto border-none bg-transparent py-0 pl-14 pr-2 font-mono text-[13px] leading-6 text-transparent caret-cyan-200 outline-none placeholder:text-slate-600 focus:outline-none max-sm:pl-11 max-sm:text-base max-sm:leading-6"
+                        className="studio-scrollbar relative z-10 h-full min-h-[260px] min-w-0 w-full cursor-text resize-none overflow-auto whitespace-pre border-none bg-transparent py-3 pl-16 pr-4 font-mono text-[13px] leading-6 text-transparent caret-lime-200 outline-none selection:bg-lime-300/20 placeholder:text-[#5b6470] focus:outline-none max-sm:pl-12 max-sm:text-base max-sm:leading-6"
                         value={editableCode}
+                        wrap="off"
                         onScroll={(e) => {
                             if (highlightRef.current) {
                                 highlightRef.current.scrollTop = e.currentTarget.scrollTop;
@@ -480,6 +489,7 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
                         autoCapitalize="off"
                     />
                 </div>
+                </div>
             </div>
         </div>
     );
@@ -499,25 +509,30 @@ function highlightJS(code: string): string {
     // Number group: (\b\d+(?:\.\d+)?\b)
     // Keyword group: (\b(?:const|let|var|function|return|import|export)\b)
     // Function/Method group: (\b(?:stack|s|gain|hpf|lpf|note|m|att|decay|room|slow|sound|sample|seq|cat|sine|saw|tri|square|pink|noise|cosine|rand|vowel|distort|resonance|delay|bandpass|highpass|lowpass|pan|speed|coarse|mix|room|size)\b)
-    const tokenRegex = /(\/\/[^\n]*)|('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`)|(\b\d+(?:\.\d+)?\b)|(\b(?:const|let|var|function|return|import|export)\b)|(\b(?:stack|s|gain|hpf|lpf|note|m|att|decay|room|slow|sound|sample|seq|cat|sine|saw|tri|square|pink|noise|cosine|rand|vowel|distort|resonance|delay|bandpass|highpass|lowpass|pan|speed|coarse|mix|room|size)\b)/g;
+    const tokenRegex = /(\/\/[^\n]*)|('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`)|(\b\d+(?:\.\d+)?\b)|(\b(?:const|let|var|function|return|import|export)\b)|(\b(?:stack|s|gain|hpf|lpf|note|m|att|decay|sustain|release|room|slow|fast|sound|sample|seq|cat|sine|saw|tri|square|pink|noise|cosine|rand|range|vowel|distort|resonance|delay|bandpass|highpass|lowpass|bandf|cutoff|pan|speed|coarse|mix|size|velocity|trans|add|rev|jux|crush|phaser|chorus|tremolo|leslie|acidenv)\b)|([().,{}\[\]])|(&lt;|&gt;|=&gt;|[-+*/=])/g;
 
-    return escaped.replace(tokenRegex, (match, comment, string, number, keyword, func) => {
+    return escaped.replace(tokenRegex, (match, comment, string, number, keyword, func, punctuation, operator) => {
         if (comment) {
-            return `<span class="text-slate-500 italic font-normal">${comment}</span>`;
+            return `<span class="text-sky-300/60 italic font-normal">${comment}</span>`;
         }
         if (string) {
-            return `<span class="text-emerald-400 font-normal">${string}</span>`;
+            return `<span class="text-lime-300 font-normal">${string}</span>`;
         }
         if (number) {
-            return `<span class="text-violet-400 font-medium">${number}</span>`;
+            return `<span class="text-violet-300 font-medium">${number}</span>`;
         }
         if (keyword) {
-            return `<span class="text-amber-500 font-bold">${keyword}</span>`;
+            return `<span class="text-amber-400 font-bold">${keyword}</span>`;
         }
         if (func) {
-            return `<span class="text-yellow-400 font-semibold">${func}</span>`;
+            return `<span class="text-yellow-300 font-semibold">${func}</span>`;
+        }
+        if (punctuation) {
+            return `<span class="text-[#7d8590]">${punctuation}</span>`;
+        }
+        if (operator) {
+            return `<span class="text-cyan-300/70">${operator}</span>`;
         }
         return match;
     });
 }
-

@@ -305,12 +305,17 @@ const unsupportedDrumOnly = validateGeneratedTracks({
 }, 'only drums', undefined, cleanDrumsTurn.intent);
 assert.equal(unsupportedDrumOnly.valid, false, 'drum-only unsafe methods should be rejected');
 
-const makeTrack = (id: InstrumentType, pattern: string): SonicSessionState['tracks'][InstrumentType] => ({
+const makeTrack = (
+    id: InstrumentType,
+    pattern: string,
+    overrides: Partial<SonicSessionState['tracks'][InstrumentType]> = {},
+): SonicSessionState['tracks'][InstrumentType] => ({
     id,
     name: id,
     pattern,
     muted: false,
     volume: 1,
+    ...overrides,
 });
 
 const displayedCode = buildStrudelCode({
@@ -327,6 +332,45 @@ const displayedCode = buildStrudelCode({
 });
 assert.doesNotMatch(displayedCode, /\.analyze\s*\(/, 'displayed Strudel code should not include analyzer helper calls');
 assert.doesNotMatch(displayedCode, /triangle.*sine|supersaw|c4 eb4 g4/i, 'displayed drum-only code should not include stale tonal layers');
+assert.match(displayedCode, /^stack\(\n/, 'displayed Strudel code should use a root stack');
+assert.match(displayedCode, /\/\/ 1\. Drums\n  stack\(/, 'displayed drum code should include a readable track comment and nested stack');
+assert.doesNotMatch(displayedCode, /\/\/ \d+\. Bass|\/\/ \d+\. Melody|\/\/ \d+\. Voice|\/\/ \d+\. FX/, 'displayed drum-only code should not render silent track sections');
+
+const orderedDisplayedCode = buildStrudelCode({
+    bpm: 128,
+    scale: 'C minor',
+    isPlaying: true,
+    tracks: {
+        drums: makeTrack('drums', "expr:s('RolandTR909_bd*4')"),
+        bass: makeTrack('bass', "expr:note(m('c1 ~ c1 ~')).s('sine').gain(0.7)"),
+        melody: makeTrack('melody', "expr:note(m('c4 eb4 g4 ~')).s('square').gain(0.3)"),
+        voice: makeTrack('voice', "expr:note(m('c4 ~')).s('sawtooth').vowel('a').gain(0.2)"),
+        fx: makeTrack('fx', "expr:s('pink').hpf(7000).gain(0.05)"),
+    },
+});
+const orderedDisplayLabels = ['// 1. Drums', '// 2. Bass', '// 3. Melody', '// 4. Voice', '// 5. FX'];
+let previousDisplayLabelIndex = -1;
+for (const label of orderedDisplayLabels) {
+    const currentIndex = orderedDisplayedCode.indexOf(label);
+    assert.ok(currentIndex > previousDisplayLabelIndex, `expected ${label} after previous display label`);
+    previousDisplayLabelIndex = currentIndex;
+}
+
+const sparseDisplayedCode = buildStrudelCode({
+    bpm: 96,
+    scale: 'C minor',
+    isPlaying: true,
+    tracks: {
+        drums: makeTrack('drums', "expr:s('RolandTR909_bd ~ RolandTR909_sd ~')"),
+        bass: makeTrack('bass', 'expr:silence'),
+        melody: makeTrack('melody', ''),
+        voice: makeTrack('voice', "expr:note(m('c4 ~')).s('sine')", { muted: true }),
+        fx: makeTrack('fx', "expr:s('pink').hpf(8000).gain(0.04)"),
+    },
+});
+assert.match(sparseDisplayedCode, /\/\/ 1\. Drums/, 'sparse display should keep the active drums section');
+assert.match(sparseDisplayedCode, /\/\/ 2\. FX/, 'sparse display should renumber the next active section');
+assert.doesNotMatch(sparseDisplayedCode, /\/\/ \d+\. Bass|\/\/ \d+\. Melody|\/\/ \d+\. Voice/, 'sparse display should skip silent, empty, and muted tracks');
 
 const rockFamilyPositiveCount = STRUDEL_TRAINING_CORPUS.filter((example) =>
     !example.negative && example.intentTags.some((tag) => ['rock', 'punk', 'metal'].includes(tag)),
