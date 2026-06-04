@@ -531,6 +531,7 @@ export function useSonicSocket() {
                 body: JSON.stringify({
                     prompt: trimmed,
                     currentCode: currentCodeRef.current,
+                    currentState: stateRef.current,
                     frequencyData: frequencyDataRef.current  // Send frequency analysis to AI
                 }),
             });

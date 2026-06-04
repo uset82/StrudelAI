@@ -1,5 +1,5 @@
 {
-  "version": "2026-06-04.1",
+  "version": "2026-06-04.2",
   "negativeExamples": [
     {
       "id": "negative-001",
@@ -21,7 +21,34 @@
       "badOutputSummary": "Adds more pink noise, loud hats, distorted bass, and high melody.",
       "rejectionReason": "Repair prompt increased density and harshness.",
       "fixTarget": "Use clean_rock repair: lower gain, lower distortion, fewer layers."
+    },
+    {
+      "id": "negative-004",
+      "prompt": "rock backbeat drums only",
+      "badOutputSummary": "Uses tonal synth notes as fake drums instead of kick, snare, and hat roles.",
+      "rejectionReason": "Generic synth drums pretending to be rock drums.",
+      "fixTarget": "Use drum-only backbeat traits and clear tonal tracks."
+    },
+    {
+      "id": "negative-005",
+      "prompt": "only drums",
+      "badOutputSummary": "Returns a full generic loop with drums, bass, and melody.",
+      "rejectionReason": "Drum-only request accidentally adds bass/melody.",
+      "fixTarget": "Return drums plus silence for bass, melody, voice, and fx."
+    },
+    {
+      "id": "negative-006",
+      "prompt": "thats horrible",
+      "badOutputSummary": "Repairs an active drum-only loop by switching to a clean rock arrangement.",
+      "rejectionReason": "Repair prompt incorrectly switches genres.",
+      "fixTarget": "Repair the active drum loop and keep non-drum tracks silent."
+    },
+    {
+      "id": "negative-007",
+      "prompt": "double tap drums",
+      "badOutputSummary": "Uses .slider(), .bank(), and .analyze() in generated Strudel.",
+      "rejectionReason": "Unsupported Strudel syntax.",
+      "fixTarget": "Sanitize or reject unsupported helpers and use valid subdivided drum notation."
     }
   ]
 }
-

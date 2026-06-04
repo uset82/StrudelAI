@@ -20,7 +20,7 @@ export type StrudelTrainingExample = {
     rejectionReason?: string;
 };
 
-export const STRUDEL_CORPUS_VERSION = '2026-06-04.1';
+export const STRUDEL_CORPUS_VERSION = '2026-06-04.2';
 
 const fromTemplate = (
     id: string,
@@ -88,6 +88,29 @@ const broadGenreExamples: StrudelTrainingExample[] = [
     fromTemplate('dnb-001', 'drum and bass', 'dnb', ['dnb'], ['Fast BPM is explicit']),
 ];
 
+const drumIntentExamples: StrudelTrainingExample[] = [
+    fromTemplate('drums-001', 'play some clean drums', 'clean_drums', ['track-only', 'context-seed'], ['Create only drums', 'Clear bass, melody, voice, and FX']),
+    fromTemplate('drums-002', 'double tap drums', 'double_tap_drums', ['modify-current-track', 'contextual-followup'], ['Change the existing drum pattern', 'Do not replay clean drums']),
+    fromTemplate('drums-003', 'drums like blink182', 'pop_punk_drums', ['style-reference', 'pop-punk'], ['Map to safe pop-punk drum traits only']),
+    fromTemplate('drums-004', 'pop-punk drums', 'pop_punk_drums', ['pop-punk', 'track-only'], ['Fast hats and backbeat', 'No bass or guitar unless requested']),
+    fromTemplate('drums-005', 'punk fast hats', 'punk_fast_hats', ['punk', 'fast-hats'], ['Fast hats carry energy']),
+    fromTemplate('drums-006', 'rock backbeat drums only', 'clean_drums', ['rock', 'backbeat', 'track-only'], ['Backbeat without adding bass or riff']),
+    fromTemplate('drums-007', 'metal double-kick drums', 'metal_double_kick', ['metal', 'double-kick', 'track-only'], ['Double kick without clipping']),
+    fromTemplate('drums-008', 'hip-hop boom bap drums', 'boom_bap_drums', ['hiphop', 'boom-bap', 'track-only'], ['Loose half-time feel']),
+    fromTemplate('drums-009', 'dnb breakbeat drums', 'dnb_breakbeat', ['dnb', 'breakbeat', 'track-only'], ['Fast broken rhythm without bass unless requested']),
+];
+
+const contextualCorrectionExamples: StrudelTrainingExample[] = [
+    fromTemplate('context-001', 'make it faster', 'clean_drums', ['tempo-change', 'contextual-followup'], ['Preserve current tracks and increase BPM in code, not .fast(1.1)']),
+    fromTemplate('context-002', 'make it less even', 'humanized_drums', ['humanize', 'contextual-followup'], ['Humanize active drums without switching genre']),
+    fromTemplate('context-003', 'sounds horrible', 'repaired_drums', ['repair', 'contextual-followup', 'drum-only'], ['Repair active drum loop if only drums are playing']),
+    fromTemplate('context-004', 'too harsh', 'repaired_drums', ['repair', 'harsh', 'drum-only'], ['Lower hat gain and simplify']),
+    fromTemplate('context-005', 'clean it up', 'repaired_drums', ['repair', 'clean', 'drum-only'], ['Simplify current drum context']),
+    fromTemplate('context-006', 'more human', 'humanized_drums', ['humanize', 'drum-only'], ['Controlled syncopation, not random Euclidean chaos']),
+    fromTemplate('context-007', 'only drums', 'clean_drums', ['track-only', 'clear-tracks'], ['Clear bass, melody, voice, and FX']),
+    fromTemplate('context-008', 'remove melody', 'clean_drums', ['clear-track', 'contextual-followup'], ['Clear melody without inventing a new full genre']),
+];
+
 const negativeExamples: StrudelTrainingExample[] = [
     {
         id: 'negative-001',
@@ -152,11 +175,93 @@ const negativeExamples: StrudelTrainingExample[] = [
         negative: true,
         rejectionReason: 'Overcomplicated and harsh for a repair request.',
     },
+    {
+        id: 'negative-004',
+        version: STRUDEL_CORPUS_VERSION,
+        userPrompt: 'rock backbeat drums only',
+        intentTags: ['negative', 'drums', 'wrong-sound-source'],
+        expected: {
+            type: 'update_tracks',
+            thought: 'Rejected: generic synth blips are not a convincing rock drum backbeat.',
+            bpm: 120,
+            tracks: {
+                drums: "note(m('c4 eb4 g4 bb4')).s('sawtooth').gain(0.7)",
+                bass: null,
+                melody: null,
+                voice: null,
+                fx: null,
+            },
+        },
+        bpm: 120,
+        key: 'N/A',
+        qualityNotes: ['Reject tonal synth pretending to be drums'],
+        negative: true,
+        rejectionReason: 'Drum request produced melodic synth material instead of kick/snare/hat roles.',
+    },
+    {
+        id: 'negative-005',
+        version: STRUDEL_CORPUS_VERSION,
+        userPrompt: 'only drums',
+        intentTags: ['negative', 'drum-only', 'extra-tracks'],
+        expected: {
+            type: 'update_tracks',
+            thought: 'Rejected: drum-only requests must not add bass or melody.',
+            bpm: 120,
+            tracks: GENRE_TEMPLATES.generic.tracks,
+        },
+        bpm: 120,
+        key: 'C minor',
+        qualityNotes: ['Do not use full-song fallback for track-only prompts'],
+        negative: true,
+        rejectionReason: 'Drum-only request accidentally added bass and melody.',
+    },
+    {
+        id: 'negative-006',
+        version: STRUDEL_CORPUS_VERSION,
+        userPrompt: 'thats horrible',
+        intentTags: ['negative', 'repair', 'wrong-genre'],
+        expected: {
+            type: 'update_tracks',
+            thought: 'Rejected: active drum repair switched to rock arrangement.',
+            bpm: GENRE_TEMPLATES.clean_rock.bpm,
+            tracks: GENRE_TEMPLATES.clean_rock.tracks,
+        },
+        bpm: GENRE_TEMPLATES.clean_rock.bpm,
+        key: 'E minor',
+        qualityNotes: ['Contextual repair must preserve active drum-only scope'],
+        negative: true,
+        rejectionReason: 'Repair prompt changed genre instead of repairing the current drum loop.',
+    },
+    {
+        id: 'negative-007',
+        version: STRUDEL_CORPUS_VERSION,
+        userPrompt: 'double tap drums',
+        intentTags: ['negative', 'unsupported-syntax', 'drum-only'],
+        expected: {
+            type: 'update_tracks',
+            thought: 'Rejected: unsupported helpers are not valid Strudel in this app.',
+            bpm: 120,
+            tracks: {
+                drums: "s('RolandTR909_bd*4').slider('density').bank('RolandTR909').analyze(1)",
+                bass: 'silence',
+                melody: 'silence',
+                voice: 'silence',
+                fx: 'silence',
+            },
+        },
+        bpm: 120,
+        key: 'N/A',
+        qualityNotes: ['Reject .slider(), .bank(), and .analyze()'],
+        negative: true,
+        rejectionReason: 'Unsupported Strudel syntax should be sanitized or rejected.',
+    },
 ];
 
 export const STRUDEL_TRAINING_CORPUS: StrudelTrainingExample[] = [
     ...rockFamilyExamples,
     ...broadGenreExamples,
+    ...drumIntentExamples,
+    ...contextualCorrectionExamples,
     ...negativeExamples,
 ];
 
@@ -208,4 +313,3 @@ export function formatTrainingExamplesForPrompt(prompt: string, limit = 3) {
     }
     return lines.join('\n');
 }
-

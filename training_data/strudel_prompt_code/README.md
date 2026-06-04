@@ -1,6 +1,6 @@
 # Strudel Prompt-To-Code Training Data
 
-Version: 2026-06-04.1
+Version: 2026-06-04.2
 
 This folder is separate from `training_data/` MusicGen audio samples. These files train and evaluate Aether's Strudel code-generation behavior: natural-language prompt in, valid `/api/agent` JSON out.
 
@@ -13,6 +13,8 @@ This folder is separate from `training_data/` MusicGen audio samples. These file
 - [x] Sound-source policy documented.
 - [x] Rock-family corpus prioritized with 25 positive examples.
 - [x] Negative examples included for wrong genre, unsupported syntax, and harsh repair behavior.
+- [x] Contextual drum transcript examples included for clean drums, double-tap edits, tempo edits, repairs, and pop-punk references.
+- [x] Drum-only negative examples included for accidental bass/melody, genre-switch repair, fake drum synthesis, and unsupported syntax.
 - [x] Maintenance loop documented.
 
 ## Sound-Source Policy
@@ -31,6 +33,7 @@ This folder is separate from `training_data/` MusicGen audio samples. These file
 - Broad rock-family requests require drums, bass, and a guitar-like riff/chord track.
 - Repair requests should simplify the mix, reduce distortion/gain, and avoid adding noisy layers.
 - Humanize requests should add controlled syncopation without destroying the groove.
+- Drum-only and tempo-only follow-ups should preserve context instead of falling back to a new full genre.
 
 ## Maintenance Loop
 
@@ -39,4 +42,3 @@ This folder is separate from `training_data/` MusicGen audio samples. These file
 - Keep corpus versions in each example so weak examples can be removed cleanly.
 - Review broad prompt behavior before expanding new genres.
 - Do not accept examples that are syntactically valid but unpleasant, muddy, or off-genre.
-

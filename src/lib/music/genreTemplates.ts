@@ -1,4 +1,5 @@
 import { InstrumentType } from '@/types/sonic';
+import type { MusicContext, MusicIntent } from './musicIntent';
 
 export type TrackMap = Record<InstrumentType, string | null>;
 
@@ -20,7 +21,15 @@ export type GenreKey =
     | 'acid'
     | 'minimal'
     | 'drums'
+    | 'clean_drums'
     | 'double_tap_drums'
+    | 'humanized_drums'
+    | 'repaired_drums'
+    | 'pop_punk_drums'
+    | 'punk_fast_hats'
+    | 'metal_double_kick'
+    | 'boom_bap_drums'
+    | 'dnb_breakbeat'
     | 'clean_rock'
     | 'humanized_rock'
     | 'generic';
@@ -312,6 +321,24 @@ export const GENRE_TEMPLATES: Record<GenreKey, GenreTemplate> = {
         requiredTracks: ['drums', 'bass'],
         qualityNotes: ['Sparse', 'No melody unless requested'],
     },
+    clean_drums: {
+        id: 'clean_drums',
+        aliases: ['clean drums', 'pure drums', 'drum loop', 'percussion only', 'beat only'],
+        intentTags: ['drums', 'percussion', 'drum-only', 'clean'],
+        bpm: 120,
+        key: 'N/A',
+        scale: 'N/A',
+        thought: 'Clean drum-only loop: kick, snare, and hats only. Clearing tonal tracks so the loop stays drum-only.',
+        tracks: tracks({
+            drums: "stack(note(m('c2 ~ c2 ~')).s('square').decay(0.08).lpf(140).gain(0.78), note(m('~ c4 ~ c4')).s('pink').decay(0.04).hpf(950).gain(0.24), note(m('c6*8')).s('pink').decay(0.012).hpf(7800).gain(0.1))",
+            bass: 'silence',
+            melody: 'silence',
+            voice: 'silence',
+            fx: 'silence',
+        }),
+        requiredTracks: ['drums'],
+        qualityNotes: ['Drum-only means no bass, melody, voice, or FX carryover', 'Use low gain hats', 'Keep layers simple'],
+    },
     drums: {
         id: 'drums',
         aliases: ['drums', 'pure drums', 'drum loop', 'percussion only', 'beat only'],
@@ -347,6 +374,132 @@ export const GENRE_TEMPLATES: Record<GenreKey, GenreTemplate> = {
         }),
         requiredTracks: ['drums'],
         qualityNotes: ['Double hits use mini-notation subdivisions', 'No tonal carryover', 'Hats stay quiet'],
+    },
+    humanized_drums: {
+        id: 'humanized_drums',
+        aliases: ['humanized drums', 'less even drums', 'more human drums'],
+        intentTags: ['drums', 'percussion', 'drum-only', 'humanize', 'syncopated'],
+        bpm: 120,
+        key: 'N/A',
+        scale: 'N/A',
+        thought: 'Humanized drum-only loop: controlled kick variation and a steady snare anchor, with tonal tracks cleared.',
+        tracks: tracks({
+            drums: "stack(note(m('c2 ~ ~ c2 ~ c2 ~ ~')).s('square').decay(0.075).lpf(140).gain(0.74), note(m('~ ~ c4 ~ ~ ~ c4 ~')).s('pink').decay(0.038).hpf(940).gain(0.22), note(m('c6*8')).s('pink').decay(0.012).hpf(7800).gain(0.085), note(m('~ ~ ~ c6 ~ ~ ~ ~')).s('pink').decay(0.018).hpf(6400).gain(0.05))",
+            bass: 'silence',
+            melody: 'silence',
+            voice: 'silence',
+            fx: 'silence',
+        }),
+        requiredTracks: ['drums'],
+        qualityNotes: ['Adds groove without chaos', 'Keeps snare readable', 'No tonal carryover'],
+    },
+    repaired_drums: {
+        id: 'repaired_drums',
+        aliases: ['repaired drums', 'clean up drums', 'less harsh drums'],
+        intentTags: ['drums', 'percussion', 'drum-only', 'repair', 'clean'],
+        bpm: 120,
+        key: 'N/A',
+        scale: 'N/A',
+        thought: 'Repairing the drum-only loop: simpler kick/snare, lower hat gain, and no added bass or melody.',
+        tracks: tracks({
+            drums: "stack(note(m('c2 ~ c2 ~')).s('square').decay(0.07).lpf(130).gain(0.68), note(m('~ c4 ~ c4')).s('pink').decay(0.035).hpf(900).gain(0.18), note(m('c6 ~ c6 ~')).s('pink').decay(0.01).hpf(7600).gain(0.055))",
+            bass: 'silence',
+            melody: 'silence',
+            voice: 'silence',
+            fx: 'silence',
+        }),
+        requiredTracks: ['drums'],
+        qualityNotes: ['Repair simplifies', 'Lower hats', 'No genre switch'],
+    },
+    pop_punk_drums: {
+        id: 'pop_punk_drums',
+        aliases: ['pop punk drums', 'blink 182 drums', 'blink-182 drums'],
+        intentTags: ['drums', 'percussion', 'drum-only', 'punk', 'pop-punk', 'style-reference'],
+        bpm: 176,
+        key: 'N/A',
+        scale: 'N/A',
+        thought: 'Pop-punk drum traits: fast hats, punchy backbeat, and energetic kick doubles without copying any artist.',
+        tracks: tracks({
+            drums: "stack(note(m('[c2 c2] ~ c2 ~ c2 ~ [c2 c2] ~')).s('square').decay(0.065).lpf(150).gain(0.78), note(m('~ c4 ~ c4')).s('pink').decay(0.034).hpf(980).gain(0.24), note(m('c6*16')).s('pink').decay(0.009).hpf(8200).gain(0.075), note(m('~ ~ ~ c6 ~ ~ ~ c6')).s('pink').decay(0.015).hpf(6500).gain(0.045))",
+            bass: 'silence',
+            melody: 'silence',
+            voice: 'silence',
+            fx: 'silence',
+        }),
+        requiredTracks: ['drums'],
+        qualityNotes: ['Reference maps to genre traits only', 'Fast hats', 'Backbeat remains clear'],
+    },
+    punk_fast_hats: {
+        id: 'punk_fast_hats',
+        aliases: ['punk fast hats', 'fast punk drums'],
+        intentTags: ['drums', 'percussion', 'drum-only', 'punk', 'fast-hats'],
+        bpm: 178,
+        key: 'N/A',
+        scale: 'N/A',
+        thought: 'Fast punk drum-only loop: straight fast hats, backbeat snare, and compact kick accents.',
+        tracks: tracks({
+            drums: "stack(note(m('c2 ~ c2 c2 ~ c2 ~ c2')).s('square').decay(0.06).lpf(150).gain(0.76), note(m('~ ~ c4 ~ ~ ~ c4 ~')).s('pink').decay(0.034).hpf(980).gain(0.23), note(m('c6*16')).s('pink').decay(0.008).hpf(8200).gain(0.072))",
+            bass: 'silence',
+            melody: 'silence',
+            voice: 'silence',
+            fx: 'silence',
+        }),
+        requiredTracks: ['drums'],
+        qualityNotes: ['Fast hats carry energy', 'No extra tonal tracks'],
+    },
+    metal_double_kick: {
+        id: 'metal_double_kick',
+        aliases: ['metal double kick', 'double kick drums'],
+        intentTags: ['drums', 'percussion', 'drum-only', 'metal', 'double-kick'],
+        bpm: 156,
+        key: 'N/A',
+        scale: 'N/A',
+        thought: 'Metal drum-only loop: tight double-kick pulse, strong snare, and restrained hats.',
+        tracks: tracks({
+            drums: "stack(note(m('c2*8')).s('square').decay(0.055).lpf(135).gain(0.66), note(m('~ ~ c4 ~ ~ ~ c4 ~')).s('pink').decay(0.036).hpf(980).gain(0.24), note(m('c6*16')).s('pink').decay(0.008).hpf(8200).gain(0.06))",
+            bass: 'silence',
+            melody: 'silence',
+            voice: 'silence',
+            fx: 'silence',
+        }),
+        requiredTracks: ['drums'],
+        qualityNotes: ['Double kick without clipping', 'Hats are restrained', 'No guitar added'],
+    },
+    boom_bap_drums: {
+        id: 'boom_bap_drums',
+        aliases: ['boom bap drums', 'hip hop drums'],
+        intentTags: ['drums', 'percussion', 'drum-only', 'hiphop', 'boom-bap'],
+        bpm: 92,
+        key: 'N/A',
+        scale: 'N/A',
+        thought: 'Boom bap drum-only loop: laid-back kick variation, dry snare, and quiet hats.',
+        tracks: tracks({
+            drums: "stack(note(m('c2 ~ ~ c2 ~ ~ c2 ~')).s('square').decay(0.09).lpf(125).gain(0.76), note(m('~ ~ c4 ~ ~ ~ c4 ~')).s('pink').decay(0.045).hpf(900).gain(0.24), note(m('c6 ~ c6 c6 ~ c6 ~ c6')).s('pink').decay(0.012).hpf(7600).gain(0.07))",
+            bass: 'silence',
+            melody: 'silence',
+            voice: 'silence',
+            fx: 'silence',
+        }),
+        requiredTracks: ['drums'],
+        qualityNotes: ['Loose half-time feel', 'Dry snare', 'No melodic layer'],
+    },
+    dnb_breakbeat: {
+        id: 'dnb_breakbeat',
+        aliases: ['dnb breakbeat drums', 'jungle drums', 'breakbeat drums'],
+        intentTags: ['drums', 'percussion', 'drum-only', 'dnb', 'breakbeat'],
+        bpm: 174,
+        key: 'N/A',
+        scale: 'N/A',
+        thought: 'DnB breakbeat drum-only loop: fast hats, broken kick placement, and busy but controlled snares.',
+        tracks: tracks({
+            drums: "stack(note(m('c2 ~ ~ c2 ~ c2 ~ ~')).s('square').decay(0.055).lpf(145).gain(0.78), note(m('~ ~ c4 ~ ~ c4 ~ c4')).s('pink').decay(0.032).hpf(980).gain(0.25), note(m('c6*16')).s('pink').decay(0.008).hpf(8300).gain(0.072))",
+            bass: 'silence',
+            melody: 'silence',
+            voice: 'silence',
+            fx: 'silence',
+        }),
+        requiredTracks: ['drums'],
+        qualityNotes: ['Breakbeat density', 'Fast BPM explicit', 'No bass unless requested'],
     },
     clean_rock: {
         id: 'clean_rock',
@@ -463,8 +616,11 @@ export function inferGenreFromCode(currentCode?: string): GenreKey | null {
 }
 
 export function getTemplateForPrompt(prompt: string, currentCode?: string): GenreTemplate {
+    if (/\bdrums?\b/i.test(prompt) && /\bblink\s*-?\s*182\b|\bblink182\b/i.test(prompt)) {
+        return GENRE_TEMPLATES.pop_punk_drums;
+    }
     if (isDoubleTapDrumPrompt(prompt)) return GENRE_TEMPLATES.double_tap_drums;
-    if (isDrumOnlyPrompt(prompt)) return GENRE_TEMPLATES.drums;
+    if (isDrumOnlyPrompt(prompt)) return GENRE_TEMPLATES.clean_drums;
 
     if (isRepairPrompt(prompt)) {
         const genre = detectGenre(prompt) || inferGenreFromCode(currentCode);
@@ -483,20 +639,77 @@ export function getTemplateForPrompt(prompt: string, currentCode?: string): Genr
 
 export function shouldUseDeterministicTemplate(prompt: string) {
     if (isDrumOnlyPrompt(prompt)) return true;
+    if (/\bdrums?\b/i.test(prompt) && /\bblink\s*-?\s*182\b|\bblink182\b/i.test(prompt)) return true;
     if (isRepairPrompt(prompt) || isHumanizePrompt(prompt)) return true;
     return Boolean(detectGenre(prompt)) && isBroadMusicRequest(prompt) && !/\b(add|only|mute|remove|delete|just|change\s+the|make\s+the\s+drums|make\s+the\s+bass)\b/i.test(prompt);
 }
 
-export function buildTemplateResponse(template: GenreTemplate, thought?: string): AgentUpdateResponse {
+export function buildTemplateResponse(template: GenreTemplate, thought?: string, bpmOverride?: number | null): AgentUpdateResponse {
     return {
         type: 'update_tracks',
-        bpm: template.bpm,
+        bpm: bpmOverride ?? template.bpm,
         tracks: template.tracks,
         thought: thought || template.thought,
     };
 }
 
-export function buildDeterministicMusicResponse(prompt: string, currentCode?: string): AgentUpdateResponse | null {
+const cloneTrackMap = (value: Partial<TrackMap>): TrackMap => ({
+    drums: value.drums ?? null,
+    bass: value.bass ?? null,
+    melody: value.melody ?? null,
+    voice: value.voice ?? null,
+    fx: value.fx ?? null,
+});
+
+const applyIntentClears = (tracks: TrackMap, intent: MusicIntent): TrackMap => {
+    const next = cloneTrackMap(tracks);
+    for (const trackId of intent.clearTracks) {
+        next[trackId] = 'silence';
+    }
+    return next;
+};
+
+export function buildIntentFallback(intent: MusicIntent, context: MusicContext, thought?: string): AgentUpdateResponse {
+    if (intent.kind === 'tempo_change') {
+        return {
+            type: 'update_tracks',
+            thought: thought || `Tempo changed to ${intent.nextBpm ?? context.currentBpm} BPM while preserving the current tracks.`,
+            bpm: intent.nextBpm ?? context.currentBpm,
+            tracks: applyIntentClears(cloneTrackMap(context.tracks), intent),
+        };
+    }
+
+    if (!intent.templateId) {
+        return {
+            type: 'update_tracks',
+            thought: thought || intent.reason,
+            bpm: intent.nextBpm ?? context.currentBpm,
+            tracks: applyIntentClears(cloneTrackMap(context.tracks), intent),
+        };
+    }
+
+    const template = GENRE_TEMPLATES[intent.templateId] || GENRE_TEMPLATES.generic;
+    return {
+        ...buildTemplateResponse(template, thought || template.thought, intent.nextBpm),
+        tracks: applyIntentClears(template.tracks, intent),
+    };
+}
+
+export function buildDeterministicMusicResponse(prompt: string, currentCode?: string): AgentUpdateResponse | null;
+export function buildDeterministicMusicResponse(intent: MusicIntent, context: MusicContext): AgentUpdateResponse | null;
+export function buildDeterministicMusicResponse(
+    promptOrIntent: string | MusicIntent,
+    currentCodeOrContext?: string | MusicContext,
+): AgentUpdateResponse | null {
+    if (typeof promptOrIntent !== 'string') {
+        const intent = promptOrIntent;
+        const context = currentCodeOrContext as MusicContext;
+        if (intent.kind === 'create_full_style' && intent.templateId === 'generic') return null;
+        return buildIntentFallback(intent, context, intent.reason);
+    }
+
+    const prompt = promptOrIntent;
+    const currentCode = typeof currentCodeOrContext === 'string' ? currentCodeOrContext : undefined;
     if (!shouldUseDeterministicTemplate(prompt)) return null;
     return buildTemplateResponse(getTemplateForPrompt(prompt, currentCode));
 }
@@ -506,11 +719,25 @@ export function buildFallbackResponse(prompt: string, thought: string, currentCo
     return buildTemplateResponse(template, thought || template.thought);
 }
 
-export function buildTemplateGrounding(prompt: string, currentCode?: string) {
-    const template = getTemplateForPrompt(prompt, currentCode);
+export function buildTemplateGrounding(prompt: string, currentCode?: string): string;
+export function buildTemplateGrounding(intent: MusicIntent, context: MusicContext): string;
+export function buildTemplateGrounding(promptOrIntent: string | MusicIntent, currentCodeOrContext?: string | MusicContext) {
+    const template = typeof promptOrIntent === 'string'
+        ? getTemplateForPrompt(promptOrIntent, typeof currentCodeOrContext === 'string' ? currentCodeOrContext : undefined)
+        : (promptOrIntent.templateId ? GENRE_TEMPLATES[promptOrIntent.templateId] : GENRE_TEMPLATES.generic);
+    const intentLines = typeof promptOrIntent === 'string'
+        ? []
+        : [
+            `Intent: ${promptOrIntent.kind}`,
+            `Target tracks: ${promptOrIntent.targetTracks.join(', ') || 'none'}`,
+            `Preserve tracks: ${promptOrIntent.preserveTracks.join(', ') || 'none'}`,
+            `Clear tracks: ${promptOrIntent.clearTracks.join(', ') || 'none'}`,
+            `Reason: ${promptOrIntent.reason}`,
+        ];
     const required = template.requiredTracks.join(', ');
     return [
         '## TARGET TEMPLATE FOR THIS REQUEST',
+        ...intentLines,
         `Genre/template: ${template.id}`,
         `BPM: ${template.bpm}`,
         `Key: ${template.key}`,

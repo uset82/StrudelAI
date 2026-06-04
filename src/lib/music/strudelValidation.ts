@@ -9,6 +9,7 @@ import {
     isHumanizePrompt,
     isRepairPrompt,
 } from './genreTemplates';
+import type { MusicIntent } from './musicIntent';
 
 export type TrackValidationIssue = {
     trackId: InstrumentType;
@@ -121,7 +122,68 @@ function validateTemplateRequirements(tracks: TrackMap, template: GenreTemplate,
     return issues;
 }
 
-export function validateGeneratedTracks(tracks: TrackMap, prompt: string, currentCode?: string): ValidationResult {
+function validateIntentRequirements(tracks: TrackMap, prompt: string, intent: MusicIntent): TrackValidationIssue[] {
+    const issues: TrackValidationIssue[] = [];
+
+    if (intent.kind === 'tempo_change') {
+        return issues;
+    }
+
+    const expectsDrumOnly = intent.isDrumOnly || (
+        intent.targetTracks.length === 1 &&
+        intent.targetTracks[0] === 'drums' &&
+        intent.clearTracks.some((trackId) => trackId !== 'drums')
+    );
+
+    if (expectsDrumOnly) {
+        if (!trackHasPattern(tracks.drums) || tracks.drums === 'silence') {
+            issues.push({ trackId: 'drums', reason: 'drum-only intent requires a drums track' });
+        }
+
+        for (const trackId of ['bass', 'melody', 'voice', 'fx'] as const) {
+            const value = tracks[trackId]?.trim();
+            if (value && value !== 'silence') {
+                issues.push({ trackId, reason: 'drum-only intent must not include tonal or FX tracks' });
+            }
+        }
+
+        if (intent.templateId === 'pop_punk_drums') {
+            const drums = tracks.drums || '';
+            if (!/\*16|\[[^\]]+\]|c6\*16/i.test(drums)) {
+                issues.push({ trackId: 'drums', reason: 'pop-punk drum reference needs fast hats or energetic subdivisions' });
+            }
+        }
+
+        if (intent.kind === 'repair_current_context') {
+            const joined = Object.values(tracks).filter(Boolean).join(' ').toLowerCase();
+            const harshSignals = (joined.match(/distort\((?:0\.[4-9]|1|[2-9])/g) || []).length;
+            const loudSignals = (joined.match(/gain\((?:0\.[8-9]|1|[2-9])/g) || []).length;
+            if (harshSignals > 0 || loudSignals > 2) {
+                issues.push({ trackId: 'drums', reason: 'drum repair should reduce harshness and loud layers' });
+            }
+        }
+
+        return issues;
+    }
+
+    if (intent.kind === 'track_only' || intent.kind === 'modify_current_track' || intent.kind === 'style_reference') {
+        for (const trackId of intent.targetTracks) {
+            if (!trackHasPattern(tracks[trackId]) || tracks[trackId] === 'silence') {
+                issues.push({ trackId, reason: `${intent.kind} requires ${trackId}` });
+            }
+        }
+        return issues;
+    }
+
+    return validateTemplateRequirements(tracks, getTemplateForPrompt(prompt), prompt);
+}
+
+export function validateGeneratedTracks(
+    tracks: TrackMap,
+    prompt: string,
+    currentCode?: string,
+    intent?: MusicIntent,
+): ValidationResult {
     const issues: TrackValidationIssue[] = [];
 
     for (const [rawTrackId, value] of Object.entries(tracks)) {
@@ -131,8 +193,12 @@ export function validateGeneratedTracks(tracks: TrackMap, prompt: string, curren
         }
     }
 
-    const template = getTemplateForPrompt(prompt, currentCode);
-    issues.push(...validateTemplateRequirements(tracks, template, prompt));
+    if (intent) {
+        issues.push(...validateIntentRequirements(tracks, prompt, intent));
+    } else {
+        const template = getTemplateForPrompt(prompt, currentCode);
+        issues.push(...validateTemplateRequirements(tracks, template, prompt));
+    }
 
     return {
         valid: issues.length === 0,

@@ -1,0 +1,332 @@
+import { InstrumentType, SonicSessionState } from '@/types/sonic';
+import {
+    GenreKey,
+    detectGenre,
+    isDoubleTapDrumPrompt,
+    isDrumOnlyPrompt,
+    isHumanizePrompt,
+    isRepairPrompt,
+} from './genreTemplates';
+
+export type MusicIntentKind =
+    | 'create_full_style'
+    | 'track_only'
+    | 'modify_current_track'
+    | 'tempo_change'
+    | 'repair_current_context'
+    | 'style_reference';
+
+export type MusicIntent = {
+    kind: MusicIntentKind;
+    targetTracks: InstrumentType[];
+    preserveTracks: InstrumentType[];
+    clearTracks: InstrumentType[];
+    templateId: GenreKey | null;
+    referenceStyle: string | null;
+    currentBpm: number;
+    nextBpm: number | null;
+    isDrumOnly: boolean;
+    reason: string;
+};
+
+export type MusicContext = {
+    currentBpm: number;
+    tracks: Record<InstrumentType, string | null>;
+    activeTracks: InstrumentType[];
+    isDrumOnly: boolean;
+    currentCode: string;
+    source: 'currentState' | 'currentCode' | 'empty';
+};
+
+const TRACK_IDS: InstrumentType[] = ['drums', 'bass', 'melody', 'voice', 'fx'];
+const NON_DRUM_TRACKS: InstrumentType[] = ['bass', 'melody', 'voice', 'fx'];
+
+const emptyTracks = (): Record<InstrumentType, string | null> => ({
+    drums: null,
+    bass: null,
+    melody: null,
+    voice: null,
+    fx: null,
+});
+
+const normalizePrompt = (prompt: string) =>
+    prompt
+        .toLowerCase()
+        .replace(/[’‘]/g, "'")
+        .replace(/[“”]/g, '"')
+        .trim();
+
+const normalizeTrackPattern = (value: unknown): string | null => {
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (/^expr:/i.test(trimmed)) return trimmed.replace(/^expr:\s*/i, '').trim() || null;
+    return trimmed;
+};
+
+const hasAudiblePattern = (value: string | null) => {
+    if (!value) return false;
+    const trimmed = value.trim();
+    return Boolean(trimmed) && trimmed !== 'silence' && trimmed !== 's("~")' && !trimmed.startsWith('//');
+};
+
+const inferTracksFromCode = (currentCode?: string | null): Record<InstrumentType, string | null> => {
+    const tracks = emptyTracks();
+    const code = normalizeTrackPattern(currentCode) || '';
+    const cleaned = code
+        .replace(/\.analyze\([^)]*\)/gi, '')
+        .replace(/^stack\(([\s\S]*)\)$/i, '$1')
+        .trim();
+
+    if (!cleaned || cleaned === 'silence' || cleaned.startsWith('//')) return tracks;
+
+    const lower = cleaned.toLowerCase();
+    const drumSignals = /\b(rolandtr\d{3}_|bd|sd|snare|cp|clap|hh|hat|kick|cymbal)\b|c2|c4|c6/.test(lower);
+    const tonalSignals = /\b[a-g](?:#|b)?[1-6]\b/.test(lower) && /sawtooth|triangle|sine|supersaw|piano/.test(lower);
+
+    if (drumSignals && !tonalSignals) {
+        tracks.drums = cleaned;
+    } else if (tonalSignals && /c1|c2|bass|lpf\((?:1|2|3|4|5|6|7|8|9)\d{2}\)/.test(lower)) {
+        tracks.bass = cleaned;
+    } else {
+        tracks.melody = cleaned;
+    }
+
+    return tracks;
+};
+
+export function buildMusicContext(input: {
+    currentState?: Partial<SonicSessionState> | null;
+    currentCode?: string | null;
+} = {}): MusicContext {
+    const currentBpm = Math.max(40, Math.min(240, Math.round(input.currentState?.bpm || 120)));
+    const tracks = emptyTracks();
+    let source: MusicContext['source'] = 'empty';
+
+    if (input.currentState?.tracks) {
+        source = 'currentState';
+        for (const trackId of TRACK_IDS) {
+            const track = input.currentState.tracks[trackId];
+            const pattern = normalizeTrackPattern(track?.pattern);
+            tracks[trackId] = track?.muted ? null : pattern;
+        }
+    } else if (input.currentCode) {
+        source = 'currentCode';
+        Object.assign(tracks, inferTracksFromCode(input.currentCode));
+    }
+
+    const activeTracks = TRACK_IDS.filter((trackId) => hasAudiblePattern(tracks[trackId]));
+    const isDrumOnly = activeTracks.length > 0 && activeTracks.every((trackId) => trackId === 'drums');
+
+    return {
+        currentBpm,
+        tracks,
+        activeTracks,
+        isDrumOnly,
+        currentCode: input.currentCode || '',
+        source,
+    };
+}
+
+function parseRequestedBpm(prompt: string) {
+    const explicit = prompt.match(/\b(?:tempo\s*(?:to|=)?\s*|set\s+bpm\s*(?:to|=)?\s*|)(\d{2,3})\s*bpm\b/i);
+    if (!explicit) return null;
+    const bpm = Number(explicit[1]);
+    if (!Number.isFinite(bpm)) return null;
+    return Math.max(40, Math.min(240, Math.round(bpm)));
+}
+
+function buildIntent(params: Omit<MusicIntent, 'currentBpm' | 'isDrumOnly'>, context: MusicContext): MusicIntent {
+    return {
+        ...params,
+        currentBpm: context.currentBpm,
+        isDrumOnly: params.targetTracks.length === 1 && params.targetTracks[0] === 'drums'
+            ? true
+            : context.isDrumOnly,
+    };
+}
+
+function hasBlinkReference(prompt: string) {
+    return /\bblink\s*-?\s*182\b|\bblink182\b/.test(prompt);
+}
+
+function hasDrumReferenceIntent(prompt: string) {
+    return /\bdrums?\b/.test(prompt) && /\b(like|style|reference|similar\s+to)\b/.test(prompt);
+}
+
+function isTempoPrompt(prompt: string) {
+    return (
+        parseRequestedBpm(prompt) !== null ||
+        /^(faster|slower|speed\s+up|slow\s+down)$/i.test(prompt.trim()) ||
+        /\b(make\s+it\s+faster|make\s+it\s+slower|increase\s+(?:the\s+)?tempo|decrease\s+(?:the\s+)?tempo|raise\s+(?:the\s+)?bpm|lower\s+(?:the\s+)?bpm)\b/i.test(prompt)
+    );
+}
+
+function getTempoTarget(prompt: string, currentBpm: number) {
+    const explicit = parseRequestedBpm(prompt);
+    if (explicit !== null) return explicit;
+    if (/\b(slower|slow\s+down|decrease|lower)\b/i.test(prompt)) {
+        return Math.max(40, currentBpm - 10);
+    }
+    return Math.min(240, currentBpm + 10);
+}
+
+function drumTemplateForPrompt(prompt: string): GenreKey {
+    if (/\bmetal\b|\bdouble\s*kick\b/.test(prompt)) return 'metal_double_kick';
+    if (/\bboom\s*bap\b|\bhip\s*hop\b|\bhip-hop\b/.test(prompt)) return 'boom_bap_drums';
+    if (/\bdnb\b|\bdrum\s*(?:and|&)\s*bass\b|\bjungle\b|\bbreakbeat\b/.test(prompt)) return 'dnb_breakbeat';
+    if (/\bpunk\b|\bfast\s+hats?\b/.test(prompt)) return 'punk_fast_hats';
+    if (/\bclean\b/.test(prompt)) return 'clean_drums';
+    return 'clean_drums';
+}
+
+export function routeMusicIntent(prompt: string, context: MusicContext): MusicIntent {
+    const normalized = normalizePrompt(prompt);
+    const activeOrAllTracks = context.activeTracks.length > 0 ? context.activeTracks : TRACK_IDS;
+
+    if (isTempoPrompt(normalized)) {
+        return buildIntent({
+            kind: 'tempo_change',
+            targetTracks: [],
+            preserveTracks: activeOrAllTracks,
+            clearTracks: [],
+            templateId: null,
+            referenceStyle: null,
+            nextBpm: getTempoTarget(normalized, context.currentBpm),
+            reason: 'Tempo edit: preserve the current musical context and only adjust BPM.',
+        }, context);
+    }
+
+    if (hasBlinkReference(normalized) && hasDrumReferenceIntent(normalized)) {
+        return buildIntent({
+            kind: 'style_reference',
+            targetTracks: ['drums'],
+            preserveTracks: [],
+            clearTracks: NON_DRUM_TRACKS,
+            templateId: 'pop_punk_drums',
+            referenceStyle: 'pop-punk drum traits',
+            nextBpm: 176,
+            reason: 'Artist reference mapped to safe pop-punk drum traits, not exact imitation.',
+        }, context);
+    }
+
+    const clearTrackMatch = normalized.match(/\b(?:remove|delete|clear|mute)\s+(bass|melody|voice|fx)\b/);
+    if (clearTrackMatch) {
+        const trackId = clearTrackMatch[1] as InstrumentType;
+        return buildIntent({
+            kind: 'modify_current_track',
+            targetTracks: [],
+            preserveTracks: TRACK_IDS.filter((id) => id !== trackId),
+            clearTracks: [trackId],
+            templateId: null,
+            referenceStyle: null,
+            nextBpm: null,
+            reason: `Clear ${trackId} while preserving the rest of the current context.`,
+        }, context);
+    }
+
+    const wantsCleanDrumCreation = /\bclean\s+drums?\b/.test(normalized);
+    if ((isRepairPrompt(normalized) && !wantsCleanDrumCreation) || /\bthat'?s\s+horrible\b/.test(normalized)) {
+        if (context.isDrumOnly || isDrumOnlyPrompt(normalized)) {
+            return buildIntent({
+                kind: 'repair_current_context',
+                targetTracks: ['drums'],
+                preserveTracks: [],
+                clearTracks: NON_DRUM_TRACKS,
+                templateId: 'repaired_drums',
+                referenceStyle: null,
+                nextBpm: context.currentBpm,
+                reason: 'Repair the active drum-only loop by simplifying it, not switching genres.',
+            }, context);
+        }
+
+        const genre = detectGenre(normalized);
+        return buildIntent({
+            kind: 'repair_current_context',
+            targetTracks: ['drums', 'bass', 'melody'],
+            preserveTracks: [],
+            clearTracks: [],
+            templateId: genre === 'metal' ? 'metal' : 'clean_rock',
+            referenceStyle: null,
+            nextBpm: null,
+            reason: 'Repair the current full-track context with a cleaner deterministic template.',
+        }, context);
+    }
+
+    if (isHumanizePrompt(normalized)) {
+        if (context.isDrumOnly || isDrumOnlyPrompt(normalized)) {
+            return buildIntent({
+                kind: 'modify_current_track',
+                targetTracks: ['drums'],
+                preserveTracks: [],
+                clearTracks: NON_DRUM_TRACKS,
+                templateId: 'humanized_drums',
+                referenceStyle: null,
+                nextBpm: context.currentBpm,
+                reason: 'Humanize the active drum-only loop with controlled syncopation.',
+            }, context);
+        }
+
+        return buildIntent({
+            kind: 'modify_current_track',
+            targetTracks: ['drums', 'bass', 'melody'],
+            preserveTracks: [],
+            clearTracks: [],
+            templateId: 'humanized_rock',
+            referenceStyle: null,
+            nextBpm: null,
+            reason: 'Humanize the current full-track groove with controlled syncopation.',
+        }, context);
+    }
+
+    if (isDoubleTapDrumPrompt(normalized)) {
+        return buildIntent({
+            kind: 'modify_current_track',
+            targetTracks: ['drums'],
+            preserveTracks: [],
+            clearTracks: NON_DRUM_TRACKS,
+            templateId: 'double_tap_drums',
+            referenceStyle: null,
+            nextBpm: context.currentBpm,
+            reason: 'Modify the current drums with subdivided double hits.',
+        }, context);
+    }
+
+    if (isDrumOnlyPrompt(normalized)) {
+        return buildIntent({
+            kind: 'track_only',
+            targetTracks: ['drums'],
+            preserveTracks: [],
+            clearTracks: NON_DRUM_TRACKS,
+            templateId: drumTemplateForPrompt(normalized),
+            referenceStyle: null,
+            nextBpm: null,
+            reason: 'Track-only drum request: create drums and clear tonal layers.',
+        }, context);
+    }
+
+    const genre = detectGenre(normalized);
+    if (genre) {
+        return buildIntent({
+            kind: 'create_full_style',
+            targetTracks: ['drums', 'bass', 'melody'],
+            preserveTracks: [],
+            clearTracks: [],
+            templateId: genre,
+            referenceStyle: null,
+            nextBpm: null,
+            reason: `Create a full ${genre} style loop.`,
+        }, context);
+    }
+
+    return buildIntent({
+        kind: 'create_full_style',
+        targetTracks: ['drums', 'bass', 'melody'],
+        preserveTracks: [],
+        clearTracks: [],
+        templateId: 'generic',
+        referenceStyle: null,
+        nextBpm: null,
+        reason: 'Default broad music request.',
+    }, context);
+}

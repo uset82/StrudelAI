@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import {
     GENRE_TEMPLATES,
     buildDeterministicMusicResponse,
+    buildIntentFallback,
     buildFallbackResponse,
     detectGenre,
     isDoubleTapDrumPrompt,
     isDrumOnlyPrompt,
 } from './src/lib/music/genreTemplates';
+import { buildMusicContext, routeMusicIntent } from './src/lib/music/musicIntent';
 import { STRUDEL_TRAINING_CORPUS, getRelevantTrainingExamples } from './src/lib/music/trainingCorpus';
 import { validateGeneratedTracks } from './src/lib/music/strudelValidation';
 
@@ -95,6 +97,78 @@ assert.equal(validDoubleTapDrums.valid, true, JSON.stringify(validDoubleTapDrums
 
 const invalidPureDrums = validateGeneratedTracks(GENRE_TEMPLATES.generic.tracks, 'some pure drums', currentRockCode);
 assert.equal(invalidPureDrums.valid, false, 'drum-only prompts should reject generic full-song fallback');
+
+const applyIntentTurn = (prompt: string, previous?: { bpm: number; tracks: typeof GENRE_TEMPLATES.generic.tracks }) => {
+    const context = buildMusicContext({
+        currentState: previous
+            ? {
+                bpm: previous.bpm,
+                scale: 'C minor',
+                isPlaying: true,
+                tracks: {
+                    drums: { id: 'drums', name: 'Drums', pattern: previous.tracks.drums || '', muted: false, volume: 1 },
+                    bass: { id: 'bass', name: 'Bass', pattern: previous.tracks.bass || '', muted: false, volume: 1 },
+                    melody: { id: 'melody', name: 'Melody', pattern: previous.tracks.melody || '', muted: false, volume: 1 },
+                    voice: { id: 'voice', name: 'Voice', pattern: previous.tracks.voice || '', muted: false, volume: 1 },
+                    fx: { id: 'fx', name: 'FX', pattern: previous.tracks.fx || '', muted: false, volume: 1 },
+                },
+            }
+            : null,
+    });
+    const intent = routeMusicIntent(prompt, context);
+    const response = buildDeterministicMusicResponse(intent, context) || buildIntentFallback(intent, context, 'test fallback');
+    return { intent, response };
+};
+
+const cleanDrumsTurn = applyIntentTurn('play some clean drums');
+assert.equal(cleanDrumsTurn.intent.kind, 'track_only');
+assert.equal(cleanDrumsTurn.intent.templateId, 'clean_drums');
+assert.ok(hasTrack(cleanDrumsTurn.response.tracks.drums), 'clean drums should create a drum pattern');
+assert.equal(cleanDrumsTurn.response.tracks.bass, 'silence', 'clean drums should clear bass');
+assert.equal(cleanDrumsTurn.response.tracks.melody, 'silence', 'clean drums should clear melody');
+
+const doubleTapTurn = applyIntentTurn('double tap drums', cleanDrumsTurn.response);
+assert.equal(doubleTapTurn.intent.kind, 'modify_current_track');
+assert.notEqual(doubleTapTurn.response.tracks.drums, cleanDrumsTurn.response.tracks.drums, 'double tap drums must change the clean drum code');
+assert.match(doubleTapTurn.response.tracks.drums || '', /\[c2 c2\].*\[c4 c4\]/, 'double tap drums should use subdivided hits');
+assert.equal(doubleTapTurn.response.tracks.bass, 'silence');
+assert.equal(doubleTapTurn.response.tracks.melody, 'silence');
+
+const fasterTurn = applyIntentTurn('faster', doubleTapTurn.response);
+assert.equal(fasterTurn.intent.kind, 'tempo_change');
+assert.equal(fasterTurn.response.bpm, doubleTapTurn.response.bpm + 10, 'faster should increase BPM by 10');
+assert.equal(fasterTurn.response.tracks.drums, doubleTapTurn.response.tracks.drums, 'faster should preserve drum code');
+assert.equal(fasterTurn.response.tracks.bass, 'silence', 'faster should preserve drum-only bass silence');
+assert.equal(fasterTurn.response.tracks.melody, 'silence', 'faster should preserve drum-only melody silence');
+
+const repairedDrumsTurn = applyIntentTurn('thats horrible', fasterTurn.response);
+assert.equal(repairedDrumsTurn.intent.kind, 'repair_current_context');
+assert.equal(repairedDrumsTurn.intent.templateId, 'repaired_drums');
+assert.ok(hasTrack(repairedDrumsTurn.response.tracks.drums), 'drum repair should keep drums');
+assert.equal(repairedDrumsTurn.response.tracks.bass, 'silence', 'drum repair should not introduce rock bass');
+assert.equal(repairedDrumsTurn.response.tracks.melody, 'silence', 'drum repair should not introduce rock melody');
+assert.doesNotMatch(repairedDrumsTurn.response.thought, /rock/i, 'drum repair should not switch to rock');
+
+const blinkDrumsTurn = applyIntentTurn('drums like blink182', repairedDrumsTurn.response);
+assert.equal(blinkDrumsTurn.intent.kind, 'style_reference');
+assert.equal(blinkDrumsTurn.intent.templateId, 'pop_punk_drums');
+assert.match(blinkDrumsTurn.response.thought, /pop-punk|punk/i, 'Blink-182 reference should map to pop-punk traits');
+assert.ok(hasTrack(blinkDrumsTurn.response.tracks.drums), 'pop-punk reference should produce drums');
+assert.equal(blinkDrumsTurn.response.tracks.bass, 'silence', 'drums like blink182 should stay drum-only');
+assert.equal(blinkDrumsTurn.response.tracks.melody, 'silence', 'drums like blink182 should stay drum-only');
+
+const tempoIntent = fasterTurn.intent;
+const tempoValidation = validateGeneratedTracks(fasterTurn.response.tracks, 'faster', undefined, tempoIntent);
+assert.equal(tempoValidation.valid, true, JSON.stringify(tempoValidation.issues));
+
+const unsupportedDrumOnly = validateGeneratedTracks({
+    drums: "s('RolandTR909_bd*4').slider('x').bank('RolandTR909').analyze(1)",
+    bass: 'silence',
+    melody: 'silence',
+    voice: 'silence',
+    fx: 'silence',
+}, 'only drums', undefined, cleanDrumsTurn.intent);
+assert.equal(unsupportedDrumOnly.valid, false, 'drum-only unsafe methods should be rejected');
 
 const rockFamilyPositiveCount = STRUDEL_TRAINING_CORPUS.filter((example) =>
     !example.negative && example.intentTags.some((tag) => ['rock', 'punk', 'metal'].includes(tag)),

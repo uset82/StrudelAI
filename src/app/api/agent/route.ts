@@ -12,10 +12,10 @@ import {
 import {
     TrackMap,
     buildDeterministicMusicResponse,
-    buildFallbackResponse,
+    buildIntentFallback,
     buildTemplateGrounding,
-    isDrumOnlyPrompt,
 } from '@/lib/music/genreTemplates';
+import { MusicContext, MusicIntent, buildMusicContext, routeMusicIntent } from '@/lib/music/musicIntent';
 import { formatTrainingExamplesForPrompt } from '@/lib/music/trainingCorpus';
 import { validateGeneratedTracks } from '@/lib/music/strudelValidation';
 
@@ -601,97 +601,6 @@ const detectRequestedTracks = (prompt: string) => {
     return any ? wants : { drums: true, bass: true, melody: true, voice: true, fx: true };
 };
 
-const enforceAtLeastOne = (tracks: Record<string, string | null>, prompt?: string) => {
-    const hasAny = Object.values(tracks).some(v => typeof v === 'string' && v.trim());
-    if (hasAny) return tracks;
-
-    if (prompt) {
-        return buildFallbackResponse(prompt, '').tracks;
-    }
-
-    // Genre-specific full track fallbacks when model returns empty tracks
-    const p = (prompt || '').toLowerCase();
-    if (/techno|tech|industrial|hard|dark|rave|mauro|picotto|iguana|lizard|komodo|italian/i.test(p)) {
-        return {
-            drums: "stack(s('RolandTR909_bd*4').gain(1), s('~ RolandTR909_cp ~ RolandTR909_cp').gain(0.8), s('RolandTR909_hh*16').gain(0.35), s('~ RolandTR909_oh ~ RolandTR909_oh').gain(0.22))",
-            bass: "note(m('c1 ~ c1 ~ eb1 ~ g1 ~')).s('sawtooth').att(0.01).decay(0.2).lpf(sine.range(220, 650).slow(4)).resonance(10).gain(0.7)",
-            melody: "note(m('<c4 eb4 g4> ~ ~ <c4 eb4 g4>')).s('supersaw').att(0.01).decay(0.18).lpf(2600).room(0.25).delay(0.15).gain(0.35).slow(2)",
-            voice: null,
-            fx: "s('pink').hpf(sine.range(200, 12000).slow(8)).gain(sine.range(0.1, 0.4).slow(8))"
-        };
-    }
-    if (/house|deep|groovy|warm|chord/i.test(p)) {
-        return {
-            drums: "stack(s('RolandTR808_bd*4').gain(0.95), s('~ RolandTR909_cp ~ RolandTR909_cp').gain(0.75), s('~ RolandTR909_hh ~ RolandTR909_hh').gain(0.32), s('RolandTR909_hh*8').gain(0.2))",
-            bass: "note(m('c2 ~ ~ c2 ~ g1 ~ ~')).s('triangle').att(0.01).decay(0.25).lpf(700).gain(0.7)",
-            melody: "note(m('<c4 e4 g4> ~ <d4 f4 a4> ~')).s('piano').decay(0.2).room(0.35).lpf(5000).gain(0.35).slow(2)",
-            voice: null,
-            fx: "s('pink').lpf(sine.range(500, 8000).slow(16)).gain(sine.range(0.05, 0.25).slow(16)).room(0.4)"
-        };
-    }
-    if (/ambient|atmos|chill|relax|calm|peaceful/i.test(p)) {
-        return {
-            drums: null,
-            bass: "note(m('c2 ~ ~ ~ e2 ~ ~ ~')).s('sine').lpf(300).room(0.7).slow(4).gain(0.5)",
-            melody: null,
-            voice: null,
-            fx: "note(m('<c5 e5 g5> <g4 b4 d5>')).s('sine').slow(8).room(0.95).delay(0.6).lpf(1500).gain(0.4)"
-        };
-    }
-    if (/dnb|drum.?and.?bass|jungle|breakbeat/i.test(p)) {
-        return {
-            drums: "stack(s('RolandTR909_bd ~ ~ RolandTR909_bd ~ RolandTR909_bd ~').gain(1), s('~ ~ RolandTR909_sd ~ ~ RolandTR909_sd ~ RolandTR909_sd').gain(0.9), s('RolandTR909_hh*16').gain(0.22))",
-            bass: "note(m('c1 c1 c1 ~ eb1 eb1 ~ c1')).s('sawtooth').att(0.01).decay(0.2).lpf(sine.range(200, 900).slow(2)).gain(0.8)",
-            melody: "note(m('c5 ~ eb5 ~ g5 ~ ~ ~')).s('sine').att(0.01).decay(0.12).hpf(500).room(0.25).gain(0.3)",
-            voice: null,
-            fx: null
-        };
-    }
-    if (/trance|uplift|euphoric/i.test(p)) {
-        return {
-            drums: "stack(s('RolandTR909_bd*4').gain(0.95), s('~ RolandTR909_cp ~ RolandTR909_cp').gain(0.75), s('~ RolandTR909_hh ~ RolandTR909_hh').gain(0.32), s('RolandTR909_hh*16').gain(0.18))",
-            bass: "note(m('~ a1 ~ a1 ~ a1 ~ a1')).s('sawtooth').att(0.01).decay(0.25).lpf(900).resonance(8).gain(0.7)",
-            melody: "note(m('a4 c5 e5 a5 e5 c5 a4 e4')).s('supersaw').att(0.01).decay(0.22).lpf(3200).room(0.45).delay(0.22).gain(0.45).slow(2)",
-            voice: null,
-            fx: "s('pink').hpf(sine.range(500, 15000).slow(8)).gain(sine.range(0.1, 0.35).slow(8))"
-        };
-    }
-    if (/acid|303|squelchy/i.test(p)) {
-        return {
-            drums: "stack(s('RolandTR909_bd*4').gain(1), s('~ RolandTR909_cp ~ RolandTR909_cp').gain(0.75), s('RolandTR909_hh*16').gain(0.25))",
-            bass: "note(m('a1 a2 a1 c2 a1 a2 d2 a1')).s('sawtooth').att(0.01).decay(0.18).lpf(sine.range(200, 2200).slow(1)).resonance(18).gain(0.8)",
-            melody: null,
-            voice: null,
-            fx: "note(m('<a3 c4 e4>')).s('sawtooth').lpf(sine.range(500, 3000).slow(2)).resonance(12).room(0.3).gain(0.35).slow(4)"
-        };
-    }
-    if (/minimal|hypnotic/i.test(p)) {
-        return {
-            drums: "stack(s('RolandTR909_bd ~ ~ RolandTR909_bd ~ ~ RolandTR909_bd ~').gain(0.9), s('~ ~ ~ RolandTR909_hh ~ ~ RolandTR909_hh ~').gain(0.22))",
-            bass: "note(m('c2 ~ c2 ~ c2 ~ ~ ~')).s('triangle').att(0.01).decay(0.25).lpf(420).gain(0.65)",
-            melody: null,
-            voice: null,
-            fx: null
-        };
-    }
-    // Default techno-style fallback
-    return {
-        drums: "stack(s('RolandTR909_bd*4').gain(1), s('~ RolandTR909_cp ~ RolandTR909_cp').gain(0.8), s('RolandTR909_hh*16').gain(0.35))",
-        bass: "note(m('c1 ~ c1 ~ eb1 ~ g1 ~')).s('sawtooth').att(0.01).decay(0.2).lpf(sine.range(220, 650).slow(4)).gain(0.7)",
-        melody: "note(m('<c4 eb4 g4>')).s('supersaw').att(0.01).decay(0.18).lpf(2600).room(0.25).gain(0.35).slow(2)",
-        voice: null,
-        fx: "s('pink').hpf(sine.range(200, 12000).slow(8)).gain(sine.range(0.1, 0.4).slow(8))"
-    };
-};
-
-const buildProviderFallback = (prompt: string, thought: string, currentCode?: string) => {
-    const fallback = buildFallbackResponse(prompt, thought, currentCode);
-    return {
-        ...fallback,
-        bpm: extractBpmFromPrompt(prompt) ?? fallback.bpm,
-    };
-};
-
 const toTrackMap = (tracks: Record<string, string | null>): TrackMap => ({
     drums: tracks.drums ?? null,
     bass: tracks.bass ?? null,
@@ -699,6 +608,34 @@ const toTrackMap = (tracks: Record<string, string | null>): TrackMap => ({
     voice: tracks.voice ?? null,
     fx: tracks.fx ?? null,
 });
+
+const hasAnyTrack = (tracks: Record<string, string | null>) =>
+    Object.values(tracks).some(v => typeof v === 'string' && v.trim());
+
+const applyIntentTrackPolicy = (
+    tracks: Record<string, string | null>,
+    intent: MusicIntent,
+    context: MusicContext,
+) => {
+    const next = toTrackMap(hasAnyTrack(tracks) ? tracks : context.tracks);
+    if (!hasAnyTrack(next)) {
+        return buildIntentFallback(intent, context, '').tracks;
+    }
+
+    for (const trackId of intent.clearTracks) {
+        next[trackId] = 'silence';
+    }
+
+    return next;
+};
+
+const buildProviderFallback = (intent: MusicIntent, context: MusicContext, thought: string) => {
+    const fallback = buildIntentFallback(intent, context, thought);
+    return {
+        ...fallback,
+        bpm: intent.nextBpm ?? fallback.bpm,
+    };
+};
 
 const logBadGeneration = (
     prompt: string,
@@ -728,29 +665,22 @@ const logBadGeneration = (
 const buildValidatedTrackPayload = (params: {
     prompt: string;
     currentCode?: string;
+    intent: MusicIntent;
+    context: MusicContext;
     raw: string;
     tracks: Record<string, string | null>;
     bpm?: number | null;
     thought?: string;
 }) => {
-    const enforcedTracks = toTrackMap(enforceAtLeastOne(params.tracks, params.prompt));
-    const finalTracks = isDrumOnlyPrompt(params.prompt)
-        ? {
-            ...enforcedTracks,
-            bass: 'silence',
-            melody: 'silence',
-            voice: 'silence',
-            fx: 'silence',
-        }
-        : enforcedTracks;
-    const validation = validateGeneratedTracks(finalTracks, params.prompt, params.currentCode);
-    const bpm = coerceBpmValue(params.bpm) ?? extractBpmFromPrompt(params.prompt) ?? 128;
+    const finalTracks = applyIntentTrackPolicy(params.tracks, params.intent, params.context);
+    const validation = validateGeneratedTracks(finalTracks, params.prompt, params.currentCode, params.intent);
+    const bpm = coerceBpmValue(params.bpm) ?? params.intent.nextBpm ?? extractBpmFromPrompt(params.prompt) ?? params.context.currentBpm;
 
     if (!validation.valid) {
         logBadGeneration(params.prompt, params.raw, validation.issues, finalTracks);
         const reasons = validation.issues.map((issue) => `${issue.trackId}: ${issue.reason}`).join('; ');
         return {
-            ...buildFallbackResponse(params.prompt, `Rejected unsafe or off-target model output (${reasons}). Using deterministic template instead.`, params.currentCode),
+            ...buildIntentFallback(params.intent, params.context, `Rejected unsafe or off-target model output (${reasons}). Using deterministic intent fallback instead.`),
             validationFallback: true,
             rejectedReasons: validation.issues,
         };
@@ -1053,11 +983,14 @@ Input: "batucada" or "brazilian drums" or "samba" or "carnival" or "ANNA" or "Vi
 
 export async function POST(req: Request) {
     try {
-        const { prompt, currentCode, frequencyData } = await req.json();
+        const { prompt, currentCode, currentState, frequencyData } = await req.json();
 
         if (!prompt) {
             return jsonWithCors({ error: 'Prompt is required' }, { status: 400 });
         }
+
+        const context = buildMusicContext({ currentState, currentCode });
+        const intent = routeMusicIntent(prompt, context);
 
         // Check if this is a MusicGen request
         const musicGenCheck = detectMusicGenRequest(prompt);
@@ -1115,7 +1048,9 @@ export async function POST(req: Request) {
 
                 return jsonWithCors({
                     type: 'update_tracks',
-                    tracks: enforceAtLeastOne(sanitizedTracks),
+                    tracks: hasAnyTrack(sanitizedTracks)
+                        ? toTrackMap(sanitizedTracks)
+                        : buildIntentFallback(intent, context, 'Generated fallback tracks because YouTube analysis returned no usable patterns.').tracks,
                     thought: `Analyzed "${result.metadata.title}" by ${result.metadata.artist}. Detected BPM: ${result.analysis.bpm}, Key: ${result.analysis.key} ${result.analysis.mode}. Generated Strudel patterns that approximate the rhythm, bass, and melody.`,
                     youtube: {
                         title: result.metadata.title,
@@ -1134,9 +1069,9 @@ export async function POST(req: Request) {
             }
         }
 
-        const deterministicResponse = buildDeterministicMusicResponse(prompt, currentCode);
+        const deterministicResponse = buildDeterministicMusicResponse(intent, context);
         if (deterministicResponse) {
-            console.log(`[API/Agent] Deterministic music template selected for prompt: "${prompt}"`);
+            console.log(`[API/Agent] Deterministic music template selected for prompt: "${prompt}" (${intent.kind}/${intent.templateId})`);
             return jsonWithCors(deterministicResponse);
         }
 
@@ -1171,7 +1106,7 @@ If the user mentions desync, clashing, or balance issues, analyze these values t
         }
 
         const targetedGrounding = [
-            buildTemplateGrounding(prompt, currentCode),
+            buildTemplateGrounding(intent, context),
             formatTrainingExamplesForPrompt(prompt, 3),
         ].filter(Boolean).join('\n\n');
 
@@ -1219,7 +1154,7 @@ User Request: ${prompt}`
                 : 'OpenRouter was slow or unavailable - generating music locally based on your request.';
             console.warn(`[API/Agent] ${reason}`, lastError);
             return jsonWithCors({
-                ...buildProviderFallback(prompt, reason, currentCode),
+                ...buildProviderFallback(intent, context, reason),
                 providerFallback: true,
                 attemptedModels,
             });
@@ -1311,6 +1246,8 @@ User Request: ${prompt}`
                 return jsonWithCors(buildValidatedTrackPayload({
                     prompt,
                     currentCode,
+                    intent,
+                    context,
                     raw,
                     tracks: detectedTracks,
                     thought: 'Extracted pattern from AI response',
@@ -1368,17 +1305,19 @@ User Request: ${prompt}`
                     if (!wants.fx) sanitizedTracks.fx = null;
                 }
 
-                const enforcedTracks = enforceAtLeastOne(sanitizedTracks, prompt);
                 const bpm = coerceBpmValue(parsed.bpm) ?? extractBpmFromPrompt(prompt) ?? 128;
+                const previewTracks = applyIntentTrackPolicy(sanitizedTracks, intent, context);
                 console.log('[API/Agent] Final enforced tracks:', JSON.stringify(Object.fromEntries(
-                    Object.entries(enforcedTracks).map(([k, v]) => [k, v ? v.substring(0, 60) + '...' : null])
+                    Object.entries(previewTracks).map(([k, v]) => [k, v ? v.substring(0, 60) + '...' : null])
                 )));
                 return jsonWithCors(buildValidatedTrackPayload({
                     prompt,
                     currentCode,
+                    intent,
+                    context,
                     raw,
                     bpm,
-                    tracks: enforcedTracks,
+                    tracks: sanitizedTracks,
                     thought: parsed.thought || '',
                 }));
             }
@@ -1440,6 +1379,8 @@ User Request: ${prompt}`
             return jsonWithCors(buildValidatedTrackPayload({
                 prompt,
                 currentCode,
+                intent,
+                context,
                 raw,
                 bpm: extractBpmFromPrompt(prompt) ?? 128,
                 tracks: detectedTracks,
@@ -1447,7 +1388,7 @@ User Request: ${prompt}`
             }));
         }
 
-        return jsonWithCors(buildFallbackResponse(prompt, 'Generated deterministic fallback music based on your request.', currentCode));
+        return jsonWithCors(buildIntentFallback(intent, context, 'Generated deterministic fallback music based on your request.'));
 
     } catch (error: unknown) {
         console.error('[API/Agent] Error:', error);

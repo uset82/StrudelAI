@@ -134,9 +134,9 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
             // Remove trailing commas before closing parentheses/brackets
             fixed = fixed.replace(/,(\s*[\)\]])/g, '$1');
 
-            // Remove duplicate closing brackets/parentheses
+            // Remove duplicate closing braces/brackets. Do not collapse "))":
+            // nested Strudel expressions commonly need adjacent closing parens.
             fixed = fixed.replace(/\}\}/g, '}');
-            fixed = fixed.replace(/\)\)/g, ')');
             fixed = fixed.replace(/\]\]/g, ']');
 
             // Fix common mini-notation issues
