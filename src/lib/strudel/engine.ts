@@ -566,15 +566,15 @@ function replaceSampleCalls(src: string) {
     });
 }
 
-function prettifyNestedStack(expr: string, indent: string = '  '): string {
+function splitTopLevelStackArgs(expr: string): string[] | null {
     const trimmed = expr.trim();
     if (!trimmed.startsWith('stack(') || !trimmed.endsWith(')')) {
-        return expr;
+        return null;
     }
 
     const inner = trimmed.slice(6, -1);
-    const tracks: string[] = [];
-    let currentTrack = '';
+    const args: string[] = [];
+    let currentArg = '';
     let depth = 0;
     let inSingleQuote = false;
     let inDoubleQuote = false;
@@ -597,26 +597,32 @@ function prettifyNestedStack(expr: string, indent: string = '  '): string {
         }
 
         if (char === ',' && depth === 0 && !inSingleQuote && !inDoubleQuote) {
-            tracks.push(currentTrack.trim());
-            currentTrack = '';
+            args.push(currentArg.trim());
+            currentArg = '';
         } else {
-            currentTrack += char;
+            currentArg += char;
         }
     }
-    if (currentTrack.trim()) {
-        tracks.push(currentTrack.trim());
+    if (currentArg.trim()) {
+        args.push(currentArg.trim());
     }
 
-    if (tracks.length <= 1) {
+    return args;
+}
+
+function prettifyNestedStack(expr: string, indent: string = '  '): string {
+    const trimmed = expr.trim();
+    const args = splitTopLevelStackArgs(trimmed);
+    if (!args) {
         return expr;
     }
 
     const childIndent = indent + '  ';
-    const formattedTracks = tracks.map(t => {
-        if (t.startsWith('stack(')) {
-            return prettifyNestedStack(t, childIndent);
+    const formattedTracks = args.map((arg) => {
+        if (arg.startsWith('stack(')) {
+            return prettifyNestedStack(arg, childIndent);
         }
-        return t;
+        return arg;
     });
 
     return `stack(\n${childIndent}${formattedTracks.join(',\n' + childIndent)}\n${indent})`;
@@ -647,6 +653,46 @@ function formatDisplayTrackExpression(code: string) {
         return prettifyNestedStack(trimmed, '');
     }
     return trimmed;
+}
+
+function inferRawStackSectionLabel(code: string) {
+    const lowered = code.toLowerCase();
+    const hasDrumSamples = /rolandtr\d{3}_(?:bd|sd|sn|cp|hh|oh|rd|rim)|\b(?:bd|sd|snare|cp|clap|hh|hat|kick|rim|ride|cymbal)\b/.test(lowered);
+    if (hasDrumSamples) return 'Drums';
+    if (/\.vowel\(|\bchoir\b|\bvocal\b|\bvoice\b/.test(lowered)) return 'Voice';
+
+    const lowNotes = (lowered.match(/\b[a-g](?:#|b)?[0-2]\b/g) || []).length;
+    const midHighNotes = (lowered.match(/\b[a-g](?:#|b)?[3-7]\b/g) || []).length;
+    if (lowNotes > 0 && lowNotes >= midHighNotes) return 'Bass';
+
+    const fxSignals = /\bpink\b|\bnoise\b|sine\.range|\.hpf\(sine\.range|\.lpf\(sine\.range|riser|sweep|downlifter/.test(lowered);
+    if (fxSignals && !/\bnote\(\s*m\(/.test(lowered)) return 'FX';
+    if (/\bnote\(\s*m\(|\bs\(['"](?:sawtooth|square|sine|triangle|piano|supersaw)/.test(lowered)) return 'Melody';
+    return 'Layer';
+}
+
+export function formatStrudelDisplayCode(code: string) {
+    const trimmed = code.trim();
+    if (!trimmed || trimmed.startsWith('//')) return code;
+    if (/^\s*stack\(\s*\n\s*\/\/\s*\d+\./.test(trimmed)) return code;
+    if (!trimmed.startsWith('stack(')) return formatDisplayTrackExpression(trimmed);
+
+    const args = splitTopLevelStackArgs(trimmed);
+    if (!args || args.length === 0) return formatDisplayTrackExpression(trimmed);
+
+    const lines: string[] = [];
+    args.forEach((arg, index) => {
+        const label = inferRawStackSectionLabel(arg);
+        lines.push(`  // ${index + 1}. ${label}`);
+
+        const expressionLines = indentCodeBlock(formatDisplayTrackExpression(arg), '  ').split('\n');
+        if (index < args.length - 1) {
+            expressionLines[expressionLines.length - 1] += ',';
+        }
+        lines.push(...expressionLines);
+    });
+
+    return `stack(\n${lines.join('\n')}\n)`;
 }
 
 export function buildStrudelCode(state: SonicSessionState) {

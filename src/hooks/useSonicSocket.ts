@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { ClientToServerEvents, ServerToClientEvents, SonicSessionState, InstrumentType } from '@/types/sonic';
-import { updateStrudel, initAudio, buildStrudelCode, evalStrudelCode, refreshAnalyser, addMusicGenSample, playMusicGenSample } from '../lib/strudel/engine';
+import { updateStrudel, initAudio, buildStrudelCode, evalStrudelCode, refreshAnalyser, addMusicGenSample, playMusicGenSample, formatStrudelDisplayCode } from '../lib/strudel/engine';
 
 function resolveSocketUrl() {
     const fallback = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -505,7 +505,7 @@ export function useSonicSocket() {
 
         if (isRawCode) {
             console.log('[SonicSocket] Evaluating raw Strudel code locally');
-            setCurrentCode(trimmed);
+            setCurrentCode(formatStrudelDisplayCode(trimmed));
             try {
                 await evalStrudelCode(trimmed);
                 setMessages(prev => [...prev, 'System: Code executed successfully']);
@@ -598,21 +598,29 @@ export function useSonicSocket() {
                         nextState.bpm = Math.max(40, Math.min(240, Math.round(data.bpm)));
                     }
 
-                    // Apply updates - tracks with patterns get updated, tracks with null get cleared
+                    // Apply updates - tracks with patterns get updated, tracks with null/silence get cleared/preserved
                     if (data.tracks) {
                         Object.entries(data.tracks).forEach(([key, pattern]) => {
                             if (key in nextState.tracks) {
                                 const trackId = key as InstrumentType;
                                 const patternText = typeof pattern === 'string' ? pattern : String(pattern ?? '');
-                                if (patternText.trim()) {
+                                const trimmed = patternText.trim();
+                                if (trimmed && trimmed !== 'null' && trimmed !== 'silence') {
                                     // Update track with new pattern
                                     nextState.tracks[trackId] = {
                                         ...nextState.tracks[trackId],
-                                        pattern: normalizeLocalPattern(trackId, patternText),
+                                        pattern: normalizeLocalPattern(trackId, trimmed),
                                         muted: false // Unmute if updated
                                     };
+                                } else if (trimmed === 'silence' || trimmed === 'null') {
+                                    // Explicitly clear/silence track if it is 'silence' or 'null'
+                                    nextState.tracks[trackId] = {
+                                        ...nextState.tracks[trackId],
+                                        pattern: 'expr:silence',
+                                        muted: false
+                                    };
                                 }
-                                // Note: We don't clear patterns for null tracks - 
+                                // Note: We don't clear patterns for null tracks (empty trimmed) - 
                                 // this preserves existing patterns when user adds new layers
                                 // If user wants to clear, they should say "clear" or "stop"
                             }
@@ -648,7 +656,7 @@ export function useSonicSocket() {
 
                 // Update editor state
                 if (setCurrentCode) {
-                    setCurrentCode(generatedCode);
+                    setCurrentCode(formatStrudelDisplayCode(generatedCode));
                 }
 
                 // Execute locally with error handling
@@ -684,7 +692,7 @@ export function useSonicSocket() {
                             if (fixData.type === 'code') {
                                 const fixedCode = fixData.code;
                                 setMessages(prev => [...prev, `AI: Fixed the error, trying again...`]);
-                                setCurrentCode(fixedCode);
+                                setCurrentCode(formatStrudelDisplayCode(fixedCode));
 
                                 try {
                                     await evalStrudelCode(fixedCode);

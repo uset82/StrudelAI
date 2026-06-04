@@ -11,7 +11,7 @@ import {
 import { buildMusicContext, routeMusicIntent } from './src/lib/music/musicIntent';
 import { STRUDEL_TRAINING_CORPUS, formatTrainingExamplesForPrompt, getRelevantTrainingExamples } from './src/lib/music/trainingCorpus';
 import { validateGeneratedTracks } from './src/lib/music/strudelValidation';
-import { buildStrudelCode } from './src/lib/strudel/engine';
+import { buildStrudelCode, formatStrudelDisplayCode } from './src/lib/strudel/engine';
 import {
     MusicBriefSchema,
     QualityReviewSchema,
@@ -371,6 +371,15 @@ const sparseDisplayedCode = buildStrudelCode({
 assert.match(sparseDisplayedCode, /\/\/ 1\. Drums/, 'sparse display should keep the active drums section');
 assert.match(sparseDisplayedCode, /\/\/ 2\. FX/, 'sparse display should renumber the next active section');
 assert.doesNotMatch(sparseDisplayedCode, /\/\/ \d+\. Bass|\/\/ \d+\. Melody|\/\/ \d+\. Voice/, 'sparse display should skip silent, empty, and muted tracks');
+
+const compactRawStack = "stack(stack(s('RolandTR909_bd ~ RolandTR909_bd ~').gain(0.78), s('~ RolandTR909_sd ~ RolandTR909_sd').gain(0.58), s('RolandTR909_hh*8').gain(0.16).hpf(6500)), note(m('c2 ~ eb2 ~ g1 ~ bb1 ~')).s('triangle').att(0.01).decay(0.2).lpf(520).gain(0.58), note(m('c4 eb4 g4 bb4')).s('sine').att(0.01).decay(0.2).room(0.25).gain(0.32).slow(2))";
+const formattedRawStack = formatStrudelDisplayCode(compactRawStack);
+assert.match(formattedRawStack, /\/\/ 1\. Drums\n  stack\(/, 'raw compact stack should become a commented drums section');
+assert.match(formattedRawStack, /\/\/ 2\. Bass\n  note\(m\('c2 ~ eb2 ~ g1 ~ bb1 ~'\)\)/, 'raw compact stack should infer the bass section');
+assert.match(formattedRawStack, /\/\/ 3\. Melody\n  note\(m\('c4 eb4 g4 bb4'\)\)/, 'raw compact stack should infer the melody section');
+assert.doesNotMatch(formattedRawStack, /^stack\(stack\(/, 'raw compact stack should not stay as one boring line');
+assert.ok(formattedRawStack.split('\n').length >= 10, 'raw compact stack should render across multiple readable lines');
+assert.equal(formatStrudelDisplayCode(formattedRawStack), formattedRawStack, 'display formatting should be idempotent for already-sectioned code');
 
 const rockFamilyPositiveCount = STRUDEL_TRAINING_CORPUS.filter((example) =>
     !example.negative && example.intentTags.some((tag) => ['rock', 'punk', 'metal'].includes(tag)),

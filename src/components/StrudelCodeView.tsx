@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { SonicSessionState } from '@/types/sonic';
-import { evalStrudelCode } from '@/lib/strudel/engine';
+import { evalStrudelCode, formatStrudelDisplayCode } from '@/lib/strudel/engine';
 
 interface StrudelCodeViewProps {
     code?: string;
@@ -58,7 +58,7 @@ function resolveApiUrl(path: string) {
 
 export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: StrudelCodeViewProps) {
     console.log('[StrudelCodeView] Rendering with:', { code: code?.slice(0, 50), isConnected });
-    const [editableCode, setEditableCode] = useState(code || '');
+    const [editableCode, setEditableCode] = useState(() => formatStrudelDisplayCode(code || ''));
     const [runError, setRunError] = useState<string | null>(null);
     const [isUserEditing, setIsUserEditing] = useState(false);
     const [suggestion, setSuggestion] = useState<string>('');
@@ -76,7 +76,7 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
             return;
         }
 
-        const incoming = (code || '').trim();
+        const incoming = formatStrudelDisplayCode(code || '').trim();
         if (incoming && incoming !== editableCode.trim()) {
             console.log('[StrudelCodeView] Syncing code from prop');
             // defer state update to next tick to avoid cascading renders

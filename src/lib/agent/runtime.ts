@@ -28,7 +28,7 @@ function shouldUseSharedMusicPipeline(text: string) {
     if (/^(stop|pause|silence)\b/.test(lowered)) return false;
     if (/\b(mute|unmute|delete|clear)\b/.test(lowered)) return false;
     if (/^(drums|bass|melody|fx|voice)\s*:/i.test(text)) return false;
-    return /\b(play|make|create|generate|give|music|song|loop|beat|drums?|bass|melody|lead|riff|guitar|groove|rock|punk|metal|funk|jazz|hip\s*hop|house|techno|ambient|dnb|drum\s*(?:and|&)\s*bass|reggae|latin|trance|acid|minimal|horrible|harsh|muddy|human|humanize|clean|less\s+even|not\s+even)\b/i.test(text);
+    return /\b(play|make|create|generate|give|music|song|loop|beat|drums?|bass|melody|lead|riff|guitar|groove|rock|punk|metal|funk|jazz|hip\s*hop|hip-hop|hiphop|rap(?:per)?|boom\s*bap|trap|eminem|eminen|slim\s+shady|house|techno|ambient|dnb|drum\s*(?:and|&)\s*bass|reggae|latin|trance|acid|minimal|horrible|harsh|muddy|human|humanize|clean|less\s+even|not\s+even)\b/i.test(text);
 }
 
 /**
