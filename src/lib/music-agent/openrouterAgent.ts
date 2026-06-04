@@ -100,13 +100,19 @@ function sanitizeTracks(tracks: TrackMap): TrackMap {
     };
 }
 
+const RAP_VOCAL_BED_THOUGHT = 'Rap vocal-bed loop: punchy half-time drums, low sub bass, and open space for vocals. No melodic lead was added.';
+
+function isRapVocalBedIntent(intent: MusicIntent) {
+    return intent.templateId === 'hiphop' && intent.clearTracks.includes('melody') && intent.clearTracks.includes('voice');
+}
+
 function applyIntentClears(response: AgentUpdateResponse, intent: MusicIntent): AgentUpdateResponse {
     if (intent.clearTracks.length === 0) return response;
     const tracks = { ...response.tracks };
     for (const trackId of intent.clearTracks) {
         tracks[trackId] = 'silence';
     }
-    return { ...response, tracks };
+    return { ...response, tracks, thought: isRapVocalBedIntent(intent) ? RAP_VOCAL_BED_THOUGHT : response.thought };
 }
 
 const AgentResponseSchema = z.object({

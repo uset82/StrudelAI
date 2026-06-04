@@ -915,7 +915,7 @@ const GENRE_PATTERNS: Array<[GenreKey, RegExp]> = [
     ['dnb', /\b(dnb|drum\s*(?:and|&)\s*bass|jungle|breakbeat)\b/i],
     ['pop_funk', /\b(michael\s+jackson|mj|pop\s*funk|dance\s*pop\s*funk)\b/i],
     ['italo_80s', /\b(italo|italo\s*disco|80s\s*techno|techno\s+italo\s+80s|italo\s+80s)\b/i],
-    ['hiphop', /\b(hip\s*hop|hip-hop|rap|boom\s*bap|trap)\b/i],
+    ['hiphop', /\b(hip\s*hop|hip-hop|rap|boom\s*bap|trap|eminem|eminen|slim\s+shady)\b/i],
     ['metal', /\b(metal|heavy\s*metal|chug|double\s*kick)\b/i],
     ['punk', /\b(punk|pop\s*punk)\b/i],
     ['rock', /\b(rock|guitar|riff|power\s*chords?|distorted\s*guitar|grunge|hard\s*rock)\b/i],

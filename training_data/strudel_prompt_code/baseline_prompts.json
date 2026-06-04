@@ -225,6 +225,13 @@
       "currentOutputSummary": "Reported output had hip-hop drums and bass but added a polite high sine melody hook, so it felt like a melodic synth loop rather than a rap beat for vocals.",
       "failureLabels": ["too-melodic", "missing-vocal-space", "wrong-genre-feel"],
       "acceptanceTarget": "Rap beat with punchy half-time drums, low 808-style bass, minimal texture, and no melodic lead unless the user explicitly asks for one."
+    },
+    {
+      "id": "baseline-033",
+      "prompt": "something like eminen",
+      "currentOutputSummary": "Misspelled artist-style rap prompt produced a generic C-minor triangle bass plus clean sine hook, not a vocal-ready rap bed.",
+      "failureLabels": ["artist-reference-routing", "typo-routing", "too-melodic", "generic-fallback"],
+      "acceptanceTarget": "Map the misspelled artist reference to safe rap traits: punchy half-time drums, low sub bass, vocal space, and no melodic lead unless requested."
     }
   ]
 }

@@ -624,8 +624,10 @@ const hasAnyTrack = (tracks: Record<string, string | null>) =>
     Object.values(tracks).some(v => typeof v === 'string' && v.trim());
 
 const isPlainRapVocalBedPrompt = (prompt: string) =>
-    /\b(?:rap(?:per)?|hip\s*hop|hip-hop|hiphop|boom\s*bap|trap)\b/i.test(prompt)
+    /\b(?:rap(?:per)?|hip\s*hop|hip-hop|hiphop|boom\s*bap|trap|eminem|eminen|slim\s+shady)\b/i.test(prompt)
     && !/\b(melod(?:y|ic)|hook|lead|topline|piano|sample|chords?|keys|arp|arpeggio)\b/i.test(prompt);
+
+const RAP_VOCAL_BED_THOUGHT = 'Rap vocal-bed loop: punchy half-time drums, low sub bass, and open space for vocals. No melodic lead was added.';
 
 const applyIntentTrackPolicy = (
     tracks: Record<string, string | null>,
@@ -742,7 +744,7 @@ const buildValidatedTrackPayload = async (params: {
         type: 'update_tracks',
         bpm,
         tracks: finalTracks,
-        thought: params.thought || '',
+        thought: isPlainRapVocalBedPrompt(params.prompt) ? RAP_VOCAL_BED_THOUGHT : params.thought || '',
     };
 };
 

@@ -203,7 +203,7 @@ function drumTemplateForPrompt(prompt: string): GenreKey {
 }
 
 function isVocalBedHipHopPrompt(prompt: string) {
-    return /\b(hip\s*hop|hip-hop|rap|boom\s*bap|trap)\b/.test(prompt)
+    return /\b(hip\s*hop|hip-hop|rap|boom\s*bap|trap|eminem|eminen|slim\s+shady)\b/.test(prompt)
         && !/\b(melod(?:y|ic)|hook|lead|topline|piano|sample|chords?|keys|arp|arpeggio)\b/.test(prompt);
 }
 

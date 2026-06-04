@@ -120,7 +120,7 @@ function numericMethodValues(value: string, method: string) {
 }
 
 function isPlainRapOrHiphopPrompt(prompt: string) {
-    return /\b(?:rap(?:per)?|hip-?hop|boom\s*bap)\b/i.test(prompt) && !/\b(melod(?:y|ic)|hook|lead|topline|piano|sample)\b/i.test(prompt);
+    return /\b(?:rap(?:per)?|hip-?hop|boom\s*bap|trap|eminem|eminen|slim\s+shady)\b/i.test(prompt) && !/\b(melod(?:y|ic)|hook|lead|topline|piano|sample)\b/i.test(prompt);
 }
 
 function validateTemplateRequirements(tracks: TrackMap, template: GenreTemplate, prompt: string): TrackValidationIssue[] {

@@ -76,6 +76,8 @@ assert.equal(detectGenre('play fast punk'), 'punk');
 assert.equal(detectGenre('drum and bass'), 'dnb');
 assert.equal(detectGenre('techno italo 80s'), 'italo_80s');
 assert.equal(detectGenre('play some michael jackson'), 'pop_funk');
+assert.equal(detectGenre('something like eminem'), 'hiphop');
+assert.equal(detectGenre('something like eminen'), 'hiphop');
 
 const fallbackRock = buildFallbackResponse('make a guitar riff', 'fallback');
 assert.equal(fallbackRock.bpm, GENRE_TEMPLATES.rock.bpm);
@@ -417,6 +419,11 @@ const rapIntentWithMelody = routeMusicIntent('play some rap', rapContextWithMelo
 assert.deepEqual(rapIntentWithMelody.targetTracks, ['drums', 'bass'], 'plain rap should target the beat and sub, not a melodic lead');
 assert.deepEqual(rapIntentWithMelody.clearTracks, ['melody', 'voice'], 'plain rap should clear prior melody/voice lanes');
 
+const eminenIntent = routeMusicIntent('something like eminen', rapContextWithMelody);
+assert.equal(eminenIntent.templateId, 'hiphop', 'misspelled Eminem-style prompt should route to hiphop traits');
+assert.deepEqual(eminenIntent.targetTracks, ['drums', 'bass'], 'misspelled rap artist prompt should target beat and sub');
+assert.deepEqual(eminenIntent.clearTracks, ['melody', 'voice'], 'misspelled rap artist prompt should clear prior melody/voice lanes');
+
 const localRapPipeline = buildLocalMusicAgentPipeline({ prompt: 'play some rap', enableOpenRouter: false });
 assert.equal(localRapPipeline.brief.genre, 'hiphop');
 assert.equal(localRapPipeline.validation.valid, true, JSON.stringify(localRapPipeline.validation.issues));
@@ -436,6 +443,15 @@ const rapStateAfterClear = applyTrackMapToState({
 const rapDisplayedCode = buildStrudelCode(rapStateAfterClear);
 assert.doesNotMatch(rapDisplayedCode, /f4 ~ ab4 ~ c5|vowel\('a'\)/i, 'plain rap should remove stale melody/voice from displayed playback code');
 
+const localEminenPipeline = buildLocalMusicAgentPipeline({ prompt: 'something like eminen', enableOpenRouter: false });
+assert.equal(localEminenPipeline.brief.genre, 'hiphop');
+assert.equal(localEminenPipeline.validation.valid, true, JSON.stringify(localEminenPipeline.validation.issues));
+assert.equal(localEminenPipeline.tracks.melody, 'silence', 'misspelled rap artist prompt should not add a clean sine hook');
+assert.equal(localEminenPipeline.tracks.voice, 'silence', 'misspelled rap artist prompt should leave vocal space');
+assert.match(localEminenPipeline.tracks.drums || '', /RolandTR808_bd/i, 'misspelled rap artist prompt needs 808-style kick material');
+assert.match(localEminenPipeline.tracks.bass || '', /\bf1\b/i, 'misspelled rap artist prompt should use low F-minor rap bass, not generic C-minor fallback');
+assert.doesNotMatch(Object.values(localEminenPipeline.tracks).join(' '), /c2 ~ eb2 ~ g1 ~ bb1|c4 eb4 g4 c5/i, 'misspelled rap artist prompt should not reuse the generic C-minor sine-hook failure');
+
 const invalidMelodicRap = validateGeneratedTracks({
     drums: "stack(s('RolandTR808_bd ~ ~ RolandTR808_bd ~ ~ RolandTR808_bd ~').gain(0.92), s('~ ~ RolandTR909_sd ~ ~ ~ RolandTR909_sd ~').gain(0.75).hpf(400), s('RolandTR909_hh*8').gain(0.12).hpf(8000))",
     bass: "note(m('f1 ~ f1 ~ ab1 ~ eb1 ~ db1 ~')).s('sine').att(0.01).decay(0.3).lpf(110).gain(0.78)",
@@ -447,6 +463,19 @@ assert.equal(invalidMelodicRap.valid, false, 'old melodic sine-hook rap output s
 assert.ok(
     invalidMelodicRap.issues.some((issue) => /vocal space|melodic lead/i.test(issue.reason)),
     JSON.stringify(invalidMelodicRap.issues),
+);
+
+const invalidEminenStyleRap = validateGeneratedTracks({
+    drums: "stack(s('RolandTR909_bd ~ RolandTR909_bd ~').gain(0.85), s('~ RolandTR909_sd ~ RolandTR909_sd').gain(0.7).hpf(400), s('RolandTR909_hh*8').gain(0.2).hpf(6000))",
+    bass: "note(m('c2 ~ eb2 ~ g1 ~ bb1')).s('triangle').att(0.01).decay(0.3).lpf(400).gain(0.6)",
+    melody: "note(m('c4 eb4 g4 c5')).s('sine').att(0.01).decay(0.15).room(0.3).gain(0.25).slow(2)",
+    voice: null,
+    fx: null,
+}, 'something like eminen');
+assert.equal(invalidEminenStyleRap.valid, false, 'generic C-minor sine-hook rap artist output should be rejected');
+assert.ok(
+    invalidEminenStyleRap.issues.some((issue) => /vocal space|melodic lead/i.test(issue.reason)),
+    JSON.stringify(invalidEminenStyleRap.issues),
 );
 
 const boomBapDrumsOnlyPipeline = buildLocalMusicAgentPipeline({ prompt: 'boom bap drums only', enableOpenRouter: false });
@@ -556,7 +585,7 @@ assert.match(blueMondayGrounding, /Blue Monday/, 'Blue Monday reference should b
 assert.doesNotMatch(blueMondayGrounding, /\bconst\s+kick1\b|arrange\s*\(/, 'grounding should summarize source traits instead of copying raw source scripts');
 
 // Hip-Hop / Rap prompt expansion tests
-const hiphopPrompts = ['play some rap', 'play some hip-hop', 'play some hiphop', 'play some boom bap'];
+const hiphopPrompts = ['play some rap', 'play some hip-hop', 'play some hiphop', 'play some boom bap', 'something like eminem', 'something like eminen'];
 const invalidMelodicTrackMap = {
     drums: "stack(s('RolandTR808_bd ~ ~ RolandTR808_bd ~ ~ RolandTR808_bd ~').gain(0.92), s('~ ~ RolandTR909_sd ~ ~ ~ RolandTR909_sd ~').gain(0.75).hpf(400), s('RolandTR909_hh*8').gain(0.12).hpf(8000))",
     bass: "note(m('f1 ~ f1 ~ ab1 ~ eb1 ~ db1 ~')).s('sine').att(0.01).decay(0.3).lpf(110).gain(0.78)",

@@ -82,6 +82,7 @@ const broadGenreExamples: StrudelTrainingExample[] = [
     fromTemplate('jazz-001', 'jazzy chill groove', 'jazz', ['jazz'], ['Soft drums and walking bass']),
     fromTemplate('hiphop-001', 'boom bap hip hop beat', 'hiphop', ['hiphop'], ['Half-time drum feel']),
     fromTemplate('hiphop-002', 'play some rap', 'hiphop', ['hiphop', 'rap', 'vocal-space'], ['Rap requests need drums and low bass first', 'No melodic lead unless requested']),
+    fromTemplate('hiphop-003', 'something like eminen', 'hiphop', ['hiphop', 'rap', 'artist-reference', 'typo', 'vocal-space'], ['Map misspelled artist reference to safe rap traits only', 'No melodic lead unless requested']),
     fromTemplate('latin-001', 'latin percussion groove', 'latin', ['latin'], ['Bright percussion at low gain']),
     fromTemplate('reggae-001', 'play reggae', 'reggae', ['reggae'], ['Offbeat chord chops']),
     fromTemplate('techno-001', 'dark techno beat', 'techno', ['techno'], ['Four-on-floor remains appropriate']),
@@ -311,6 +312,29 @@ const negativeExamples: StrudelTrainingExample[] = [
         qualityNotes: ['Reject melodic lead line for plain rap prompts', 'Rap beat should leave room for vocals'],
         negative: true,
         rejectionReason: 'Too melodic and clean for a plain rap beat; it should prioritize drums, sub bass, and vocal space.',
+    },
+    {
+        id: 'negative-010',
+        version: STRUDEL_CORPUS_VERSION,
+        userPrompt: 'something like eminen',
+        intentTags: ['negative', 'hiphop', 'rap', 'artist-reference', 'typo', 'too-melodic'],
+        expected: {
+            type: 'update_tracks',
+            thought: 'Rejected: misspelled artist-style rap prompt produced a generic C-minor sine hook instead of a vocal-ready rap bed.',
+            bpm: 92,
+            tracks: {
+                drums: "stack(s('RolandTR909_bd ~ RolandTR909_bd ~').gain(0.85), s('~ RolandTR909_sd ~ RolandTR909_sd').gain(0.7).hpf(400), s('RolandTR909_hh*8').gain(0.2).hpf(6000))",
+                bass: "note(m('c2 ~ eb2 ~ g1 ~ bb1')).s('triangle').att(0.01).decay(0.3).lpf(400).gain(0.6)",
+                melody: "note(m('c4 eb4 g4 c5')).s('sine').att(0.01).decay(0.15).room(0.3).gain(0.25).slow(2)",
+                voice: null,
+                fx: null,
+            },
+        },
+        bpm: 92,
+        key: 'F minor',
+        qualityNotes: ['Reject generic C-minor hook for misspelled rap artist prompt', 'Use safe rap traits without copying the artist'],
+        negative: true,
+        rejectionReason: 'Wrong feel for artist-style rap: generic C-minor melody and sine hook crowd the vocal pocket.',
     },
 ];
 

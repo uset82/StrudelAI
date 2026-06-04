@@ -49,3 +49,4 @@ Use this table during manual listening passes after automated tests pass.
 | funky groove | Syncopated drums, active bass, clipped chords | TBD | TBD | TBD | TBD | TBD |
 | calm ambient music | Slow pads, no forced drums, spacious FX | TBD | TBD | TBD | TBD | TBD |
 | drum and bass | 174 BPM, broken beat, rolling bass | TBD | TBD | TBD | TBD | TBD |
+| something like eminen | Safe artist-reference rap traits, punchy half-time drums, low sub bass, no melodic lead unless requested | Prior output used generic C-minor triangle bass and clean sine hook | Fail | Fail | Too melodic; typo missed rap vocal-bed routing | Fail |
