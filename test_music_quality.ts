@@ -376,6 +376,7 @@ const compactRawStack = "stack(stack(s('RolandTR909_bd ~ RolandTR909_bd ~').gain
 const formattedRawStack = formatStrudelDisplayCode(compactRawStack);
 assert.match(formattedRawStack, /\/\/ 1\. Drums\n  stack\(/, 'raw compact stack should become a commented drums section');
 assert.match(formattedRawStack, /\/\/ 2\. Bass\n  note\(m\('c2 ~ eb2 ~ g1 ~ bb1 ~'\)\)/, 'raw compact stack should infer the bass section');
+assert.match(formattedRawStack, /\n    \.s\('triangle'\)\n    \.att\(0\.01\)/, 'raw bass chain should be split into readable method lines');
 assert.match(formattedRawStack, /\/\/ 3\. Melody\n  note\(m\('c4 eb4 g4 bb4'\)\)/, 'raw compact stack should infer the melody section');
 assert.doesNotMatch(formattedRawStack, /^stack\(stack\(/, 'raw compact stack should not stay as one boring line');
 assert.ok(formattedRawStack.split('\n').length >= 10, 'raw compact stack should render across multiple readable lines');

@@ -442,6 +442,10 @@ export function useSonicSocket() {
         const isDirectCommand = /^(drums|bass|melody|fx|voice|bpm):/i.test(trimmed);
         const isRawCode = /^(s\(|note\(|stack\(|silence|sound\(|sample\(|n\(|m\(|\(\(\)\s*=>)/.test(trimmed);
 
+        if (isRawCode) {
+            setCurrentCode(formatStrudelDisplayCode(trimmed));
+        }
+
         // Ensure audio is ready before doing anything
         if (!isAudioReady) {
             console.log('[SonicSocket] Audio not ready, attempting init...');
@@ -505,7 +509,6 @@ export function useSonicSocket() {
 
         if (isRawCode) {
             console.log('[SonicSocket] Evaluating raw Strudel code locally');
-            setCurrentCode(formatStrudelDisplayCode(trimmed));
             try {
                 await evalStrudelCode(trimmed);
                 setMessages(prev => [...prev, 'System: Code executed successfully']);

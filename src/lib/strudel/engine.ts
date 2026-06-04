@@ -610,6 +610,51 @@ function splitTopLevelStackArgs(expr: string): string[] | null {
     return args;
 }
 
+function breakTopLevelMethodChain(expr: string) {
+    const trimmed = expr.trim();
+    const shouldBreak = trimmed.startsWith('note(') || trimmed.length > 88;
+    if (!shouldBreak) return trimmed;
+
+    const parts: string[] = [];
+    let current = '';
+    let depth = 0;
+    let inSingleQuote = false;
+    let inDoubleQuote = false;
+
+    for (let i = 0; i < trimmed.length; i++) {
+        const char = trimmed[i];
+
+        if (char === "'" && trimmed[i - 1] !== '\\' && !inDoubleQuote) {
+            inSingleQuote = !inSingleQuote;
+        } else if (char === '"' && trimmed[i - 1] !== '\\' && !inSingleQuote) {
+            inDoubleQuote = !inDoubleQuote;
+        }
+
+        if (!inSingleQuote && !inDoubleQuote) {
+            if (char === '(' || char === '[' || char === '{') {
+                depth++;
+            } else if (char === ')' || char === ']' || char === '}') {
+                depth--;
+            }
+        }
+
+        if (char === '.' && depth === 0 && !inSingleQuote && !inDoubleQuote && current.trim()) {
+            parts.push(current.trim());
+            current = '.';
+            continue;
+        }
+
+        current += char;
+    }
+
+    if (current.trim()) {
+        parts.push(current.trim());
+    }
+
+    if (parts.length <= 1) return trimmed;
+    return parts.map((part, index) => index === 0 ? part : `  ${part}`).join('\n');
+}
+
 function prettifyNestedStack(expr: string, indent: string = '  '): string {
     const trimmed = expr.trim();
     const args = splitTopLevelStackArgs(trimmed);
@@ -622,7 +667,7 @@ function prettifyNestedStack(expr: string, indent: string = '  '): string {
         if (arg.startsWith('stack(')) {
             return prettifyNestedStack(arg, childIndent);
         }
-        return arg;
+        return breakTopLevelMethodChain(arg);
     });
 
     return `stack(\n${childIndent}${formattedTracks.join(',\n' + childIndent)}\n${indent})`;
@@ -652,7 +697,7 @@ function formatDisplayTrackExpression(code: string) {
     if (trimmed.startsWith('stack(')) {
         return prettifyNestedStack(trimmed, '');
     }
-    return trimmed;
+    return breakTopLevelMethodChain(trimmed);
 }
 
 function inferRawStackSectionLabel(code: string) {
