@@ -623,10 +623,15 @@ const toTrackMap = (tracks: Record<string, string | null>): TrackMap => ({
 const hasAnyTrack = (tracks: Record<string, string | null>) =>
     Object.values(tracks).some(v => typeof v === 'string' && v.trim());
 
+const isPlainRapVocalBedPrompt = (prompt: string) =>
+    /\b(?:rap(?:per)?|hip\s*hop|hip-hop|hiphop|boom\s*bap|trap)\b/i.test(prompt)
+    && !/\b(melod(?:y|ic)|hook|lead|topline|piano|sample|chords?|keys|arp|arpeggio)\b/i.test(prompt);
+
 const applyIntentTrackPolicy = (
     tracks: Record<string, string | null>,
     intent: MusicIntent,
     context: MusicContext,
+    prompt: string,
 ) => {
     const next = toTrackMap(hasAnyTrack(tracks) ? tracks : context.tracks);
     if (!hasAnyTrack(next)) {
@@ -635,6 +640,10 @@ const applyIntentTrackPolicy = (
 
     for (const trackId of intent.clearTracks) {
         next[trackId] = 'silence';
+    }
+    if (isPlainRapVocalBedPrompt(prompt)) {
+        next.melody = 'silence';
+        next.voice = 'silence';
     }
 
     return next;
@@ -683,7 +692,7 @@ const buildValidatedTrackPayload = async (params: {
     bpm?: number | null;
     thought?: string;
 }) => {
-    const finalTracks = applyIntentTrackPolicy(params.tracks, params.intent, params.context);
+    const finalTracks = applyIntentTrackPolicy(params.tracks, params.intent, params.context, params.prompt);
     const validation = validateGeneratedTracks(finalTracks, params.prompt, params.currentCode, params.intent);
     const bpm = coerceBpmValue(params.bpm) ?? params.intent.nextBpm ?? extractBpmFromPrompt(params.prompt) ?? params.context.currentBpm;
 
@@ -1361,7 +1370,7 @@ User Request: ${prompt}`
                 }
 
                 const bpm = coerceBpmValue(parsed.bpm) ?? extractBpmFromPrompt(prompt) ?? 128;
-                const previewTracks = applyIntentTrackPolicy(sanitizedTracks, intent, context);
+                const previewTracks = applyIntentTrackPolicy(sanitizedTracks, intent, context, prompt);
                 console.log('[API/Agent] Final enforced tracks:', JSON.stringify(Object.fromEntries(
                     Object.entries(previewTracks).map(([k, v]) => [k, v ? v.substring(0, 60) + '...' : null])
                 )));

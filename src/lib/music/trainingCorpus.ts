@@ -81,6 +81,7 @@ const broadGenreExamples: StrudelTrainingExample[] = [
     fromTemplate('pop-001', 'make a catchy pop loop', 'pop', ['pop'], ['Simple hook, no clutter']),
     fromTemplate('jazz-001', 'jazzy chill groove', 'jazz', ['jazz'], ['Soft drums and walking bass']),
     fromTemplate('hiphop-001', 'boom bap hip hop beat', 'hiphop', ['hiphop'], ['Half-time drum feel']),
+    fromTemplate('hiphop-002', 'play some rap', 'hiphop', ['hiphop', 'rap', 'vocal-space'], ['Rap requests need drums and low bass first', 'No melodic lead unless requested']),
     fromTemplate('latin-001', 'latin percussion groove', 'latin', ['latin'], ['Bright percussion at low gain']),
     fromTemplate('reggae-001', 'play reggae', 'reggae', ['reggae'], ['Offbeat chord chops']),
     fromTemplate('techno-001', 'dark techno beat', 'techno', ['techno'], ['Four-on-floor remains appropriate']),
@@ -287,6 +288,29 @@ const negativeExamples: StrudelTrainingExample[] = [
         qualityNotes: ['E natural is outside C minor. C minor scale notes are: C, D, Eb, F, G, Ab, Bb.'],
         negative: true,
         rejectionReason: 'Cello melody contains out-of-scale E natural note when C minor key/scale was expected.',
+    },
+    {
+        id: 'negative-009',
+        version: STRUDEL_CORPUS_VERSION,
+        userPrompt: 'play some rap',
+        intentTags: ['negative', 'hiphop', 'rap', 'too-melodic'],
+        expected: {
+            type: 'update_tracks',
+            thought: 'Rejected: plain rap request produced a polite melodic sine hook instead of leaving room for vocals.',
+            bpm: 92,
+            tracks: {
+                drums: "stack(s('RolandTR808_bd ~ ~ RolandTR808_bd ~ ~ RolandTR808_bd ~').gain(0.92), s('~ ~ RolandTR909_sd ~ ~ ~ RolandTR909_sd ~').gain(0.75).hpf(400), s('RolandTR909_hh*8').gain(0.12).hpf(8000))",
+                bass: "note(m('f1 ~ f1 ~ ab1 ~ eb1 ~ db1 ~')).s('sine').att(0.01).decay(0.3).lpf(110).gain(0.78)",
+                melody: "note(m('f4 ~ ab4 ~ c5 ~ eb5 ~ db5 ~')).s('sine').att(0.02).decay(0.25).hpf(300).room(0.25).gain(0.24).slow(2)",
+                voice: null,
+                fx: null,
+            },
+        },
+        bpm: 92,
+        key: 'F minor',
+        qualityNotes: ['Reject melodic lead line for plain rap prompts', 'Rap beat should leave room for vocals'],
+        negative: true,
+        rejectionReason: 'Too melodic and clean for a plain rap beat; it should prioritize drums, sub bass, and vocal space.',
     },
 ];
 

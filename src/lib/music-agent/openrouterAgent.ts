@@ -100,6 +100,15 @@ function sanitizeTracks(tracks: TrackMap): TrackMap {
     };
 }
 
+function applyIntentClears(response: AgentUpdateResponse, intent: MusicIntent): AgentUpdateResponse {
+    if (intent.clearTracks.length === 0) return response;
+    const tracks = { ...response.tracks };
+    for (const trackId of intent.clearTracks) {
+        tracks[trackId] = 'silence';
+    }
+    return { ...response, tracks };
+}
+
 const AgentResponseSchema = z.object({
     type: z.literal('update_tracks'),
     thought: z.string(),
@@ -269,12 +278,12 @@ export async function refineWithOpenRouterAgent(params: {
                 continue;
             }
 
-            return {
+            return applyIntentClears({
                 type: 'update_tracks',
                 thought: parsed.thought,
                 bpm: parsed.bpm,
                 tracks,
-            };
+            }, params.intent);
         } catch (err) {
             lastError = err;
             console.warn(`[MusicAgent] OpenRouter agent failed (${model})`, err);
@@ -305,7 +314,7 @@ export async function runMusicAgentPipeline(params: {
     let finalSource: MusicAgentResponseSource = local.source;
 
     if (params.enableOpenRouter === false) {
-        finalResponse = localResponse;
+        finalResponse = applyIntentClears(localResponse, intent);
     } else {
         const refined = await refineWithOpenRouterAgent({
             prompt: params.prompt,
@@ -316,12 +325,14 @@ export async function runMusicAgentPipeline(params: {
         });
 
         if (refined) {
-            finalResponse = refined;
+            finalResponse = applyIntentClears(refined, intent);
             finalSource = 'openrouter_agent';
         } else {
-            finalResponse = localResponse;
+            finalResponse = applyIntentClears(localResponse, intent);
         }
     }
+
+    finalResponse = applyIntentClears(finalResponse, intent);
 
     // Run final agent validation and patch if needed
     for (const trackId of ['drums', 'bass', 'melody', 'voice', 'fx'] as const) {
@@ -344,6 +355,13 @@ export async function runMusicAgentPipeline(params: {
         } catch (err) {
             console.warn(`[ValidationAgent] Error in final track validation for "${trackId}":`, err);
         }
+    }
+
+    const finalValidation = validateGeneratedTracks(finalResponse.tracks, params.prompt, params.currentCode || undefined, intent);
+    if (!finalValidation.valid) {
+        console.warn('[MusicAgent] Final response rejected by legacy validation; returning local pipeline output:', finalValidation.issues);
+        finalResponse = applyIntentClears(localResponse, intent);
+        finalSource = local.source;
     }
 
     return params.includeDebug ? withDebugMetadata(finalResponse, local, finalSource) : finalResponse;

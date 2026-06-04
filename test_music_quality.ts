@@ -17,6 +17,7 @@ import {
     QualityReviewSchema,
     SoundPlanSchema,
     TheoryPlanSchema,
+    applyTrackMapToState,
     buildLocalMusicAgentPipeline,
     buildMusicBrief,
 } from './src/lib/music-agent';
@@ -389,6 +390,65 @@ assert.equal(localFunkPipeline.brief.genre, 'funk');
 assert.equal(localFunkPipeline.validation.valid, true, JSON.stringify(localFunkPipeline.validation.issues));
 assert.match(localFunkPipeline.tracks.bass || '', /~/, 'funk bass should include syncopated rests');
 
+const deterministicRap = buildDeterministicMusicResponse('play some rap');
+assert.ok(deterministicRap, 'plain rap should have deterministic hip-hop fallback coverage');
+assert.match(deterministicRap!.thought, /rap|vocals|808/i, 'plain rap thought should describe a vocal-friendly rap beat');
+assert.ok(hasTrack(deterministicRap!.tracks.drums), 'plain rap deterministic fallback needs drums');
+assert.ok(hasTrack(deterministicRap!.tracks.bass), 'plain rap deterministic fallback needs bass');
+assert.equal(deterministicRap!.tracks.melody, 'silence', 'plain rap deterministic fallback should explicitly clear melody');
+assert.equal(deterministicRap!.tracks.voice, 'silence', 'plain rap deterministic fallback should explicitly clear voice');
+
+const previousMelodicRapState: SonicSessionState = {
+    bpm: 120,
+    scale: 'C minor',
+    isPlaying: true,
+    tracks: {
+        drums: makeTrack('drums', "expr:s('RolandTR909_bd*4')"),
+        bass: makeTrack('bass', "expr:note(m('c2 ~ eb2 ~')).s('triangle')"),
+        melody: makeTrack('melody', "expr:note(m('f4 ~ ab4 ~ c5 ~ eb5 ~ db5 ~')).s('sine').gain(0.24)"),
+        voice: makeTrack('voice', "expr:note(m('c4')).s('sawtooth').vowel('a')"),
+        fx: makeTrack('fx', "expr:s('pink').gain(0.05)"),
+    },
+};
+const rapContextWithMelody = buildMusicContext({
+    currentState: previousMelodicRapState,
+});
+const rapIntentWithMelody = routeMusicIntent('play some rap', rapContextWithMelody);
+assert.deepEqual(rapIntentWithMelody.targetTracks, ['drums', 'bass'], 'plain rap should target the beat and sub, not a melodic lead');
+assert.deepEqual(rapIntentWithMelody.clearTracks, ['melody', 'voice'], 'plain rap should clear prior melody/voice lanes');
+
+const localRapPipeline = buildLocalMusicAgentPipeline({ prompt: 'play some rap', enableOpenRouter: false });
+assert.equal(localRapPipeline.brief.genre, 'hiphop');
+assert.equal(localRapPipeline.validation.valid, true, JSON.stringify(localRapPipeline.validation.issues));
+assert.match(localRapPipeline.tracks.drums || '', /RolandTR808_bd/i, 'rap beat needs an 808-style kick');
+assert.match(localRapPipeline.tracks.drums || '', /RolandTR909_sd/i, 'rap beat needs a dry snare');
+assert.match(localRapPipeline.tracks.bass || '', /\bf1\b/i, 'rap beat needs low F-minor bass');
+assert.equal(localRapPipeline.tracks.melody, 'silence', 'plain rap pipeline should clear melody instead of adding a lead');
+assert.equal(localRapPipeline.tracks.voice, 'silence', 'plain rap pipeline should clear voice to leave rap vocal space');
+assert.doesNotMatch(localRapPipeline.thought, /minimal sine melody hook|melodic lead line/i, 'plain rap should not describe the old melodic-hook behavior');
+
+const rapStateAfterClear = applyTrackMapToState({
+    type: 'update_tracks',
+    bpm: localRapPipeline.bpm,
+    tracks: localRapPipeline.tracks,
+    thought: localRapPipeline.thought,
+}, previousMelodicRapState);
+const rapDisplayedCode = buildStrudelCode(rapStateAfterClear);
+assert.doesNotMatch(rapDisplayedCode, /f4 ~ ab4 ~ c5|vowel\('a'\)/i, 'plain rap should remove stale melody/voice from displayed playback code');
+
+const invalidMelodicRap = validateGeneratedTracks({
+    drums: "stack(s('RolandTR808_bd ~ ~ RolandTR808_bd ~ ~ RolandTR808_bd ~').gain(0.92), s('~ ~ RolandTR909_sd ~ ~ ~ RolandTR909_sd ~').gain(0.75).hpf(400), s('RolandTR909_hh*8').gain(0.12).hpf(8000))",
+    bass: "note(m('f1 ~ f1 ~ ab1 ~ eb1 ~ db1 ~')).s('sine').att(0.01).decay(0.3).lpf(110).gain(0.78)",
+    melody: "note(m('f4 ~ ab4 ~ c5 ~ eb5 ~ db5 ~')).s('sine').att(0.02).decay(0.25).hpf(300).room(0.25).gain(0.24).slow(2)",
+    voice: null,
+    fx: null,
+}, 'play some rap');
+assert.equal(invalidMelodicRap.valid, false, 'old melodic sine-hook rap output should be rejected');
+assert.ok(
+    invalidMelodicRap.issues.some((issue) => /vocal space|melodic lead/i.test(issue.reason)),
+    JSON.stringify(invalidMelodicRap.issues),
+);
+
 const boomBapDrumsOnlyPipeline = buildLocalMusicAgentPipeline({ prompt: 'boom bap drums only', enableOpenRouter: false });
 assert.equal(boomBapDrumsOnlyPipeline.brief.genre, 'boom_bap_drums');
 assert.equal(boomBapDrumsOnlyPipeline.validation.valid, true, JSON.stringify(boomBapDrumsOnlyPipeline.validation.issues));
@@ -494,5 +554,63 @@ const blueMondayGrounding = formatTrainingExamplesForPrompt('play blue monday re
 assert.match(blueMondayGrounding, /AWESOME STRUDEL SOURCE REFERENCES/, 'song prompts should retrieve Awesome Strudel reference notes');
 assert.match(blueMondayGrounding, /Blue Monday/, 'Blue Monday reference should be named in grounding');
 assert.doesNotMatch(blueMondayGrounding, /\bconst\s+kick1\b|arrange\s*\(/, 'grounding should summarize source traits instead of copying raw source scripts');
+
+// Hip-Hop / Rap prompt expansion tests
+const hiphopPrompts = ['play some rap', 'play some hip-hop', 'play some hiphop', 'play some boom bap'];
+const invalidMelodicTrackMap = {
+    drums: "stack(s('RolandTR808_bd ~ ~ RolandTR808_bd ~ ~ RolandTR808_bd ~').gain(0.92), s('~ ~ RolandTR909_sd ~ ~ ~ RolandTR909_sd ~').gain(0.75).hpf(400), s('RolandTR909_hh*8').gain(0.12).hpf(8000))",
+    bass: "note(m('f1 ~ f1 ~ ab1 ~ eb1 ~ db1 ~')).s('sine').att(0.01).decay(0.3).lpf(110).gain(0.78)",
+    melody: "note(m('f4 ~ ab4 ~ c5 ~ eb5 ~ db5 ~')).s('sine').att(0.02).decay(0.25).hpf(300).room(0.25).gain(0.24).slow(2)",
+    voice: null,
+    fx: null,
+};
+
+for (const prompt of hiphopPrompts) {
+    const valResult = validateGeneratedTracks(invalidMelodicTrackMap, prompt);
+    assert.equal(valResult.valid, false, `Prompt "${prompt}" should reject high melodic notes in rap/hiphop context`);
+    assert.ok(
+        valResult.issues.some((issue) => /vocal space|melodic lead/i.test(issue.reason)),
+        `Expected issue with vocal space/melodic lead for prompt "${prompt}", got: ${JSON.stringify(valResult.issues)}`
+    );
+}
+
+// Step count validation tests
+const invalid10StepTrackMap = {
+    drums: "s('RolandTR909_bd ~ RolandTR909_bd ~').gain(1)",
+    bass: "note(m('c1 c1 c1 c1 c1 c1 c1 c1 c1 c1')).s('sawtooth')", // 10 steps (non-standard)
+    melody: null,
+    voice: null,
+    fx: null,
+};
+const valResult10 = validateGeneratedTracks(invalid10StepTrackMap, 'play some techno');
+assert.equal(valResult10.valid, false, '10-step pattern should be rejected by step count validator');
+assert.ok(
+    valResult10.issues.some((issue) => issue.reason.includes('non-standard step count of 10')),
+    `Expected non-standard step count of 10 error, got: ${JSON.stringify(valResult10.issues)}`
+);
+
+const invalid9StepTrackMap = {
+    drums: "s('RolandTR909_bd ~ RolandTR909_bd ~').gain(1)",
+    bass: null,
+    melody: "note('c d e f g a b c d')", // 9 steps (non-standard)
+    voice: null,
+    fx: null,
+};
+const valResult9 = validateGeneratedTracks(invalid9StepTrackMap, 'play some techno');
+assert.equal(valResult9.valid, false, '9-step pattern should be rejected by step count validator');
+assert.ok(
+    valResult9.issues.some((issue) => issue.reason.includes('non-standard step count of 9')),
+    `Expected non-standard step count of 9 error, got: ${JSON.stringify(valResult9.issues)}`
+);
+
+const valid8And16StepTrackMap = {
+    drums: "s('RolandTR909_bd ~ RolandTR909_bd ~').gain(1)", // 4 steps
+    bass: "note(m('c1 c1 c1 c1')).s('sawtooth')", // 4 steps
+    melody: "note('c d e f g a b c')", // 8 steps
+    voice: null,
+    fx: null,
+};
+const valResultValid = validateGeneratedTracks(valid8And16StepTrackMap, 'play some techno');
+assert.equal(valResultValid.valid, true, `Standard step counts should pass validation: ${JSON.stringify(valResultValid.issues)}`);
 
 console.log('Music quality regression tests passed.');
