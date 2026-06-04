@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSonicSocket } from '@/hooks/useSonicSocket';
-import { Mic, MicOff, Play, Square, Code, Layers, LayoutGrid, Sprout, Disc3, ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
+import { Mic, MicOff, Play, Square, Code, Layers, LayoutGrid, Sprout, Disc3, ChevronLeft, ChevronRight, GripVertical, Send } from 'lucide-react';
 import { SpectrumAnalyzer } from './SpectrumAnalyzer';
 import { StrudelCodeView } from './StrudelCodeView';
 import { DJMixerView } from './DJMixerView';
@@ -890,24 +890,34 @@ export default function SonicInterface() {
                                     </div>
 
                                     <div className="shrink-0 border-t border-white/10 p-3">
-                                        <div className={`group relative flex items-center gap-3 rounded-lg border bg-[#10151b] px-3 py-3 transition-colors ${isAudioReady ? 'border-cyan-300/25 focus-within:border-cyan-200/50' : 'border-white/10 focus-within:border-cyan-300/35'}`}>
+                                        <form
+                                            onSubmit={(e) => {
+                                                e.preventDefault();
+                                                const inputEl = document.getElementById('command-input') as HTMLInputElement;
+                                                if (inputEl) {
+                                                    const value = inputEl.value.trim();
+                                                    if (value) {
+                                                        sendCommand(value);
+                                                        inputEl.value = '';
+                                                    }
+                                                }
+                                            }}
+                                            className={`group relative flex items-center gap-2 rounded-lg border bg-[#10151b] pl-3 pr-2 py-2 transition-colors ${isAudioReady ? 'border-cyan-300/25 focus-within:border-cyan-200/50' : 'border-white/10 focus-within:border-cyan-300/35'}`}
+                                        >
                                             <button
                                                 type="button"
                                                 onClick={() => toggleRecording()}
                                                 disabled={!isAudioReady}
-                                                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors ${isRecording
+                                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${isRecording
                                                     ? 'bg-rose-500/15 text-rose-300'
                                                     : 'bg-white/[0.04] text-cyan-200 hover:bg-cyan-300/10'
                                                     } ${!isAudioReady ? 'cursor-not-allowed opacity-50' : ''}`}
                                                 aria-label={isRecording ? 'Stop listening' : 'Start voice input'}
                                             >
-                                                {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                                                {isRecording ? <MicOff className="h-4.5 w-4.5" /> : <Mic className="h-4.5 w-4.5" />}
                                             </button>
 
-                                            <div className="relative min-w-0 flex-1">
-                                                {isRecording && (
-                                                    <span className="absolute right-0 top-1/2 -translate-y-1/2 text-xs font-medium text-rose-300">Listening...</span>
-                                                )}
+                                            <div className="relative min-w-0 flex-1 flex items-center">
                                                 <input
                                                     ref={inputRef}
                                                     id="command-input"
@@ -916,7 +926,7 @@ export default function SonicInterface() {
                                                     autoComplete="off"
                                                     aria-label="Chat command input"
                                                     aria-describedby="command-hint"
-                                                    className="w-full border-none bg-transparent pr-20 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none max-sm:pr-8 max-sm:text-base"
+                                                    className="w-full border-none bg-transparent py-1.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none max-sm:text-base"
                                                     placeholder={isAudioReady ? 'Describe a pattern...' : 'Type a prompt...'}
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter') {
@@ -932,11 +942,26 @@ export default function SonicInterface() {
                                                     onChange={(e) => console.log('[Input] Changed:', e.target.value)}
                                                     onClick={() => console.log('[Input] Clicked')}
                                                 />
+                                                {isRecording && (
+                                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-medium text-rose-300 animate-pulse">
+                                                        Listening
+                                                    </span>
+                                                )}
                                             </div>
-                                            <div id="command-hint" className="pointer-events-none hidden rounded bg-white/[0.04] px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-slate-500 group-focus-within:block max-sm:hidden">
-                                                Enter
+
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <div id="command-hint" className="pointer-events-none hidden rounded bg-white/[0.04] px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-slate-500 group-focus-within:block max-sm:hidden">
+                                                    Enter
+                                                </div>
+                                                <button
+                                                    type="submit"
+                                                    className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-300 text-slate-950 hover:bg-cyan-200 transition-colors shrink-0"
+                                                    aria-label="Send prompt"
+                                                >
+                                                    <Send className="h-4 w-4" />
+                                                </button>
                                             </div>
-                                        </div>
+                                        </form>
                                         {speechError && (
                                             <p className="mt-3 text-xs font-medium text-rose-300">{speechError}</p>
                                         )}
