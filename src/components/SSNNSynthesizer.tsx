@@ -28,15 +28,6 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
         };
     });
 
-    // Synchronize parent SSNN state updates (such as AI commands)
-    useEffect(() => {
-        if (ssnnState) {
-            setState(prev => ({
-                ...prev,
-                ...ssnnState
-            }));
-        }
-    }, [ssnnState]);
 
     const [activeEngineConfig, setActiveEngineConfig] = useState<SSNNEngineType>('pulse');
     const [infoText, setInfoText] = useState<string>('Ready');
@@ -62,6 +53,7 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
     const learningFrameCounterRef = useRef<number>(0);
     const lastAudioTriggerRef = useRef<number>(0);
     const fallbackNeuronCursorRef = useRef<number>(0);
+    const stateRef = useRef<SSNNState>(state);
     const shockwavesRef = useRef<Array<{ x: number; y: number; radius: number; maxRadius: number; opacity: number; color: string }>>([]);
     const sparksRef = useRef<Array<{ x: number; y: number; vx: number; vy: number; size: number; opacity: number; color: string; life: number }>>([]);
 
@@ -70,6 +62,37 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
         neuralInputLabelRef.current = label;
         if (neuralInputRef.current) neuralInputRef.current.textContent = label;
     };
+    const syncLiveState = useCallback((nextState: SSNNState) => {
+        stateRef.current = nextState;
+        if (engineRef.current) engineRef.current.updateState(nextState);
+        if (synthRef.current) synthRef.current.updateState(nextState);
+        workerRef.current?.postMessage({ type: 'UPDATE_STATE', data: { state: nextState } });
+
+        if (mainOutputGainRef.current) {
+            const now = audioContextRef.current?.currentTime || 0;
+            mainOutputGainRef.current.gain.cancelScheduledValues(now);
+            mainOutputGainRef.current.gain.setTargetAtTime(isPlaying ? nextState.mgain : 0, now, 0.025);
+        }
+    }, [isPlaying]);
+
+    const commitState = useCallback((nextState: SSNNState) => {
+        syncLiveState(nextState);
+        setState(nextState);
+        if (onStateChange) {
+            setTimeout(() => onStateChange(nextState), 0);
+        }
+    }, [onStateChange, syncLiveState]);
+
+    // Synchronize parent SSNN state updates (such as AI commands)
+    useEffect(() => {
+        if (!ssnnState) return;
+        const next = {
+            ...stateRef.current,
+            ...ssnnState
+        };
+        syncLiveState(next);
+        setState(next);
+    }, [ssnnState, syncLiveState]);
 
     // Load presets on mount
     useEffect(() => {
@@ -82,13 +105,14 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
         if (audioContextRef.current) return;
 
         try {
+            const liveState = stateRef.current;
             const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
             const ctx = new Ctx();
             audioContextRef.current = ctx;
 
             // Output gain
             const output = ctx.createGain();
-            output.gain.value = state.mgain;
+            output.gain.value = liveState.mgain;
             const limiter = ctx.createDynamicsCompressor();
             limiter.threshold.value = -12;
             limiter.knee.value = 18;
@@ -100,11 +124,11 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
             mainOutputGainRef.current = output;
 
             // Neural engine
-            const engine = new SSNNEngine(state);
+            const engine = new SSNNEngine(liveState);
             engineRef.current = engine;
 
             // Synthesis manager
-            const synth = new SSNNSynthManager(ctx, output, state);
+            const synth = new SSNNSynthManager(ctx, output, liveState);
             synthRef.current = synth;
 
             // Audio input analyser
@@ -134,7 +158,7 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
         } catch (e) {
             console.error('[SSNNSynthesizer] Failed to initialize Web Audio:', e);
         }
-    }, [state]);
+    }, []);
 
     // Handle play state sync
     useEffect(() => {
@@ -458,10 +482,8 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
 
     // Sync parameters to engine & synth refs
     useEffect(() => {
-        if (engineRef.current) engineRef.current.updateState(state);
-        if (synthRef.current) synthRef.current.updateState(state);
-        workerRef.current?.postMessage({ type: 'UPDATE_STATE', data: { state } });
-    }, [state]);
+        syncLiveState(state);
+    }, [state, syncLiveState]);
 
     // 4. Waveform Canvas Drawer
     const drawWaveformCanvas = () => {
@@ -692,10 +714,7 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
             activePreset: preset.id,
             presetName: preset.name
         };
-        setState(next);
-        if (onStateChange) {
-            setTimeout(() => onStateChange(next), 0);
-        }
+        commitState(next);
         setInfoText(`Loaded Preset ${preset.id}: ${preset.name}`);
     };
 
@@ -732,33 +751,29 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleParameterChange = (key: keyof SSNNState, val: any) => {
-        const next = { ...state, [key]: val };
-        setState(next);
-        if (onStateChange) {
-            setTimeout(() => onStateChange(next), 0);
-        }
+        const next = { ...stateRef.current, [key]: val };
+        commitState(next);
+        setInfoText(`${String(key)} → ${val}`);
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleColumnChange = (colIdx: number, key: keyof typeof state.columns[0], val: any) => {
-        const nextCols = [...state.columns];
+        const current = stateRef.current;
+        const nextCols = [...current.columns];
         nextCols[colIdx] = { ...nextCols[colIdx], [key]: val };
-        const next = { ...state, columns: nextCols };
-        setState(next);
-        if (onStateChange) {
-            setTimeout(() => onStateChange(next), 0);
-        }
+        const next = { ...current, columns: nextCols };
+        commitState(next);
+        setInfoText(`Column ${colIdx + 1} ${String(key)} → ${val}`);
     };
 
     const toggleEngine = (engine: SSNNEngineType) => {
-        const active = state.activeEngines.includes(engine)
-            ? state.activeEngines.filter(e => e !== engine)
-            : [...state.activeEngines, engine];
-        const next = { ...state, activeEngines: active };
-        setState(next);
-        if (onStateChange) {
-            setTimeout(() => onStateChange(next), 0);
-        }
+        const current = stateRef.current;
+        const active = current.activeEngines.includes(engine)
+            ? current.activeEngines.filter(e => e !== engine)
+            : [...current.activeEngines, engine];
+        const next = { ...current, activeEngines: active };
+        commitState(next);
+        setInfoText(`${engine.toUpperCase()} ${active.includes(engine) ? 'enabled' : 'disabled'}`);
     };
 
     // Render helper for dials

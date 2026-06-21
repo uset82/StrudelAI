@@ -183,6 +183,85 @@ function validateTemplateRequirements(tracks: TrackMap, template: GenreTemplate,
         }
     }
 
+    if (genre === 'trance') {
+        const bass = (tracks.bass || '').toLowerCase();
+        const melody = (tracks.melody || '').toLowerCase();
+        const fx = (tracks.fx || '').toLowerCase();
+        if (!/supersaw/.test(melody) || !/a4|a5|c5|e5/.test(melody)) {
+            issues.push({ trackId: 'melody', reason: 'trance needs a bright supersaw arp or chord-tone hook, not a generic melody' });
+        }
+        if (!/^note\(m\(['"]~\s+a1/i.test((tracks.bass || '').trim()) && !/offbeat|~ a1 ~ a1/i.test(bass)) {
+            issues.push({ trackId: 'bass', reason: 'trance needs an offbeat saw bass role' });
+        }
+        if (!/pink|riser|hpf\(sine\.range|slow\(8|slow\(16/.test(fx)) {
+            issues.push({ trackId: 'fx', reason: 'trance needs build/breakdown FX such as risers, downlifters, or long sweeps' });
+        }
+        if (/c2 ~ eb2 ~ g1|c4 eb4 g4 bb4/.test(Object.values(tracks).filter(Boolean).join(' ').toLowerCase())) {
+            issues.push({ trackId: 'melody', reason: 'trance artist/genre prompts must not collapse to the generic C-minor fallback' });
+        }
+    }
+
+    if (genre === 'reggae') {
+        const drums = (tracks.drums || '').toLowerCase();
+        const bass = (tracks.bass || '').toLowerCase();
+        const melody = (tracks.melody || '').toLowerCase();
+        if (/rolandtr909_bd\*4|rolandtr808_bd\*4/.test(drums)) {
+            issues.push({ trackId: 'drums', reason: 'reggae needs a one-drop or laid-back pocket, not four-on-floor kick' });
+        }
+        if (!/~ ~ rolandtr808_bd|~ ~ rolandtr909_sd|rim|delay/.test(drums)) {
+            issues.push({ trackId: 'drums', reason: 'reggae needs one-drop/rim/dub drum traits' });
+        }
+        if (!/g1|bb1|d2/.test(bass) || !/slow\(2\)|~ ~/.test(bass)) {
+            issues.push({ trackId: 'bass', reason: 'reggae needs deep spacious roots bass with rests' });
+        }
+        if (!/~\s*<|delay\(/.test(melody)) {
+            issues.push({ trackId: 'melody', reason: 'reggae needs offbeat skank chord chops with dub space' });
+        }
+    }
+
+    if (genre === 'breakbeat_90s') {
+        const drums = (tracks.drums || '').toLowerCase();
+        const melody = (tracks.melody || '').toLowerCase();
+        if (/rolandtr909_bd\*4/.test(drums)) {
+            issues.push({ trackId: 'drums', reason: '90s breakbeat must not use a straight four-on-floor kick' });
+        }
+        if (!/rolandtr909_hh\*16|~ ~ rolandtr909_sd|rolandtr909_bd ~ ~ rolandtr909_bd/.test(drums)) {
+            issues.push({ trackId: 'drums', reason: '90s breakbeat needs broken drums with fast hats' });
+        }
+        if (!/square|supersaw|crush|rave|<c4/.test(melody)) {
+            issues.push({ trackId: 'melody', reason: '90s breakbeat needs rave stabs or short synth hits' });
+        }
+    }
+
+    if (genre === 'spacesynth') {
+        const joinedTracks = Object.values(tracks).filter(Boolean).join(' ').toLowerCase();
+        if (/\.s\(['"]koto['"]\)/.test(joinedTracks)) {
+            issues.push({ trackId: 'melody', reason: 'spacesynth must not use unsupported koto samples; emulate pluck with supported instruments' });
+        }
+        if (!/a1 a2|square/.test(joinedTracks)) {
+            issues.push({ trackId: 'bass', reason: 'spacesynth needs retro octave square bass movement' });
+        }
+        if (!/piano|pentatonic|a4 c5 d5|delay\(/.test(joinedTracks)) {
+            issues.push({ trackId: 'melody', reason: 'Koto-style spacesynth needs a supported plucked pentatonic lead' });
+        }
+        if (!/room\(0\.9|cosmic|pink|slow\(16/.test(joinedTracks)) {
+            issues.push({ trackId: 'fx', reason: 'spacesynth needs a wide cosmic pad or FX bed' });
+        }
+    }
+
+    if (genre === 'cinematic_electronic') {
+        const joinedTracks = Object.values(tracks).filter(Boolean).join(' ').toLowerCase();
+        if (!/crush\(|pink|square/.test(joinedTracks)) {
+            issues.push({ trackId: 'drums', reason: 'cinematic relay/capacitor output needs electrical click/transient sound design' });
+        }
+        if (!/att\(0\.001\)|decay\(0\.03|decay\(0\.055/.test(joinedTracks)) {
+            issues.push({ trackId: 'melody', reason: 'relay/capacitor sounds need fast attack/decay transient envelopes' });
+        }
+        if (!trackHasPattern(tracks.fx) || !/hpf\(sine\.range|room\(0\.65|slow\(16/.test((tracks.fx || '').toLowerCase())) {
+            issues.push({ trackId: 'fx', reason: 'cinematic electronic needs wide tension FX, not only a dry loop' });
+        }
+    }
+
     if (genre === 'hiphop' && isPlainRapOrHiphopPrompt(prompt)) {
         const melody = tracks.melody || '';
         const highMelodyNotes = (melody.match(/\b[a-g](?:#|b)?[4-7]\b/gi) || []).length;

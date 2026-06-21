@@ -762,7 +762,7 @@ export function useSonicSocket() {
                                     const errMsg = secondErr instanceof Error ? secondErr.message : 'Unknown error';
                                     console.error('[SonicSocket] Fixed code still has error:', secondErr);
                                     setMessages(prev => [...prev, `Error persists: ${errMsg}`]);
-                                    setMessages(prev => [...prev, `Fixed code: ${fixedCode.slice(0, 150)}...`]);
+                                    setMessages(prev => [...prev, 'System: The attempted fix was kept in the editable workspace for review.']);
                                 }
                             } else {
                                 setMessages(prev => [...prev, fixData.message || 'AI could not fix the error']);

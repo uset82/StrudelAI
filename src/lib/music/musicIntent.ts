@@ -225,6 +225,22 @@ function isUfoOrCosmicConceptPrompt(prompt: string) {
         || /\b(like|style of|similar to)\s+(ufo|alien|cosmic)\b/i.test(prompt);
 }
 
+function isDarkJamaicanRootsReggaePrompt(prompt: string) {
+    return /\b(reggae|dub)\b/i.test(prompt) && /\b(dark|jamaican|roots|rootical)\b/i.test(prompt);
+}
+
+function isNinetiesBreakbeatPrompt(prompt: string) {
+    return /\b(90s|nineties|old\s+school|rave)\b/i.test(prompt) && /\bbreakbeat\b/i.test(prompt);
+}
+
+function isKotoSpacesynthPrompt(prompt: string) {
+    return /\bkoto\b/i.test(prompt) && /\b(space\s*synth|spacesynth|synthwave|spacewave)\b/i.test(prompt);
+}
+
+function isCinematicRelayCapacitorPrompt(prompt: string) {
+    return /\b(cinematic|film|score|electronic)\b/i.test(prompt) && /\b(relay|capacitor)\b/i.test(prompt);
+}
+
 function contextLooksLikeItalo(context: MusicContext) {
     const joined = [context.currentCode, ...Object.values(context.tracks).filter(Boolean)]
         .join(' ')
@@ -315,6 +331,58 @@ export function routeMusicIntent(prompt: string, context: MusicContext): MusicIn
             referenceStyle: 'UFO communication / cosmic ambient traits',
             nextBpm: 72,
             reason: 'Abstract concept mapped to ambient (ethereal pads/FX) instead of generic beat.',
+        }, context);
+    }
+
+    if (isDarkJamaicanRootsReggaePrompt(normalized)) {
+        return buildIntent({
+            kind: 'create_full_style',
+            targetTracks: ['drums', 'bass', 'melody', 'fx'],
+            preserveTracks: [],
+            clearTracks: [],
+            templateId: 'reggae',
+            referenceStyle: 'dark Jamaican roots reggae / dub traits',
+            nextBpm: 74,
+            reason: 'Prompt-specific reggae interpretation: slow one-drop, deep roots bass, offbeat skank, and dub delay.',
+        }, context);
+    }
+
+    if (isNinetiesBreakbeatPrompt(normalized)) {
+        return buildIntent({
+            kind: 'create_full_style',
+            targetTracks: ['drums', 'bass', 'melody', 'fx'],
+            preserveTracks: [],
+            clearTracks: [],
+            templateId: 'breakbeat_90s',
+            referenceStyle: '90s rave breakbeat traits',
+            nextBpm: 132,
+            reason: 'Prompt-specific breakbeat interpretation: broken drums, rave stabs, rolling bass, and filter FX.',
+        }, context);
+    }
+
+    if (isKotoSpacesynthPrompt(normalized)) {
+        return buildIntent({
+            kind: 'create_full_style',
+            targetTracks: ['drums', 'bass', 'melody', 'fx'],
+            preserveTracks: [],
+            clearTracks: [],
+            templateId: 'spacesynth',
+            referenceStyle: 'Koto-style spacesynth traits',
+            nextBpm: 122,
+            reason: 'Prompt-specific spacesynth interpretation: supported plucked pentatonic lead, retro octave bass, and cosmic pad FX.',
+        }, context);
+    }
+
+    if (isCinematicRelayCapacitorPrompt(normalized)) {
+        return buildIntent({
+            kind: 'create_full_style',
+            targetTracks: ['drums', 'bass', 'melody', 'fx'],
+            preserveTracks: [],
+            clearTracks: [],
+            templateId: 'cinematic_electronic',
+            referenceStyle: 'cinematic relay and capacitor sound-design traits',
+            nextBpm: 96,
+            reason: 'Prompt-specific cinematic interpretation: relay clicks, capacitor plucks, sparse pulse, dark bass, and wide tension FX.',
         }, context);
     }
 

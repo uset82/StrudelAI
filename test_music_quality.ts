@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
     GENRE_TEMPLATES,
     buildDeterministicMusicResponse,
@@ -21,6 +22,7 @@ import {
     applyTrackMapToState,
     buildLocalMusicAgentPipeline,
     buildMusicBrief,
+    formatAgentGrounding,
 } from './src/lib/music-agent';
 import { cleanStrudelCode } from './src/lib/music/codeExtractor';
 import { tryRuleBasedUpdate } from './src/lib/agent/runtime';
@@ -466,6 +468,18 @@ assert.doesNotMatch(formattedRawStack, /^stack\(stack\(/, 'raw compact stack sho
 assert.ok(formattedRawStack.split('\n').length >= 10, 'raw compact stack should render across multiple readable lines');
 assert.equal(formatStrudelDisplayCode(formattedRawStack), formattedRawStack, 'display formatting should be idempotent for already-sectioned code');
 
+const strudelCodeViewSource = readFileSync('src/components/StrudelCodeView.tsx', 'utf-8');
+assert.match(strudelCodeViewSource, /<textarea[\s\S]*aria-label="Strudel code editor"/, 'workspace should keep one editable textarea code editor');
+assert.match(strudelCodeViewSource, />\s*Copy Code\s*</, 'workspace should expose a clear Copy Code button');
+assert.match(strudelCodeViewSource, />\s*Replace Workspace Code\s*</, 'workspace should expose a clear Replace Workspace Code button');
+assert.match(strudelCodeViewSource, /strudel-code-highlight[\s\S]*aria-hidden="true"/, 'syntax highlight layer should remain accessibility-hidden');
+assert.doesNotMatch(strudelCodeViewSource, /Formatted \(selectable for copy\)|Selectable formatted Strudel code stack/i, 'workspace must not render a duplicate read-only formatted code box');
+
+const sonicInterfaceSource = readFileSync('src/components/SonicInterface.tsx', 'utf-8');
+assert.equal((sonicInterfaceSource.match(/<StrudelCodeView\b/g) || []).length, 1, 'simple view should render exactly one StrudelCodeView workspace');
+const sonicSocketSource = readFileSync('src/hooks/useSonicSocket.ts', 'utf-8');
+assert.doesNotMatch(sonicSocketSource, /Fixed code:/, 'chat should not show a competing full-code output when workspace already holds code');
+
 const rockFamilyPositiveCount = STRUDEL_TRAINING_CORPUS.filter((example) =>
     !example.negative && example.intentTags.some((tag) => ['rock', 'punk', 'metal'].includes(tag)),
 ).length;
@@ -529,6 +543,118 @@ const localFunkPipeline = buildLocalMusicAgentPipeline({ prompt: 'funky groove',
 assert.equal(localFunkPipeline.brief.genre, 'funk');
 assert.equal(localFunkPipeline.validation.valid, true, JSON.stringify(localFunkPipeline.validation.issues));
 assert.match(localFunkPipeline.tracks.bass || '', /~/, 'funk bass should include syncopated rests');
+// Regression root causes covered here:
+// weak deterministic templates, incomplete genre-trait validation, under-specified
+// artist/concept interpretation, and generic fallback code reaching the workspace.
+
+const assertStylePipeline = (
+    prompt: string,
+    expectedGenre: string,
+    bpmRange: [number, number],
+    requiredPatterns: Array<[RegExp, string]>,
+    forbiddenPatterns: Array<[RegExp, string]> = [],
+) => {
+    const context = buildMusicContext({});
+    const intent = routeMusicIntent(prompt, context);
+    assert.equal(intent.templateId, expectedGenre, `${prompt} should route to ${expectedGenre}`);
+    const result = buildLocalMusicAgentPipeline({ prompt, context, intent, enableOpenRouter: false });
+    MusicBriefSchema.parse(result.brief);
+    TheoryPlanSchema.parse(result.theory);
+    SoundPlanSchema.parse(result.sound);
+    QualityReviewSchema.parse(result.review);
+    assert.equal(result.brief.genre, expectedGenre);
+    assert.ok(result.bpm >= bpmRange[0] && result.bpm <= bpmRange[1], `${prompt} BPM should be in expected range`);
+    assert.equal(result.validation.valid, true, `${prompt} should validate: ${JSON.stringify(result.validation.issues)}`);
+    assert.equal(result.review.listenability, true, `${prompt} should pass quality review: ${JSON.stringify(result.review.problems)}`);
+    const joined = Object.values(result.tracks).filter(Boolean).join(' ');
+    for (const [pattern, message] of requiredPatterns) {
+        assert.match(joined, pattern, message);
+    }
+    for (const [pattern, message] of forbiddenPatterns) {
+        assert.doesNotMatch(joined, pattern, message);
+    }
+    return result;
+};
+
+const localTiestoPipeline = assertStylePipeline(
+    'Play some Tiësto',
+    'trance',
+    [136, 140],
+    [
+        [/supersaw/i, 'Tiësto-safe trance needs layered supersaw material'],
+        [/~ a1/i, 'Tiësto-safe trance needs an offbeat A bass pattern'],
+        [/hpf\(sine\.range|slow\(8|slow\(16/i, 'Tiësto-safe trance needs build/breakdown FX'],
+        [/RolandTR909_bd\*4/i, 'Tiësto-safe trance still needs a driving 909 kick'],
+    ],
+    [
+        [/c2 ~ eb2 ~ g1|c4 eb4 g4 bb4/i, 'Tiësto prompt must not reuse generic C-minor fallback material'],
+    ],
+);
+assert.ok(localTiestoPipeline.brief.qualityTarget.requiredCodeTraits.includes('supersaw'), 'Tiësto quality target should require supersaw traits');
+const tiestoGrounding = formatAgentGrounding('Play some Tiësto', localTiestoPipeline.brief, localTiestoPipeline.theory, localTiestoPipeline.sound);
+assert.match(tiestoGrounding, /Quality target:/, 'OpenRouter grounding should include quality target');
+assert.match(tiestoGrounding, /trance-002|supersaw|Tiesto/i, 'Grounding should surface Tiësto/trance examples or traits');
+
+const localRootsReggaePipeline = assertStylePipeline(
+    'Create dark Jamaican roots reggae',
+    'reggae',
+    [70, 78],
+    [
+        [/~ ~ RolandTR808_bd|~ ~ RolandTR909_sd/i, 'roots reggae needs a one-drop drum pocket'],
+        [/g1 ~ ~ d2/i, 'roots reggae needs deep spacious bass'],
+        [/~ <g3 bb3 d4>|delay\(/i, 'roots reggae needs offbeat skank/dub delay'],
+    ],
+    [
+        [/RolandTR909_bd\*4|RolandTR808_bd\*4/i, 'roots reggae must not become four-on-floor dance music'],
+    ],
+);
+assert.match(localRootsReggaePipeline.thought, /roots|reggae|dub|one-drop/i, 'roots reggae thought should describe the style identity');
+
+const localBreakbeatPipeline = assertStylePipeline(
+    'Make a 90s breakbeat track',
+    'breakbeat_90s',
+    [126, 138],
+    [
+        [/RolandTR909_bd ~ ~ RolandTR909_bd/i, '90s breakbeat needs broken kick placement'],
+        [/RolandTR909_hh\*16/i, '90s breakbeat needs fast hat energy'],
+        [/square|supersaw|crush/i, '90s breakbeat needs rave stabs or short synth hits'],
+    ],
+    [
+        [/RolandTR909_bd\*4/i, '90s breakbeat must not be straight four-on-floor'],
+    ],
+);
+assert.match(localBreakbeatPipeline.brief.qualityTarget.requiredCodeTraits.join(' '), /broken-beat|rave-stab/);
+
+const localSpacesynthPipeline = assertStylePipeline(
+    'Create a Koto-style spacesynth track',
+    'spacesynth',
+    [116, 128],
+    [
+        [/a1 a2/i, 'spacesynth needs octave square bass movement'],
+        [/piano/i, 'Koto-style spacesynth should emulate pluck with supported piano/synth timbre'],
+        [/a4 c5 d5 e5 g5/i, 'Koto-style spacesynth needs pentatonic lead contour'],
+        [/room\(0\.9|slow\(16|pink/i, 'spacesynth needs cosmic pad/FX space'],
+    ],
+    [
+        [/\.s\(['"]koto['"]\)/i, 'spacesynth must not use unsupported koto samples'],
+    ],
+);
+assert.match(localSpacesynthPipeline.brief.qualityTarget.artistReference || '', /Koto/i);
+
+const localCinematicPipeline = assertStylePipeline(
+    'Make cinematic electronic music with relay and capacitor sounds',
+    'cinematic_electronic',
+    [88, 104],
+    [
+        [/crush\(|att\(0\.001\)|decay\(0\.03/i, 'cinematic relay/capacitor music needs fast electrical transients'],
+        [/hpf\(sine\.range|room\(0\.65|slow\(16/i, 'cinematic electronic needs wide tension FX'],
+        [/c1 ~ ~ g1/i, 'cinematic electronic needs dark bass anchors'],
+    ],
+    [
+        [/RolandTR909_bd\*4/i, 'cinematic electronic should not collapse to generic EDM drums'],
+    ],
+);
+assert.match(localCinematicPipeline.brief.qualityTarget.requiredCodeTraits.join(' '), /relay-clicks|capacitor-plucks/);
 
 const deterministicRap = buildDeterministicMusicResponse('play some rap');
 assert.ok(deterministicRap, 'plain rap should have deterministic hip-hop fallback coverage');

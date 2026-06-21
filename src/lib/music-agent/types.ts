@@ -14,6 +14,19 @@ export const TrackMapSchema = z.object({
     voice: z.string().nullable(),
     fx: z.string().nullable(),
 });
+export const MusicQualityTargetSchema = z.object({
+    styleIdentity: z.string(),
+    artistReference: z.string().nullable(),
+    tempoRange: z.tuple([z.number().int().min(40).max(240), z.number().int().min(40).max(240)]),
+    rhythmicFeel: z.string(),
+    harmony: z.string(),
+    arrangement: z.string(),
+    energy: z.string(),
+    soundDesign: z.array(z.string()),
+    requiredTracks: z.array(TrackIdSchema),
+    requiredCodeTraits: z.array(z.string()),
+    forbiddenTraits: z.array(z.string()),
+});
 
 export const MusicBriefSchema = z.object({
     prompt: z.string(),
@@ -32,6 +45,7 @@ export const MusicBriefSchema = z.object({
     sectionIntent: SectionIntentSchema,
     references: z.array(z.string()),
     constraints: z.array(z.string()),
+    qualityTarget: MusicQualityTargetSchema,
     currentBpm: z.number().int().min(40).max(240),
     contextSummary: z.string(),
     variationSeed: z.number().int(),
@@ -86,6 +100,7 @@ export type TrackId = z.infer<typeof TrackIdSchema>;
 export type MusicScope = z.infer<typeof MusicScopeSchema>;
 export type Density = z.infer<typeof DensitySchema>;
 export type SectionIntent = z.infer<typeof SectionIntentSchema>;
+export type MusicQualityTarget = z.infer<typeof MusicQualityTargetSchema>;
 export type MusicBrief = z.infer<typeof MusicBriefSchema> & { genre: GenreKey };
 export type TheoryPlan = z.infer<typeof TheoryPlanSchema>;
 export type SoundPlan = z.infer<typeof SoundPlanSchema>;

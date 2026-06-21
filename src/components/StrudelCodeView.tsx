@@ -328,6 +328,25 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
     const highlightedCode = highlightJS(editableCode);
     const suggestionHtml = suggestion ? `<span class="bg-lime-300/10 text-lime-200/70">${escapeHtml(suggestion)}</span>` : '';
     const combinedHtml = highlightedCode + suggestionHtml;
+    const copyCodeToClipboard = useCallback(async () => {
+        try {
+            await navigator.clipboard.writeText(editableCode || '');
+            console.log('[StrudelCodeView] Copied workspace code to clipboard');
+        } catch (e) {
+            console.warn('[StrudelCodeView] Copy failed', e);
+        }
+    }, [editableCode]);
+
+    const replaceWorkspaceCode = useCallback(() => {
+        const next = formatStrudelDisplayCode(code || editableCode || '');
+        setEditableCode(next);
+        setIsUserEditing(false);
+        setSuggestion('');
+        lastRunRef.current = '';
+        onCodeChange?.(next);
+        onRun?.(next);
+        console.log('[StrudelCodeView] Replaced workspace code from latest generated code');
+    }, [code, editableCode, onCodeChange, onRun]);
 
     return (
         <div className="relative flex h-full min-h-0 min-w-0 flex-col font-mono text-[13px] text-[#e6edf3] max-sm:text-base">
@@ -355,24 +374,19 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
                         )}
                         <button
                             type="button"
-                            onClick={async () => {
-                                try {
-                                    const textToCopy = editableCode || '';
-                                    await navigator.clipboard.writeText(textToCopy);
-                                    // simple feedback via console + temp title (UI toast not present)
-                                    const origTitle = (document.activeElement as HTMLElement)?.title;
-                                    const btn = document.activeElement as HTMLButtonElement | null;
-                                    if (btn) btn.title = 'Copied!';
-                                    console.log('[StrudelCodeView] Copied formatted stack to clipboard');
-                                    setTimeout(() => { if (btn) btn.title = origTitle || 'Copy code'; }, 1200);
-                                } catch (e) {
-                                    console.warn('[StrudelCodeView] Copy failed', e);
-                                }
-                            }}
-                            className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[9px] text-slate-400 hover:bg-white/10 hover:text-slate-200"
-                            title="Copy code"
+                            onClick={replaceWorkspaceCode}
+                            className="rounded border border-cyan-300/20 bg-cyan-300/10 px-1.5 py-0.5 text-[9px] text-cyan-100 hover:bg-cyan-300/15"
+                            title="Replace the editable workspace with the latest generated code"
                         >
-                            Copy
+                            Replace Workspace Code
+                        </button>
+                        <button
+                            type="button"
+                            onClick={copyCodeToClipboard}
+                            className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[9px] text-slate-400 hover:bg-white/10 hover:text-slate-200"
+                            title="Copy Code"
+                        >
+                            Copy Code
                         </button>
                     </div>
                 </div>
@@ -519,28 +533,6 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
                 </div>
             </div>
 
-            {/* 3.3: Selectable copy of formatted stack (read-only pre with user-select for native copy/paste).
-                 Placed after live editor so users can select/copy the "Formatted Strudel stack" easily
-                 without fighting the transparent textarea layer. */}
-            <div className="mt-1 border-t border-white/10 pt-1 text-[10px]">
-                <div className="mb-0.5 text-[#4b5563]">Formatted (selectable for copy)</div>
-                <pre
-                    className="studio-scrollbar max-h-24 overflow-auto whitespace-pre rounded border border-white/10 bg-[#0a0c10] p-2 text-[11px] leading-tight text-[#e6edf3] select-text cursor-text"
-                    style={{ userSelect: 'text' }}
-                    aria-label="Selectable formatted Strudel code stack for copy and paste"
-                    title="Click to select all; use Ctrl/Cmd+C to copy"
-                    onClick={(e) => {
-                        // convenience: select all on click
-                        const range = document.createRange();
-                        range.selectNodeContents(e.currentTarget);
-                        const sel = window.getSelection();
-                        sel?.removeAllRanges();
-                        sel?.addRange(range);
-                    }}
-                >
-                    {editableCode || '// no code'}
-                </pre>
-            </div>
         </div>
     );
 }

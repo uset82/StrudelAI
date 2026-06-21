@@ -93,6 +93,10 @@ const broadGenreExamples: StrudelTrainingExample[] = [
     // 2.5 added positive examples for artist/concept (tiesto -> trance, ufo -> ambient) to train away generic collapse
     fromTemplate('trance-002', 'play some tiesto', 'trance', ['trance', 'artist-reference', 'edm'], ['Map Tiesto to uplifting trance (distinct arps, offbeat bass, not generic C-minor)']),
     fromTemplate('trance-003', 'tiesto style', 'trance', ['trance', 'artist-reference'], ['Tiesto-inspired: bright supersaw arpeggio and driving energy']),
+    fromTemplate('reggae-002', 'create dark Jamaican roots reggae', 'reggae', ['reggae', 'roots', 'jamaican', 'dub'], ['Slow one-drop pocket', 'Deep roots bass', 'Offbeat skank and dub delay']),
+    fromTemplate('breakbeat-001', 'make a 90s breakbeat track', 'breakbeat_90s', ['breakbeat', '90s', 'rave'], ['Broken beat, not four-on-floor', 'Rave stabs and rolling bass']),
+    fromTemplate('spacesynth-001', 'create a Koto-style spacesynth track', 'spacesynth', ['spacesynth', 'koto-style', 'synthwave'], ['Use supported plucked timbres', 'Pentatonic lead and octave square bass']),
+    fromTemplate('cinematic-001', 'make cinematic electronic music with relay and capacitor sounds', 'cinematic_electronic', ['cinematic', 'relay', 'capacitor', 'sound-design'], ['Relay clicks', 'Capacitor plucks', 'Sparse cinematic space']),
     fromTemplate('ambient-002', 'make some UFO communication', 'ambient', ['ambient', 'concept'], ['UFO / cosmic signals: sparse ethereal pads, FX textures, slow space']),
     fromTemplate('ambient-003', 'ufo signals', 'ambient', ['ambient', 'concept', 'fx'], ['Abstract alien communication as atmospheric ambient not beat']),
 ];

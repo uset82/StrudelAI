@@ -20,6 +20,9 @@ export type GenreKey =
     | 'house'
     | 'ambient'
     | 'dnb'
+    | 'breakbeat_90s'
+    | 'spacesynth'
+    | 'cinematic_electronic'
     | 'trance'
     | 'acid'
     | 'minimal'
@@ -232,19 +235,20 @@ export const GENRE_TEMPLATES: Record<GenreKey, GenreTemplate> = {
     },
     reggae: {
         id: 'reggae',
-        aliases: ['reggae', 'dub', 'ska'],
-        intentTags: ['reggae', 'offbeat', 'dub'],
-        bpm: 76,
+        aliases: ['reggae', 'dub', 'ska', 'roots reggae', 'jamaican roots', 'dark reggae'],
+        intentTags: ['reggae', 'offbeat', 'dub', 'roots', 'jamaican'],
+        bpm: 74,
         key: 'G minor',
         scale: 'G minor',
-        thought: 'Reggae: laid-back one-drop feel, deep bass, and offbeat chord chops.',
+        thought: 'Dark roots reggae: slow one-drop pocket, deep spacious bass, offbeat skank chords, and dub delay space.',
         tracks: tracks({
-            drums: "stack(s('~ ~ RolandTR808_bd ~').gain(0.85), s('~ ~ RolandTR909_sd ~').gain(0.68), s('RolandTR909_hh ~ RolandTR909_hh ~').gain(0.15).hpf(6500))",
-            bass: "note(m('g1 ~ ~ d2 ~ bb1 ~ d2')).s('triangle').att(0.01).decay(0.32).lpf(420).gain(0.78).slow(2)",
-            melody: "note(m('~ <g3 bb3> ~ <f3 a3>')).s('square').att(0.005).decay(0.08).hpf(450).lpf(2200).delay(0.22).room(0.25).gain(0.3)",
+            drums: "stack(s('~ ~ RolandTR808_bd ~').gain(0.82).lpf(210), s('~ ~ RolandTR909_sd ~').gain(0.62).hpf(470).delay(0.18), s('RolandTR909_hh ~ RolandTR909_hh ~').gain(0.12).hpf(6400), s('~ RolandTR909_rim ~ RolandTR909_rim').gain(0.16).hpf(1300).delay(0.28))",
+            bass: "note(m('g1 ~ ~ d2 ~ bb1 ~ d2')).s('triangle').att(0.012).decay(0.38).lpf(360).gain(0.82).slow(2)",
+            melody: "note(m('~ <g3 bb3 d4> ~ <f3 a3 c4> ~ <eb3 g3 bb3> ~ <f3 a3 c4>')).s('square').att(0.004).decay(0.09).hpf(420).lpf(2100).delay(0.32).room(0.3).gain(0.32).slow(2)",
+            fx: "s('pink').hpf(sine.range(900, 4200).slow(8)).lpf(6800).delay(0.38).room(0.42).gain(sine.range(0.025, 0.12).slow(8))",
         }),
         requiredTracks: ['drums', 'bass', 'melody'],
-        qualityNotes: ['Offbeat chops', 'Deep but controlled bass', 'Slow pocket'],
+        qualityNotes: ['One-drop pocket', 'Offbeat skank chops', 'Deep delayed dub bass', 'Slow Jamaican roots feel'],
     },
     techno: {
         id: 'techno',
@@ -345,22 +349,77 @@ export const GENRE_TEMPLATES: Record<GenreKey, GenreTemplate> = {
         requiredTracks: ['drums', 'bass'],
         qualityNotes: ['Fast BPM is explicit', 'Breakbeat is dense but controlled'],
     },
+    breakbeat_90s: {
+        id: 'breakbeat_90s',
+        aliases: ['90s breakbeat', 'old school breakbeat', 'rave breakbeat', 'breakbeat track', 'big beat'],
+        intentTags: ['breakbeat', '90s', 'rave', 'broken-beat'],
+        bpm: 132,
+        key: 'C minor',
+        scale: 'C minor',
+        thought: '90s breakbeat: broken kick/snare pattern, busy hats, rave stabs, rolling bass, and filter-sweep FX.',
+        tracks: tracks({
+            drums: "stack(s('RolandTR909_bd ~ ~ RolandTR909_bd ~ RolandTR909_bd ~ ~').gain(0.96).lpf(220), s('~ ~ RolandTR909_sd ~ ~ RolandTR909_sd ~ RolandTR909_sd').gain(0.78).hpf(520), s('RolandTR909_hh*16').gain(0.18).hpf(7200), s('~ ~ ~ RolandTR909_oh ~ ~ RolandTR909_oh ~').gain(0.14).hpf(5600))",
+            bass: "note(m('c1 c1 ~ eb1 c1 ~ g1 bb1')).s('sawtooth').att(0.006).decay(0.16).lpf(sine.range(220, 760).slow(2)).resonance(10).gain(0.72)",
+            melody: "stack(note(m('<c4 eb4 g4> ~ ~ <bb3 eb4 g4> ~ <c4 f4 g4> ~ ~')).s('square').att(0.003).decay(0.07).hpf(520).lpf(3400).room(0.16).gain(0.34), note(m('c5 ~ eb5 ~ g5 ~ bb5 ~')).s('supersaw').att(0.004).decay(0.08).hpf(900).lpf(4200).gain(0.2).slow(2))",
+            voice: null,
+            fx: "stack(s('pink').hpf(sine.range(600, 12000).slow(8)).gain(sine.range(0.04, 0.18).slow(8)), note(m('c6 ~ c6 ~ eb6 ~ g6 ~')).s('square').att(0.001).decay(0.035).hpf(1200).crush(6).gain(0.14).every(4, rev))",
+        }),
+        requiredTracks: ['drums', 'bass', 'melody'],
+        qualityNotes: ['Broken beat, not four-on-floor', '90s rave stab color', 'Fast hats and rolling bass', 'Controlled filter movement'],
+    },
+    spacesynth: {
+        id: 'spacesynth',
+        aliases: ['spacesynth', 'space synth', 'synthwave', 'spacewave', 'koto-style spacesynth', 'koto style spacesynth'],
+        intentTags: ['spacesynth', 'synthwave', 'koto-style', 'cosmic', 'arpeggio'],
+        bpm: 122,
+        key: 'A minor',
+        scale: 'A minor pentatonic',
+        thought: 'Koto-style spacesynth: retro electro pulse, octave square bass, pentatonic plucked lead, and wide cosmic pad FX.',
+        tracks: tracks({
+            drums: "stack(s('RolandTR808_bd*4').gain(0.76).lpf(190), s('~ RolandTR909_cp ~ RolandTR909_cp').gain(0.48).hpf(700), s('RolandTR808_hh*8').gain(0.13).hpf(6800), s('~ ~ RolandTR909_oh ~').gain(0.09).hpf(5600))",
+            bass: "note(m('a1 a2 e2 a2 g1 g2 e2 g2')).s('square').att(0.004).decay(0.15).lpf(780).gain(0.62)",
+            melody: "stack(note(m('a4 c5 d5 e5 g5 e5 d5 c5')).s('piano').att(0.002).decay(0.16).hpf(620).lpf(4300).delay(0.22).room(0.24).gain(0.3).slow(2), note(m('a5 ~ e5 ~ c5 ~ d5 ~')).s('sine').att(0.01).decay(0.18).hpf(700).lpf(3600).gain(0.16).slow(4))",
+            voice: null,
+            fx: "stack(note(m('<a3 c4 e4> <g3 b3 e4>')).s('sine').slow(8).room(0.9).delay(0.48).lpf(1500).gain(0.24), s('pink').hpf(sine.range(1200, 9000).slow(16)).gain(sine.range(0.025, 0.12).slow(16)).room(0.55))",
+        }),
+        requiredTracks: ['drums', 'bass', 'melody'],
+        qualityNotes: ['Pentatonic plucked lead suggests koto without unavailable samples', 'Retro octave bass', 'Cosmic pad/FX bed', 'No generic techno collapse'],
+    },
+    cinematic_electronic: {
+        id: 'cinematic_electronic',
+        aliases: ['cinematic electronic', 'relay and capacitor', 'capacitor sounds', 'relay sounds', 'electroacoustic cinematic'],
+        intentTags: ['cinematic', 'electronic', 'relay', 'capacitor', 'sound-design'],
+        bpm: 96,
+        key: 'C minor',
+        scale: 'C minor',
+        thought: 'Cinematic relay/capacitor electronic: sparse pulse, electrical clicks, capacitor-discharge synth plucks, dark bass, and wide tension FX.',
+        tracks: tracks({
+            drums: "stack(note(m('c2 ~ ~ c2 ~ ~ c2 ~')).s('square').att(0.001).decay(0.055).lpf(130).gain(0.48), note(m('~ c6 ~ ~ c6 c6 ~ c6')).s('pink').att(0.001).decay(0.018).hpf(1800).crush(5).gain(0.12))",
+            bass: "note(m('c1 ~ ~ g1 ~ eb1 ~ g1')).s('sine').att(0.02).decay(0.45).lpf(150).gain(0.58).slow(2)",
+            melody: "stack(note(m('c5 ~ g4 ~ eb5 ~ d5 ~')).s('square').att(0.001).decay(0.09).hpf(650).lpf(sine.range(900, 3600).slow(4)).crush(6).delay(0.18).gain(0.24), note(m('<c4 eb4 g4> ~ <g3 bb3 d4> ~')).s('sine').slow(8).room(0.88).lpf(1200).gain(0.2))",
+            voice: null,
+            fx: "stack(s('pink').hpf(sine.range(200, 11000).slow(16)).gain(sine.range(0.02, 0.2).slow(16)).room(0.65), note(m('c6 ~ c6 ~ g5 c6 ~ eb6')).s('square').att(0.001).decay(0.03).hpf(1600).crush(4).gain(0.13).every(4, rev))",
+        }),
+        requiredTracks: ['drums', 'bass', 'melody', 'fx'],
+        qualityNotes: ['Relay-like clicks use short square/pink transients', 'Capacitor-discharge plucks use fast envelopes and filters', 'Cinematic space without mud', 'Sparse intentional arrangement'],
+    },
     trance: {
         id: 'trance',
-        aliases: ['trance', 'uplifting', 'euphoric'],
-        intentTags: ['trance', 'arpeggio', 'uplifting'],
+        aliases: ['trance', 'uplifting', 'euphoric', 'tiesto', 'tiësto', 'festival trance'],
+        intentTags: ['trance', 'arpeggio', 'uplifting', 'artist-reference', 'supersaw'],
         bpm: 138,
         key: 'A minor',
         scale: 'A minor',
-        thought: 'Trance: driving 4/4 kick, offbeat bass, uplifting arpeggio, and airy FX.',
+        thought: 'Tiësto-safe uplifting trance: driving 909 kick, offbeat saw bass, layered supersaw chord/arp hook, breakdown pad, and long riser/downlifter FX.',
         tracks: tracks({
-            drums: "stack(s('RolandTR909_bd*4').gain(0.95), s('~ RolandTR909_cp ~ RolandTR909_cp').gain(0.75), s('~ RolandTR909_hh ~ RolandTR909_hh').gain(0.32), s('RolandTR909_hh*16').gain(0.18))",
-            bass: "note(m('~ a1 ~ a1 ~ a1 ~ a1')).s('sawtooth').att(0.01).decay(0.25).lpf(900).resonance(8).gain(0.7)",
-            melody: "note(m('a4 c5 e5 a5 e5 c5 a4 e4')).s('supersaw').att(0.01).decay(0.22).lpf(3200).room(0.45).delay(0.22).gain(0.45).slow(2)",
-            fx: "s('pink').hpf(sine.range(500, 15000).slow(8)).gain(sine.range(0.1, 0.35).slow(8))",
+            drums: "stack(s('RolandTR909_bd*4').gain(0.98).lpf(190), s('~ RolandTR909_cp ~ RolandTR909_cp').gain(0.7).hpf(620), s('~ RolandTR909_oh ~ RolandTR909_oh').gain(0.24).hpf(5600), s('RolandTR909_hh*16').gain(0.16).hpf(7600))",
+            bass: "note(m('~ a1 ~ a1 ~ e2 ~ g1')).s('sawtooth').att(0.004).decay(0.16).lpf(sine.range(360, 980).slow(4)).resonance(9).gain(0.72)",
+            melody: "stack(note(m('a4 c5 e5 a5 e5 c5 a4 e4')).s('supersaw').att(0.006).decay(0.18).hpf(320).lpf(4200).room(0.42).delay(0.24).gain(0.38).slow(2), note(m('<a3 c4 e4> ~ <c4 e4 a4> ~ <e4 g4 b4> ~ <g4 b4 e5> ~')).s('supersaw').att(0.02).decay(0.42).hpf(260).lpf(sine.range(1600, 5200).slow(8)).room(0.72).delay(0.36).gain(0.24).slow(4))",
+            voice: null,
+            fx: "stack(s('pink').hpf(sine.range(450, 15000).slow(8)).gain(sine.range(0.03, 0.28).slow(8)).room(0.45), note(m('a5 b5 c6 e6 a6 e6 c6 b5')).s('sine').fast(2).hpf(900).lpf(sine.range(1800, 8000).slow(8)).delay(0.3).gain(0.13).slow(8), s('pink').hpf(sine.range(12000, 500).slow(16)).gain(sine.range(0.12, 0.02).slow(16)).room(0.65))",
         }),
         requiredTracks: ['drums', 'bass', 'melody'],
-        qualityNotes: ['BPM explicit', 'Arp stays musical', 'FX not dominant'],
+        qualityNotes: ['BPM explicit around 138', 'Offbeat bass is audible', 'Layered supersaw arp/chords', 'Breakdown/build FX present', 'Not generic C-minor techno'],
     },
     acid: {
         id: 'acid',
@@ -912,7 +971,10 @@ export const GENRE_TEMPLATES: Record<GenreKey, GenreTemplate> = {
 };
 
 const GENRE_PATTERNS: Array<[GenreKey, RegExp]> = [
+    ['breakbeat_90s', /\b(90s\s+breakbeat|old\s+school\s+breakbeat|rave\s+breakbeat|big\s+beat)\b/i],
     ['dnb', /\b(dnb|drum\s*(?:and|&)\s*bass|jungle|breakbeat)\b/i],
+    ['spacesynth', /\b(koto[-\s]*style\s+spacesynth|spacesynth|space\s+synth|synthwave|spacewave)\b/i],
+    ['cinematic_electronic', /\b(cinematic\s+electronic|relay\s+and\s+capacitor|capacitor\s+sounds?|relay\s+sounds?|electroacoustic\s+cinematic)\b/i],
     ['pop_funk', /\b(michael\s+jackson|mj|pop\s*funk|dance\s*pop\s*funk)\b/i],
     ['italo_80s', /\b(italo|italo\s*disco|80s\s*techno|techno\s+italo\s+80s|italo\s+80s)\b/i],
     ['hiphop', /\b(hip\s*hop|hip-hop|rap|boom\s*bap|trap|eminem|eminen|slim\s+shady)\b/i],
@@ -1018,6 +1080,8 @@ export function detectArtistOrConcept(prompt: string): GenreKey | null {
     const p = prompt.toLowerCase();
     // Tiësto / Tiesto and close variants -> trance for uplifting EDM traits
     if (/\b(tiesto|tiësto|tiesto-style|tiesto style|tiësto style)\b/.test(p)) return 'trance';
+    if (/\b(koto[-\s]*style|koto)\b.*\b(space\s*synth|spacesynth|synthwave)\b/.test(p)) return 'spacesynth';
+    if (/\b(relay|capacitor)\b.*\b(cinematic|electronic|music|sound)\b|\b(cinematic|electronic)\b.*\b(relay|capacitor)\b/.test(p)) return 'cinematic_electronic';
     // Additional EDM/trance/house producers and aliases (8+ for coverage)
     if (/\b(armin van buuren|armin vanbuuren|above & beyond|aboveandbeyond|above and beyond|david guetta|calvin harris|martin garrix|skrillex|zedd|alesso|hardwell)\b/.test(p)) return 'trance';
     // Abstract / concept keywords (UFO communication, alien signals, cosmic etc) -> ambient

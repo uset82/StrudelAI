@@ -134,6 +134,59 @@ function summarizeContext(context: MusicContext) {
     if (context.activeTracks.length === 0) return 'No active musical context.';
     return `Active tracks: ${context.activeTracks.join(', ')} at ${context.currentBpm} BPM.`;
 }
+const REQUIRED_CODE_TRAITS: Partial<Record<GenreKey, string[]>> = {
+    trance: ['supersaw', 'offbeat-bass', 'riser-or-downlifter', 'breakdown-pad', 'a-minor-chord-tones'],
+    reggae: ['one-drop', 'offbeat-skank', 'deep-roots-bass', 'dub-delay'],
+    dnb: ['fast-breakbeat', 'rolling-bass', '16th-hats'],
+    breakbeat_90s: ['broken-beat', 'rave-stab', 'rolling-bass', 'filter-sweep'],
+    spacesynth: ['octave-square-bass', 'pentatonic-pluck', 'cosmic-pad'],
+    cinematic_electronic: ['relay-clicks', 'capacitor-plucks', 'cinematic-fx', 'sparse-pulse'],
+    ambient: ['no-forced-drums', 'slow-pad', 'wide-space'],
+    techno: ['four-on-floor', 'filtered-bass', 'controlled-hats'],
+    rock: ['backbeat', 'guitar-like-riff', 'root-fifth-motion'],
+};
+
+const FORBIDDEN_CODE_TRAITS: Partial<Record<GenreKey, string[]>> = {
+    trance: ['generic-c-minor-fallback', 'flat-pad-only', 'missing-arp'],
+    reggae: ['four-on-floor-techno', 'fast-edm-hats', 'missing-skank'],
+    dnb: ['straight-four-on-floor', 'slow-bpm'],
+    breakbeat_90s: ['straight-four-on-floor', 'generic-techno-loop'],
+    spacesynth: ['unsupported-koto-sample', 'generic-techno-loop'],
+    cinematic_electronic: ['generic-edm-drop', 'dense-random-notes'],
+    ambient: ['forced-beat', 'short-harsh-envelope'],
+    hiphop: ['busy-melodic-lead'],
+};
+
+function energyForDensity(density: string, genre: GenreKey) {
+    if (genre === 'trance' || genre === 'dnb' || genre === 'breakbeat_90s') return 'high but controlled';
+    if (genre === 'ambient' || genre === 'reggae' || genre === 'cinematic_electronic') return 'slow and spacious';
+    if (density === 'dense') return 'high';
+    if (density === 'sparse') return 'restrained';
+    return 'balanced';
+}
+
+function buildQualityTarget(params: {
+    genre: GenreKey;
+    references: string[];
+    traits: typeof GENRE_STYLE_TRAITS.generic;
+}) {
+    const artistReference = params.references.find((reference) =>
+        /artist|tiesto|tiësto|ufo|cosmic|koto|relay|capacitor/i.test(reference)
+    ) || null;
+    return {
+        styleIdentity: params.genre,
+        artistReference,
+        tempoRange: params.traits.bpmRange,
+        rhythmicFeel: params.traits.drumFeel,
+        harmony: params.traits.harmony,
+        arrangement: params.traits.arrangement,
+        energy: energyForDensity(params.traits.density, params.genre),
+        soundDesign: params.traits.soundPalette,
+        requiredTracks: params.traits.requiredTracks,
+        requiredCodeTraits: REQUIRED_CODE_TRAITS[params.genre] || params.traits.soundPalette,
+        forbiddenTraits: FORBIDDEN_CODE_TRAITS[params.genre] || params.traits.failureModes,
+    };
+}
 
 export function buildMusicBrief(prompt: string, context: MusicContext, intent: MusicIntent): MusicBrief {
     const templateId = intent.templateId || 'generic';
@@ -145,6 +198,16 @@ export function buildMusicBrief(prompt: string, context: MusicContext, intent: M
     const bpm = clampBpm(intent.nextBpm ?? explicitBpm ?? traits?.defaultBpm ?? template.bpm ?? context.currentBpm);
     const key = explicitKey || traits?.key || template.key;
     const seed = hashString(`${prompt}|${context.currentCode}|${context.activeTracks.join(',')}|${intent.templateId || ''}`);
+    const references = (() => {
+        let r = parseReferences(prompt);
+        // 2.2: explicitly merge intent.referenceStyle (populated by musicIntent artist/concept detection)
+        // so that brief carries it for theory/grounding/sound even if parseReferences missed some.
+        if (intent.referenceStyle) {
+            const rs = intent.referenceStyle;
+            if (rs && !r.includes(rs)) r = [...r, rs];
+        }
+        return Array.from(new Set(r));
+    })();
 
     return {
         prompt,
@@ -161,17 +224,9 @@ export function buildMusicBrief(prompt: string, context: MusicContext, intent: M
         clearTracks: intent.clearTracks,
         requestedScope: scopeFromIntent(intent),
         sectionIntent: parseSectionIntent(prompt),
-        references: (() => {
-            let r = parseReferences(prompt);
-            // 2.2: explicitly merge intent.referenceStyle (populated by musicIntent artist/concept detection)
-            // so that brief carries it for theory/grounding/sound even if parseReferences missed some.
-            if (intent.referenceStyle) {
-                const rs = intent.referenceStyle;
-                if (rs && !r.includes(rs)) r = [...r, rs];
-            }
-            return Array.from(new Set(r));
-        })(),
+        references,
         constraints: buildConstraints(prompt, intent),
+        qualityTarget: buildQualityTarget({ genre: templateId, references, traits: fallbackTraits }),
         currentBpm: context.currentBpm,
         contextSummary: summarizeContext(context),
         variationSeed: seed,
@@ -192,6 +247,10 @@ function inferSubgenre(prompt: string, genre: GenreKey) {
     // Enhanced 2.2: for trance/ambient when artist or concept keywords present in prompt
     if (genre === 'trance' && /\b(tiesto|uplifting|edm)\b/.test(p)) return 'uplifting trance';
     if (genre === 'ambient' && /\b(ufo|cosmic|space|alien)\b/.test(p)) return 'cosmic/atmospheric';
+    if (genre === 'reggae' && /\b(dark|jamaican|roots|dub)\b/.test(p)) return 'dark roots dub';
+    if (genre === 'breakbeat_90s') return '90s rave breakbeat';
+    if (genre === 'spacesynth' && /\bkoto\b/.test(p)) return 'koto-style spacesynth';
+    if (genre === 'cinematic_electronic') return 'relay/capacitor cinematic';
     return null;
 }
 
@@ -231,6 +290,9 @@ export function buildTheoryPlan(brief: MusicBrief): TheoryPlan {
         italo_80s_alt: ['Am', 'G', 'F', 'Em'],
         ambient: ['C', 'G', 'Am', 'F'],
         dnb: ['Cm', 'Eb', 'Gm', 'Bb'],
+        breakbeat_90s: ['Cm', 'Eb', 'Fm', 'Gm'],
+        spacesynth: ['Am', 'G', 'Em', 'F'],
+        cinematic_electronic: ['Cm', 'Gm', 'Eb', 'Gm'],
         trance: ['Am', 'C', 'Em', 'G'],
         acid: ['Am', 'C', 'Dm', 'Am'],
         minimal: ['Cm'],
@@ -253,6 +315,9 @@ export function buildTheoryPlan(brief: MusicBrief): TheoryPlan {
         italo_80s_alt: ['a1', 'a2', 'e2', 'g1'],
         ambient: ['c2', 'e2', 'g2', 'b1'],
         dnb: ['c1', 'c1', 'eb1', 'c1'],
+        breakbeat_90s: ['c1', 'eb1', 'f1', 'g1'],
+        spacesynth: ['a1', 'a2', 'e2', 'g1'],
+        cinematic_electronic: ['c1', 'g1', 'eb1', 'g1'],
         trance: ['a1', 'c2', 'e2', 'g1'],
         acid: ['a1', 'a2', 'c2', 'd2'],
         minimal: ['c2'],
@@ -570,11 +635,48 @@ function hasExcessiveControlledRockDistortion(brief: MusicBrief, tracks: TrackMa
     return numericMethodValues(tracks.melody || '', 'distort').some((value) => value > 0.18);
 }
 
+function missingQualityTargetTraits(brief: MusicBrief, tracks: TrackMap) {
+    const joined = Object.values(tracks).filter(Boolean).join(' ').toLowerCase();
+    const missing: string[] = [];
+    const expect = (label: string, pattern: RegExp) => {
+        if (!pattern.test(joined)) missing.push(label);
+    };
+
+    switch (brief.genre) {
+        case 'trance':
+            expect('layered supersaw arp/chord hook', /supersaw/);
+            expect('offbeat A-minor bass', /~ a1|a1 ~ a1/);
+            expect('riser or downlifter FX', /pink|hpf\(sine\.range|slow\(8|slow\(16/);
+            break;
+        case 'reggae':
+            expect('one-drop drum pocket', /~ ~ rolandtr808_bd|~ ~ rolandtr909_sd|rim/);
+            expect('offbeat skank chords', /~\s*<|delay\(/);
+            expect('deep roots bass', /g1|bb1|d2/);
+            break;
+        case 'breakbeat_90s':
+            expect('broken drums', /rolandtr909_bd ~ ~ rolandtr909_bd|~ ~ rolandtr909_sd/);
+            expect('rave stab color', /square|supersaw|crush/);
+            break;
+        case 'spacesynth':
+            expect('octave square bass', /a1 a2|square/);
+            expect('plucked pentatonic lead', /piano|a4 c5 d5|pentatonic/);
+            expect('cosmic pad or FX', /room\(0\.9|pink|slow\(16/);
+            break;
+        case 'cinematic_electronic':
+            expect('relay/capacitor transient design', /crush\(|att\(0\.001\)|decay\(0\.03|decay\(0\.055/);
+            expect('cinematic tension FX', /hpf\(sine\.range|room\(0\.65|slow\(16/);
+            break;
+    }
+
+    return missing;
+}
+
 export function reviewMusicQuality(brief: MusicBrief, generated: GeneratedTrackSet, validation: ValidationReport): QualityReview {
     const problems: string[] = [];
     const improvements: string[] = [];
     const roboticMelody = hasRoboticMelody(generated.tracks);
     const excessiveRockDistortion = hasExcessiveControlledRockDistortion(brief, generated.tracks);
+    const missingTraits = missingQualityTargetTraits(brief, generated.tracks);
 
     if (!validation.valid) {
         problems.push(...validation.issues.map((issue) => `${issue.trackId}: ${issue.reason}`));
@@ -596,8 +698,13 @@ export function reviewMusicQuality(brief: MusicBrief, generated: GeneratedTrackS
         improvements.push('Keep rock and hard-rock guitar distortion at or below 0.18; use tighter rhythm and root/fifth notes for intensity.');
     }
 
-    const matchesIntent = problems.length === 0 || validation.valid;
-    const listenability = validation.valid && !roboticMelody && !excessiveRockDistortion;
+    if (missingTraits.length > 0) {
+        problems.push(`Missing required ${brief.genre} traits: ${missingTraits.join(', ')}.`);
+        improvements.push(`Regenerate using quality target traits: ${brief.qualityTarget.requiredCodeTraits.join(', ')}.`);
+    }
+
+    const matchesIntent = problems.length === 0;
+    const listenability = validation.valid && !roboticMelody && !excessiveRockDistortion && missingTraits.length === 0;
     const score = Math.max(0, Math.min(1, 1 - problems.length * 0.2));
 
     return {
@@ -746,6 +853,8 @@ export function formatAgentGrounding(prompt: string, brief: MusicBrief, theory: 
         JSON.stringify(theory),
         'Sound plan:',
         JSON.stringify(sound),
+        'Quality target:',
+        JSON.stringify(brief.qualityTarget),
         'Relevant examples as reference only:',
         formatTrainingExamplesForPrompt(prompt, 3),  // 2.5 updated emphasis via artist notes in caller + new examples in corpus
         artistConceptNote ? `Artist/concept guidance: Use traits for ${artistConceptNote} to produce distinct non-generic output (e.g. supersaw arps or cosmic pads).` : '',
