@@ -83,6 +83,19 @@ assert.equal(detectGenre('techno italo 80s'), 'italo_80s');
 assert.equal(detectGenre('play some michael jackson'), 'pop_funk');
 assert.equal(detectGenre('something like eminem'), 'hiphop');
 assert.equal(detectGenre('something like eminen'), 'hiphop');
+// 2.6 strengthened tests for artist/concept detection (tiesto, ufo)
+assert.equal(detectGenre('play some tiesto'), 'trance');
+assert.equal(detectGenre('tiësto style'), 'trance');
+assert.equal(detectGenre('make some UFO communication'), 'ambient');
+assert.equal(detectGenre('ufo signals'), 'ambient');
+
+const ctxTest = buildMusicContext({});
+const tiestoIntent = routeMusicIntent('play some tiesto', ctxTest);
+assert.equal(tiestoIntent.templateId, 'trance');
+assert.ok(tiestoIntent.referenceStyle && tiestoIntent.referenceStyle.includes('Tiesto'), 'should have Tiesto ref style');
+const ufoIntent = routeMusicIntent('make some UFO communication', ctxTest);
+assert.equal(ufoIntent.templateId, 'ambient');
+assert.ok(ufoIntent.referenceStyle && /UFO|cosmic/i.test(ufoIntent.referenceStyle || ''), 'ufo should set concept ref');
 
 const fallbackRock = buildFallbackResponse('make a guitar riff', 'fallback');
 assert.equal(fallbackRock.bpm, GENRE_TEMPLATES.rock.bpm);

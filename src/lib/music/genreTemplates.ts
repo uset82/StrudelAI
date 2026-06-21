@@ -923,18 +923,24 @@ const GENRE_PATTERNS: Array<[GenreKey, RegExp]> = [
     ['jazz', /\b(jazz|jazzy|swing)\b/i],
     ['latin', /\b(latin|salsa|cumbia|reggaeton|bachata)\b/i],
     ['reggae', /\b(reggae|dub|ska)\b/i],
-    ['trance', /\b(trance|uplifting|euphoric)\b/i],
+    ['trance', /\b(trance|uplifting|euphoric|edm|progressive|big room|festival)\b/i],
     ['acid', /\b(acid|303|squelchy)\b/i],
     ['minimal', /\b(minimal|hypnotic)\b/i],
-    ['ambient', /\b(ambient|atmospheric|chill|relax|calm|peaceful)\b/i],
-    ['house', /\b(house|deep\s*house)\b/i],
-    ['techno', /\b(techno|rave|industrial)\b/i],
+    ['ambient', /\b(ambient|atmospheric|chill|relax|calm|peaceful|dreamy|ethereal)\b/i],
+    ['house', /\b(house|deep\s*house|groovy)\b/i],
+    ['techno', /\b(techno|rave|industrial|tech house)\b/i],
     ['pop', /\b(pop|catchy|radio)\b/i],
 ];
 
 export function detectGenre(prompt: string): GenreKey | null {
     const songKey = detectSpecificSong(prompt);
     if (songKey) return songKey;
+
+    // Call new artist/concept detector (added in 2.1) before falling back to generic patterns.
+    // Assumption (noted per instructions): song-specific takes precedence, artist/concept next,
+    // then broad patterns. This ensures "tiesto" gets 'trance' even without pattern match.
+    const artistOrConcept = detectArtistOrConcept(prompt);
+    if (artistOrConcept) return artistOrConcept;
 
     for (const [genre, pattern] of GENRE_PATTERNS) {
         if (pattern.test(prompt)) return genre;
@@ -1000,6 +1006,23 @@ export function detectSpecificSong(prompt: string): GenreKey | null {
     if (p.includes('waltz 2') || p.includes('waltz #2') || p.includes('shostakovich waltz')) return 'shostakovich_waltz';
     if (p.includes('old macdonald') || p.includes('old mcdonald')) return 'old_macdonald';
     if (p.includes('determination') || (p.includes('undertale') && p.includes('determination'))) return 'undertale_determination';
+    return null;
+}
+
+// detectArtistOrConcept: new helper (added for phase 2.1) to catch producer/artist names like Tiësto
+// and abstract concepts (UFO etc). Returns a GenreKey so existing routing works.
+// Assumption: Tiësto-style maps to 'trance' (sensible default as Tiesto is iconic for uplifting trance/EDM);
+// other EDM producers default to trance for distinct output vs generic; UFO concepts default to 'ambient'.
+// This is called from detectGenre.
+export function detectArtistOrConcept(prompt: string): GenreKey | null {
+    const p = prompt.toLowerCase();
+    // Tiësto / Tiesto and close variants -> trance for uplifting EDM traits
+    if (/\b(tiesto|tiësto|tiesto-style|tiesto style|tiësto style)\b/.test(p)) return 'trance';
+    // Additional EDM/trance/house producers and aliases (8+ for coverage)
+    if (/\b(armin van buuren|armin vanbuuren|above & beyond|aboveandbeyond|above and beyond|david guetta|calvin harris|martin garrix|skrillex|zedd|alesso|hardwell)\b/.test(p)) return 'trance';
+    // Abstract / concept keywords (UFO communication, alien signals, cosmic etc) -> ambient
+    // for sparse atmospheric / fx-heavy output
+    if (/\b(ufo|alien|cosmic|space.*(signal|communicat|transmission)| (signal|communicat|transmission).*space|extraterrestrial|otherworldly|alien signal|cosmic signal|ufo communication)\b/.test(p)) return 'ambient';
     return null;
 }
 

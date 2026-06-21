@@ -353,6 +353,27 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
                                 <span>Suggesting</span>
                             </>
                         )}
+                        <button
+                            type="button"
+                            onClick={async () => {
+                                try {
+                                    const textToCopy = editableCode || '';
+                                    await navigator.clipboard.writeText(textToCopy);
+                                    // simple feedback via console + temp title (UI toast not present)
+                                    const origTitle = (document.activeElement as HTMLElement)?.title;
+                                    const btn = document.activeElement as HTMLButtonElement | null;
+                                    if (btn) btn.title = 'Copied!';
+                                    console.log('[StrudelCodeView] Copied formatted stack to clipboard');
+                                    setTimeout(() => { if (btn) btn.title = origTitle || 'Copy code'; }, 1200);
+                                } catch (e) {
+                                    console.warn('[StrudelCodeView] Copy failed', e);
+                                }
+                            }}
+                            className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[9px] text-slate-400 hover:bg-white/10 hover:text-slate-200"
+                            title="Copy code"
+                        >
+                            Copy
+                        </button>
                     </div>
                 </div>
 
@@ -496,6 +517,29 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
                         </div>
                     </div>
                 </div>
+            </div>
+
+            {/* 3.3: Selectable copy of formatted stack (read-only pre with user-select for native copy/paste).
+                 Placed after live editor so users can select/copy the "Formatted Strudel stack" easily
+                 without fighting the transparent textarea layer. */}
+            <div className="mt-1 border-t border-white/10 pt-1 text-[10px]">
+                <div className="mb-0.5 text-[#4b5563]">Formatted (selectable for copy)</div>
+                <pre
+                    className="studio-scrollbar max-h-24 overflow-auto whitespace-pre rounded border border-white/10 bg-[#0a0c10] p-2 text-[11px] leading-tight text-[#e6edf3] select-text cursor-text"
+                    style={{ userSelect: 'text' }}
+                    aria-label="Selectable formatted Strudel code stack for copy and paste"
+                    title="Click to select all; use Ctrl/Cmd+C to copy"
+                    onClick={(e) => {
+                        // convenience: select all on click
+                        const range = document.createRange();
+                        range.selectNodeContents(e.currentTarget);
+                        const sel = window.getSelection();
+                        sel?.removeAllRanges();
+                        sel?.addRange(range);
+                    }}
+                >
+                    {editableCode || '// no code'}
+                </pre>
             </div>
         </div>
     );

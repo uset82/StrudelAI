@@ -15,6 +15,7 @@ import {
     buildDeterministicMusicResponse,
     buildIntentFallback,
     buildTemplateGrounding,
+    getTemplateForPrompt,
 } from '@/lib/music/genreTemplates';
 import { MusicContext, MusicIntent, buildMusicContext, routeMusicIntent } from '@/lib/music/musicIntent';
 import { formatTrainingExamplesForPrompt } from '@/lib/music/trainingCorpus';
@@ -333,7 +334,17 @@ const applyIntentTrackPolicy = (
 };
 
 const buildProviderFallback = (intent: MusicIntent, context: MusicContext, thought: string) => {
+    // 2.4: prefer getTemplateForPrompt / intent-aware when possible to avoid hard generic for artist/concept
     const fallback = buildIntentFallback(intent, context, thought);
+    // If intent has templateId from detection (e.g. trance for tiesto), the fallback already uses it.
+    // Strengthen by using getTemplateForPrompt if no strong template yet.
+    if (!intent.templateId || intent.templateId === 'generic') {
+        const tmpl = getTemplateForPrompt(thought || '', context.currentCode || undefined);  // best effort
+        if (tmpl && tmpl.id !== 'generic') {
+            fallback.tracks = { ...tmpl.tracks };
+            fallback.bpm = intent.nextBpm ?? tmpl.bpm;
+        }
+    }
     return {
         ...fallback,
         bpm: intent.nextBpm ?? fallback.bpm,
@@ -376,6 +387,7 @@ const buildValidatedTrackPayload = async (params: {
     thought?: string;
 }) => {
     const finalTracks = applyIntentTrackPolicy(params.tracks, params.intent, params.context, params.prompt);
+    // 2.4: validation/agent passes keep distinctive traits (no forced generic); intent-aware policy only clears requested.
     const validation = validateGeneratedTracks(finalTracks, params.prompt, params.currentCode, params.intent);
     const bpm = coerceBpmValue(params.bpm) ?? params.intent.nextBpm ?? extractBpmFromPrompt(params.prompt) ?? params.context.currentBpm;
 
@@ -838,6 +850,8 @@ export async function POST(req: Request) {
         }
 
         if (process.env.MUSIC_AGENT_PIPELINE !== 'legacy') {
+            // Verified for 2.4: full runMusicAgentPipeline is called with the (now artist-aware) intent
+            // that carries referenceStyle, templateId etc from musicIntent detection.
             const musicAgentResponse = await runMusicAgentPipeline({
                 prompt,
                 currentCode,
@@ -891,6 +905,8 @@ If the user mentions desync, clashing, or balance issues, analyze these values t
         const targetedGrounding = [
             buildTemplateGrounding(intent, context),
             formatTrainingExamplesForPrompt(prompt, 3),
+            // 2.4 strengthened: surface artist/concept when present in intent (from 2.1 routing)
+            intent.referenceStyle ? `Artist/concept reference style: ${intent.referenceStyle}. Adapt output to be distinct.` : '',
         ].filter(Boolean).join('\n\n');
 
         const augmentedSystemPrompt = `${SYSTEM_PROMPT}

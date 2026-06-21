@@ -90,6 +90,11 @@ const broadGenreExamples: StrudelTrainingExample[] = [
     fromTemplate('house-001', 'deep house groove', 'house', ['house'], ['Warm offbeat hats']),
     fromTemplate('ambient-001', 'calm ambient music', 'ambient', ['ambient'], ['No forced drums']),
     fromTemplate('dnb-001', 'drum and bass', 'dnb', ['dnb'], ['Fast BPM is explicit']),
+    // 2.5 added positive examples for artist/concept (tiesto -> trance, ufo -> ambient) to train away generic collapse
+    fromTemplate('trance-002', 'play some tiesto', 'trance', ['trance', 'artist-reference', 'edm'], ['Map Tiesto to uplifting trance (distinct arps, offbeat bass, not generic C-minor)']),
+    fromTemplate('trance-003', 'tiesto style', 'trance', ['trance', 'artist-reference'], ['Tiesto-inspired: bright supersaw arpeggio and driving energy']),
+    fromTemplate('ambient-002', 'make some UFO communication', 'ambient', ['ambient', 'concept'], ['UFO / cosmic signals: sparse ethereal pads, FX textures, slow space']),
+    fromTemplate('ambient-003', 'ufo signals', 'ambient', ['ambient', 'concept', 'fx'], ['Abstract alien communication as atmospheric ambient not beat']),
 ];
 
 const drumIntentExamples: StrudelTrainingExample[] = [
@@ -359,6 +364,41 @@ const negativeExamples: StrudelTrainingExample[] = [
         qualityNotes: ['Reject square-wave hook on rap correction prompts', 'Complaint should tighten drums and sub while preserving vocal space'],
         negative: true,
         rejectionReason: 'Still too melodic for a rap vocal bed; adding a square hook does not address the artist-reference complaint.',
+    },
+    // 2.5 negative examples: previous generic collapse for artist/concept (to prevent regression)
+    {
+        id: 'negative-012',
+        version: STRUDEL_CORPUS_VERSION,
+        userPrompt: 'play some tiesto',
+        intentTags: ['negative', 'trance', 'artist-reference', 'generic-collapse'],
+        expected: {
+            type: 'update_tracks',
+            thought: 'Rejected: tiesto artist request produced generic C-minor balanced beat instead of uplifting trance.',
+            bpm: 120,
+            tracks: { /* generic fallback tracks */ drums: "stack(s('RolandTR909_bd*4').gain(0.78), s('~ RolandTR909_sd ~ RolandTR909_sd').gain(0.58), s('RolandTR909_hh*8').gain(0.16).hpf(6500))", bass: "note(m('c2 ~ eb2 ~ g1 ~ eb2 ~')).s('triangle').att(0.01).decay(0.2).lpf(520).gain(0.58)", melody: "note(m('c4 eb4 g4 bb4')).s('sine').att(0.01).decay(0.2).room(0.25).gain(0.32).slow(2)", voice: null, fx: null },
+        },
+        bpm: 120,
+        key: 'C minor',
+        qualityNotes: ['Reject generic fallback for Tiesto artist request', 'Must use trance template or uplifting traits'],
+        negative: true,
+        rejectionReason: 'Artist reference (tiesto) collapsed to generic instead of distinct trance output.',
+    },
+    {
+        id: 'negative-013',
+        version: STRUDEL_CORPUS_VERSION,
+        userPrompt: 'make some UFO communication',
+        intentTags: ['negative', 'ambient', 'concept', 'generic-collapse'],
+        expected: {
+            type: 'update_tracks',
+            thought: 'Rejected: UFO concept produced the same generic balanced beat as any other request.',
+            bpm: 120,
+            tracks: { /* generic */ drums: "stack(s('RolandTR909_bd*4').gain(0.78), s('~ RolandTR909_sd ~ RolandTR909_sd').gain(0.58), s('RolandTR909_hh*8').gain(0.16).hpf(6500))", bass: "note(m('c2 ~ eb2 ~ g1 ~ eb2 ~')).s('triangle').att(0.01).decay(0.2).lpf(520).gain(0.58)", melody: "note(m('c4 eb4 g4 bb4')).s('sine').att(0.01).decay(0.2).room(0.25).gain(0.32).slow(2)", voice: null, fx: null },
+        },
+        bpm: 120,
+        key: 'C minor',
+        qualityNotes: ['Reject generic beat for abstract UFO prompt', 'Must map to ambient pads/FX'],
+        negative: true,
+        rejectionReason: 'Abstract concept collapsed to generic C-minor instead of cosmic ambient.',
     },
 ];
 

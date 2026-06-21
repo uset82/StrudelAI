@@ -211,6 +211,20 @@ function isRapArtistReferencePrompt(prompt: string) {
     return /\b(eminem|eminen|slim\s+shady)\b/.test(prompt);
 }
 
+// New artist/concept reference helpers added for 2.1 phase (patterned after isRapArtistReferencePrompt / isMichaelJacksonPrompt).
+// These allow setting specific referenceStyle and BPM when routing, so that even if detectGenre maps the genre,
+// we produce a more distinctive "Aether thought" and avoid pure generic.
+function isTiestoPrompt(prompt: string) {
+    // 2.6: improved to catch "like tiesto", "in the style of tiesto" etc.
+    return /\b(tiesto|tiësto)\b/i.test(prompt) || /\b(like|style of|similar to)\s+(tiesto|tiësto)\b/i.test(prompt);
+}
+
+function isUfoOrCosmicConceptPrompt(prompt: string) {
+    // 2.6 improved to catch "like ufo", "in the style of cosmic signals" etc.
+    return /\b(ufo|alien.*(signal|communicat|transmission)|cosmic.*(signal|communicat)|ufo communication|space communication|alien signal)\b/i.test(prompt)
+        || /\b(like|style of|similar to)\s+(ufo|alien|cosmic)\b/i.test(prompt);
+}
+
 function contextLooksLikeItalo(context: MusicContext) {
     const joined = [context.currentCode, ...Object.values(context.tracks).filter(Boolean)]
         .join(' ')
@@ -271,6 +285,36 @@ export function routeMusicIntent(prompt: string, context: MusicContext): MusicIn
             referenceStyle: 'safe rap vocal-bed traits',
             nextBpm: 92,
             reason: 'Artist reference mapped to safe rap vocal-bed traits, not exact imitation.',
+        }, context);
+    }
+
+    // Artist/concept special cases (added 2.1) to ensure referenceStyle and differentiated params.
+    // These run before the general detectGenre block so referenceStyle gets populated.
+    // Tiesto -> trance with specific style note.
+    if (isTiestoPrompt(normalized)) {
+        return buildIntent({
+            kind: 'create_full_style',
+            targetTracks: ['drums', 'bass', 'melody'],
+            preserveTracks: [],
+            clearTracks: [],
+            templateId: 'trance',
+            referenceStyle: 'Tiesto-inspired uplifting trance traits (not exact imitation)',
+            nextBpm: 138,
+            reason: 'Artist reference mapped to trance for distinct output instead of generic C-minor template.',
+        }, context);
+    }
+
+    // UFO / abstract cosmic -> ambient
+    if (isUfoOrCosmicConceptPrompt(normalized)) {
+        return buildIntent({
+            kind: 'create_full_style',
+            targetTracks: ['bass', 'fx'],
+            preserveTracks: [],
+            clearTracks: [],
+            templateId: 'ambient',
+            referenceStyle: 'UFO communication / cosmic ambient traits',
+            nextBpm: 72,
+            reason: 'Abstract concept mapped to ambient (ethereal pads/FX) instead of generic beat.',
         }, context);
     }
 
@@ -448,7 +492,9 @@ export function routeMusicIntent(prompt: string, context: MusicContext): MusicIn
             preserveTracks: [],
             clearTracks: isHipHopVocalBed ? ['melody', 'voice'] : [],
             templateId,
-            referenceStyle: null,
+            // Set referenceStyle based on detected genre so downstream (brief, grounding) can use it.
+            // This helps non-artist "trance" etc. avoid feeling completely generic.
+            referenceStyle: `safe ${templateId} traits`,
             nextBpm: null,
             reason: `Create a full ${templateId} style loop.`,
         }, context);

@@ -128,6 +128,8 @@ function createTools(prompt: string, currentCode: string | undefined, intent: Mu
         inputSchema: z.object({ genre: z.string() }),
         outputSchema: z.object({ traits: z.string() }),
         execute: ({ genre }) => {
+            // Confirmed for 2.3: artist-mapped genres (e.g. "trance" for tiesto) return the full trait object
+            // (richer failureModes etc from styleTraits updates) instead of falling to generic.
             const key = genre in GENRE_STYLE_TRAITS ? genre as keyof typeof GENRE_STYLE_TRAITS : 'generic';
             return { traits: JSON.stringify(GENRE_STYLE_TRAITS[key]) };
         },
@@ -226,6 +228,7 @@ export async function refineWithOpenRouterAgent(params: {
         'For rock and hard rock, harder means tighter rhythm, stronger backbeat, and E-minor root/fifth pairs such as E/B, G/D, and A/E; do not raise guitar distortion above 0.18.',
         'Do not add silent placeholder tracks such as s("~").gain(0) or note(m("c4")).gain(0); use null instead.',
         'Before final JSON, use validate_tracks when you change any track.',
+        'CRITICAL FOR ARTIST/GENRE/CONCEPT: Respect explicit artist references (e.g. tiesto) or abstract concepts (e.g. UFO communication) from the user request and grounding. Produce DISTINCT output matching the requested style (trance arps for tiesto, ethereal pads/FX for ufo) rather than falling back to generic C-minor balanced beat unless user literally asked for generic.',
         grounding,
         `Current deterministic candidate:\n${JSON.stringify(candidate)}`,
         `User request: ${params.prompt}`,
@@ -353,6 +356,7 @@ export async function refineWithOpenRouterAgent(params: {
     if (lastError) {
         console.warn('[MusicAgent] Falling back to local pipeline after OpenRouter agent failure.');
     }
+    // 2.6: when disabled or fails, local path (via buildLocal... using updated intent/brief/theory from 2.1-2.2) still produces distinct output for tiesto/ufo etc.
     return null;
 }
 

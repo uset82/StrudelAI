@@ -276,7 +276,7 @@ export const GENRE_STYLE_TRAITS: Partial<Record<GenreKey, GenreStyleTraits>> & {
         arrangement: 'Slow evolving loop with heavy space.',
         density: 'sparse',
         requiredTracks: ['fx'],
-        failureModes: ['forced beat', 'short harsh envelopes', 'too busy'],
+        failureModes: ['forced beat', 'short harsh envelopes', 'too busy', 'collapsing to generic balanced beat for abstract concepts like ufo'],
     },
     dnb: {
         genre: 'dnb',
@@ -310,7 +310,7 @@ export const GENRE_STYLE_TRAITS: Partial<Record<GenreKey, GenreStyleTraits>> & {
         arrangement: 'Driving loop with spacious FX.',
         density: 'dense',
         requiredTracks: ['drums', 'bass', 'melody'],
-        failureModes: ['flat chord pad', 'no arp', 'too low energy'],
+        failureModes: ['flat chord pad', 'no arp', 'too low energy', 'generic C-minor fallback instead of uplifting'],
     },
     acid: {
         genre: 'acid',
@@ -459,7 +459,7 @@ export const GENRE_STYLE_TRAITS: Partial<Record<GenreKey, GenreStyleTraits>> & {
         arrangement: 'Safe listenable loop.',
         density: 'balanced',
         requiredTracks: ['drums', 'bass', 'melody'],
-        failureModes: ['style mismatch', 'robotic repetition', 'too many layers'],
+        failureModes: ['style mismatch', 'robotic repetition', 'too many layers', 'artist references like tiesto or abstract ufo collapsing here'],
     },
 };
 

@@ -76,7 +76,12 @@ function parseMood(prompt: string) {
         ['funky', /\b(funky|groovy|pocket)\b/i],
         ['clean', /\b(clean|clear|less harsh|not harsh)\b/i],
     ];
-    return moods.filter(([, pattern]) => pattern.test(prompt)).map(([name]) => name);
+    const res = moods.filter(([, pattern]) => pattern.test(prompt)).map(([name]) => name);
+    // Enhanced in 2.2: recognize abstract descriptors like spacey/ufo for ambient/uplifting
+    const p = prompt.toLowerCase();
+    if (/\b(spacey|cosmic|alien|ufo|ethereal)\b/i.test(p) && !res.includes('dreamy')) res.push('dreamy');
+    if (/\b(uplifting|trance like)\b/i.test(p) && !res.includes('uplifting')) res.push('uplifting');
+    return res;
 }
 
 function parseReferences(prompt: string) {
@@ -84,6 +89,10 @@ function parseReferences(prompt: string) {
     const likeMatch = prompt.match(/\b(?:like|in the style of|similar to)\s+([a-z0-9 ._-]{2,40})/i);
     if (likeMatch) refs.push(likeMatch[1].trim());
     if (/\bblink\s*-?\s*182\b|\bblink182\b/i.test(prompt)) refs.push('pop-punk drum traits');
+    // Enhanced (phase 2.2) to recognize artist and abstract from prompt for better brief.references
+    // (used in grounding/theory). This passes artist/concept info explicitly.
+    if (/\b(tiesto|tiësto)\b/i.test(prompt)) refs.push('tiesto-inspired');
+    if (/\b(ufo|alien|cosmic|ufo communication)\b/i.test(prompt)) refs.push('ufo-cosmic-concept');
     return Array.from(new Set(refs));
 }
 
@@ -152,7 +161,16 @@ export function buildMusicBrief(prompt: string, context: MusicContext, intent: M
         clearTracks: intent.clearTracks,
         requestedScope: scopeFromIntent(intent),
         sectionIntent: parseSectionIntent(prompt),
-        references: parseReferences(prompt),
+        references: (() => {
+            let r = parseReferences(prompt);
+            // 2.2: explicitly merge intent.referenceStyle (populated by musicIntent artist/concept detection)
+            // so that brief carries it for theory/grounding/sound even if parseReferences missed some.
+            if (intent.referenceStyle) {
+                const rs = intent.referenceStyle;
+                if (rs && !r.includes(rs)) r = [...r, rs];
+            }
+            return Array.from(new Set(r));
+        })(),
         constraints: buildConstraints(prompt, intent),
         currentBpm: context.currentBpm,
         contextSummary: summarizeContext(context),
@@ -171,6 +189,9 @@ function inferSubgenre(prompt: string, genre: GenreKey) {
     if (genre === 'hiphop' && /\b(trap)\b/.test(p)) return 'trap';
     if (genre === 'house' && /\b(deep)\b/.test(p)) return 'deep house';
     if (genre === 'techno' && /\b(industrial)\b/.test(p)) return 'industrial techno';
+    // Enhanced 2.2: for trance/ambient when artist or concept keywords present in prompt
+    if (genre === 'trance' && /\b(tiesto|uplifting|edm)\b/.test(p)) return 'uplifting trance';
+    if (genre === 'ambient' && /\b(ufo|cosmic|space|alien)\b/.test(p)) return 'cosmic/atmospheric';
     return null;
 }
 
@@ -238,12 +259,24 @@ export function buildTheoryPlan(brief: MusicBrief): TheoryPlan {
         generic: ['c2', 'eb2', 'g1', 'bb1'],
     };
     const traits = GENRE_STYLE_TRAITS[brief.genre] || GENRE_STYLE_TRAITS.generic;
+    let chordProgression = progressions[brief.genre] || progressions.generic!;
+    let bassRoots = roots[brief.genre] || roots.generic!;
+    // 2.2 improvement: make reference- and artist-aware so trance/artist and ambient/concept
+    // prompts NEVER collapse to the generic Cm->Eb->Gm->Bb .
+    const refStr = (brief.references || []).join(' ').toLowerCase();
+    if (brief.genre === 'trance' || /tiesto|uplifting/.test(refStr) || brief.subgenre?.includes('trance')) {
+        chordProgression = ['Am', 'C', 'Em', 'G'];
+        bassRoots = ['a1', 'c2', 'e2', 'g1'];
+    } else if (brief.genre === 'ambient' || /ufo|cosmic|alien/.test(refStr) || (brief.subgenre && brief.subgenre.includes('cosmic'))) {
+        chordProgression = ['C', 'G', 'Am', 'Em'];  // sustained, less driving than generic
+        bassRoots = ['c2', 'g1', 'a1', 'e2'];
+    }
     return {
         bpm: brief.bpm,
         key: brief.key,
         scale: brief.scale,
-        chordProgression: progressions[brief.genre] || progressions.generic!,
-        bassRoots: roots[brief.genre] || roots.generic!,
+        chordProgression,
+        bassRoots,
         rhythmicFeel: traits.drumFeel,
         arrangement: traits.arrangement,
         density: traits.density,
@@ -256,10 +289,19 @@ export function buildSoundPlan(brief: MusicBrief, theory: TheoryPlan): SoundPlan
     const drumPalette = traits.soundPalette.filter((item) => /drum|808|909|hat|snare|kick|breakbeat/i.test(item));
     const bassPalette = traits.soundPalette.filter((item) => /bass|sub|303|triangle/i.test(item));
     const melodyPalette = traits.soundPalette.filter((item) => /guitar|chord|piano|saw|supersaw|arp|hook/i.test(item));
+    // 2.2 enhancement: use references/artist for palette differentiation (e.g. supersaw for tiesto trance)
+    const refStr = (brief.references || []).join(' ').toLowerCase();
+    let effectiveMelodyPalette = melodyPalette.length ? melodyPalette : ['short coherent hook'];
+    if (/tiesto|trance/.test(refStr) || brief.genre === 'trance') {
+        effectiveMelodyPalette = ['supersaw arp', 'uplifting hook', ...effectiveMelodyPalette];
+    }
+    if (/ufo|cosmic|ambient/.test(refStr) || brief.genre === 'ambient') {
+        effectiveMelodyPalette = ['sine pad', 'ethereal texture', 'filtered long tones'];
+    }
     return {
         drumPalette: drumPalette.length ? drumPalette : ['sample-safe kick/snare/hat roles'],
         bassPalette: bassPalette.length ? bassPalette : ['filtered low bass'],
-        melodyPalette: melodyPalette.length ? melodyPalette : ['short coherent hook'],
+        melodyPalette: effectiveMelodyPalette,
         fxPalette: ['room and delay only when useful', 'pink noise sweeps at low gain'],
         mixRules: [
             'Keep kick and bass separated with low-pass/level control.',
@@ -454,6 +496,14 @@ export function generateTracksFromPlans(brief: MusicBrief, theory: TheoryPlan, s
         const v = cleanVoiceForPrompt(brief);
         if (v) tracks = { ...tracks, voice: cleanStrudelCode(v) };
     }
+    // 2.2: when artist/concept refs, compose/select more distinctive expressions (e.g. supersaw for tiesto trance)
+    const refStr = (brief.references || []).join(' ').toLowerCase();
+    if ((/tiesto/.test(refStr) || brief.genre === 'trance') && !tracks.melody) {
+        tracks.melody = "note(m('a4 c5 e5 a5 e5 c5 a4 e4')).s('supersaw').att(0.01).decay(0.22).lpf(3200).room(0.45).delay(0.22).gain(0.45).slow(2)";
+    }
+    if ((/ufo|cosmic/.test(refStr) || brief.genre === 'ambient') && !tracks.fx) {
+        tracks.fx = "note(m('<c5 e5 g5> <g4 b4 d5>')).s('sine').slow(8).room(0.95).delay(0.55).lpf(1400).gain(0.34)";
+    }
     const traits = GENRE_STYLE_TRAITS[brief.genre];
     const template = GENRE_TEMPLATES[brief.genre];
     const isReferenceTemplate = template?.intentTags.includes('song') || template?.intentTags.includes('reference');
@@ -466,6 +516,14 @@ export function generateTracksFromPlans(brief: MusicBrief, theory: TheoryPlan, s
             `Theory: ${theory.key}, ${theory.chordProgression.join(' -> ')}.`,
             `Sound: ${sound.mixRules[0]}`,
         ].join(' ');
+    }
+    // 2.2: build more specific thought that includes artist/concept when references or genre indicate mapped request.
+    // e.g. prevents the generic "Aether thought" for tiesto/ufo.
+    const refStr2 = (brief.references || []).join(' ').toLowerCase();
+    if (/tiesto/.test(refStr2) || (brief.genre === 'trance' && /tiesto|uplifting/.test(refStr2))) {
+        thought = `Tiesto-inspired uplifting trance: driving four-on-floor with offbeat bass and bright supersaw arpeggio. ${thought}`;
+    } else if (/ufo|cosmic|alien/.test(refStr2) || (brief.genre === 'ambient' && /ufo|cosmic/.test(refStr2))) {
+        thought = `UFO communication signals: slow ethereal pads, sparse bass pulses and atmospheric FX textures. ${thought}`;
     }
 
     // Ensure all tracks are clean idiomatic chains (no redundant nested parens)
@@ -659,6 +717,7 @@ export function toAgentUpdateResponse(result: Pick<GeneratedTrackSet, 'bpm' | 't
 
 export function formatAgentGrounding(prompt: string, brief: MusicBrief, theory: TheoryPlan, sound: SoundPlan) {
     const traits = GENRE_STYLE_TRAITS[brief.genre] || GENRE_STYLE_TRAITS.generic;
+    const artistConceptNote = (brief.references || []).filter(r => /tiesto|ufo|cosmic|alien|artist/.test(r.toLowerCase())).join('; ') || (brief.genre !== 'generic' ? brief.genre : '');
     return [
         'Music brief:',
         JSON.stringify({
@@ -672,6 +731,7 @@ export function formatAgentGrounding(prompt: string, brief: MusicBrief, theory: 
             clearTracks: brief.clearTracks,
             sectionIntent: brief.sectionIntent,
             references: brief.references,
+            artistOrConcept: artistConceptNote || undefined,
         }),
         'Style traits:',
         JSON.stringify({
@@ -687,7 +747,8 @@ export function formatAgentGrounding(prompt: string, brief: MusicBrief, theory: 
         'Sound plan:',
         JSON.stringify(sound),
         'Relevant examples as reference only:',
-        formatTrainingExamplesForPrompt(prompt, 3),
+        formatTrainingExamplesForPrompt(prompt, 3),  // 2.5 updated emphasis via artist notes in caller + new examples in corpus
+        artistConceptNote ? `Artist/concept guidance: Use traits for ${artistConceptNote} to produce distinct non-generic output (e.g. supersaw arps or cosmic pads).` : '',
     ].filter(Boolean).join('\n');
 }
 
