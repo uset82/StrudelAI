@@ -4,6 +4,7 @@ import { ContextManager } from './context-manager';
 import { SonicSessionState, ChatMessage } from '../../types/sonic';
 import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { applyTrackMapToState, buildLocalMusicAgentPipeline, toAgentUpdateResponse } from '../music-agent';
+import { isPureChatGreeting } from '../music/musicIntent';
 import { createDefaultSSNNState } from '../ssnn/engine';
 
 const ACTION_KEYWORDS = [
@@ -323,7 +324,7 @@ export function tryRuleBasedUpdate(text: string, state: SonicSessionState): { ch
         return {
             changed: true,
             newState: applyTrackMapToState(response, newState),
-            response: response.thought,
+            response: response.type === 'update_tracks' ? (response.thought || '') : response.message,
         };
     }
 
@@ -498,6 +499,15 @@ export class AgentRuntime {
         console.log(`[Agent] Current state:`, JSON.stringify(currentState, null, 2));
 
         let finalState = currentState;
+
+        // Greeting / pure chat short-circuit — do not generate music for "hi", "hello" etc.
+        if (isPureChatGreeting(userMessage)) {
+            return {
+                response: 'Hey! What kind of music are you feeling today?',
+                newState: finalState,
+            };
+        }
+
         // Fast rule-based path: apply deterministic updates before touching the LLM/tooling.
         const quick = tryRuleBasedUpdate(userMessage, finalState);
         if (quick.changed) {

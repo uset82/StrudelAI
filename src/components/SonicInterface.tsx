@@ -8,6 +8,7 @@ import { StrudelCodeView } from './StrudelCodeView';
 import { DJMixerView } from './DJMixerView';
 import { SynplantGarden } from './SynplantGarden';
 import { SSNNSynthesizer } from './SSNNSynthesizer';
+import { VoiceSynthesizer } from './VoiceSynthesizer';
 import { evalStrudelCode, buildArrangementCode, buildStrudelCode, setTempoBpm } from '@/lib/strudel/engine';
 import { TrackStrip } from './TrackStrip';
 import { ArrangementView, createDefaultArrangement } from './ArrangementView';
@@ -23,7 +24,7 @@ const UI_STORAGE_KEYS = {
     rightPanelCollapsed: 'aether:rightPanelCollapsed',
 } as const;
 
-type ViewMode = 'simple' | 'arrangement' | 'garden' | 'djmixer' | 'ssnn';
+type ViewMode = 'simple' | 'arrangement' | 'garden' | 'djmixer' | 'ssnn' | 'voice';
 
 const VIEW_MODE_META: Record<ViewMode, {
     label: string;
@@ -60,6 +61,12 @@ const VIEW_MODE_META: Record<ViewMode, {
         title: 'Neural Network',
         subtitle: 'LIF Synth Engine',
         Icon: Brain,
+    },
+    voice: {
+        label: 'Voice',
+        title: 'Voice Lab',
+        subtitle: 'Synthesizer & transformation',
+        Icon: Mic,
     },
 };
 
@@ -277,6 +284,17 @@ export default function SonicInterface() {
             document.body.style.userSelect = previousUserSelect;
         };
     }, [isResizingRightPanel]);
+
+    // Switch view to Voice Lab when voice command received from AI
+    useEffect(() => {
+        const handleVoiceCommand = () => {
+            setViewMode('voice');
+        };
+        window.addEventListener('aether:voice_command', handleVoiceCommand);
+        return () => {
+            window.removeEventListener('aether:voice_command', handleVoiceCommand);
+        };
+    }, []);
 
     // Sync arrangement playback with audio
     useEffect(() => {
@@ -708,6 +726,10 @@ export default function SonicInterface() {
                                 ssnnState={state?.ssnn}
                                 onStateChange={setSsnnState}
                             />
+                        </div>
+
+                        <div className={`min-h-[620px] overflow-hidden lg:h-full lg:min-h-0 ${viewMode === 'voice' ? '' : 'hidden'}`}>
+                            <VoiceSynthesizer />
                         </div>
                     </div>
                 </section>

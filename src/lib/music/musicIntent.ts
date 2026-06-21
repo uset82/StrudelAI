@@ -57,6 +57,23 @@ const normalizePrompt = (prompt: string) =>
         .replace(/[“”]/g, '"')
         .trim();
 
+export function isPureChatGreeting(prompt: string): boolean {
+    const p = normalizePrompt(prompt);
+    // Direct short greetings (allow optional follow words like "there", "buddy")
+    if (/^(hi|hello|hey|yo|sup|hiya|howdy)(\s+\w{1,8})?[!?. ,]*$/.test(p)) return true;
+    if (/^good (morning|afternoon|evening|day)[!?. ,]*$/.test(p)) return true;
+    if (/^(what'?s up|how'?s it going|how are you|how are ya)[!?. ,]*$/.test(p)) return true;
+    // Thanks / reactions that don't request music
+    if (/^(thanks?|thank you|cheers|appreciate it|nice one)[!?. ,]*$/.test(p)) return true;
+    // Very short neutral/positive without music keywords
+    if (/^(cool|nice|awesome|sweet|dope|lit|okay|ok|alright|got it|understood|sure|yeah|yep)[!?. ,]*$/.test(p)) return true;
+    // Pure very short messages (under ~6 chars, no numbers or obvious music hints)
+    if (p.length <= 6 && !/[0-9]/.test(p) && !/(drum|beat|bass|melody|track|play|make|create|sound|music|loop|drop)/i.test(p)) {
+        return true;
+    }
+    return false;
+}
+
 const normalizeTrackPattern = (value: unknown): string | null => {
     if (typeof value !== 'string') return null;
     const trimmed = value.trim();

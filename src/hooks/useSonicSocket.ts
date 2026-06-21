@@ -647,7 +647,15 @@ export function useSonicSocket() {
             }
 
             // Handle different response types
-            if (data.type === 'chat') {
+            if (data.type === 'voice_command') {
+                if (data.thought) {
+                    setMessages(prev => [...prev, `AI Thought: ${data.thought}`]);
+                }
+                setMessages(prev => [...prev, `System: Voice Lab updated - Preset "${data.command?.voiceStyle || 'custom'}" applied`]);
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('aether:voice_command', { detail: data.command }));
+                }
+            } else if (data.type === 'chat') {
                 setMessages(prev => [...prev, `AI: ${data.message}`]);
             } else if (data.type === 'musicgen') {
                 // MusicGen AI-generated audio response

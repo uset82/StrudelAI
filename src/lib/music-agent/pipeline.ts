@@ -6,7 +6,7 @@ import {
     TrackMap,
     buildIntentFallback,
 } from '@/lib/music/genreTemplates';
-import { MusicContext, MusicIntent, buildMusicContext, routeMusicIntent } from '@/lib/music/musicIntent';
+import { MusicContext, MusicIntent, buildMusicContext, routeMusicIntent, isPureChatGreeting } from '@/lib/music/musicIntent';
 import { validateGeneratedTracks } from '@/lib/music/strudelValidation';
 import { formatTrainingExamplesForPrompt } from '@/lib/music/trainingCorpus';
 import { GENRE_STYLE_TRAITS } from './styleTraits';
@@ -569,26 +569,20 @@ export function generateTracksFromPlans(brief: MusicBrief, theory: TheoryPlan, s
     if ((/ufo|cosmic/.test(refStr) || brief.genre === 'ambient') && !tracks.fx) {
         tracks.fx = "note(m('<c5 e5 g5> <g4 b4 d5>')).s('sine').slow(8).room(0.95).delay(0.55).lpf(1400).gain(0.34)";
     }
-    const traits = GENRE_STYLE_TRAITS[brief.genre];
-    const template = GENRE_TEMPLATES[brief.genre];
-    const isReferenceTemplate = template?.intentTags.includes('song') || template?.intentTags.includes('reference');
-    let thought = `${template.thought} Theory: ${theory.key}. Sound: ${sound.mixRules[0]}`;
-    if (!isReferenceTemplate && traits) {
-        thought = [
-            `${brief.genre}: ${traits.drumFeel}`,
-            traits.bassRole,
-            traits.leadRole,
-            `Theory: ${theory.key}, ${theory.chordProgression.join(' -> ')}.`,
-            `Sound: ${sound.mixRules[0]}`,
-        ].join(' ');
-    }
+    const template = GENRE_TEMPLATES[brief.genre] || GENRE_TEMPLATES.generic;
+
+    // Always start from a clean, user-facing thought. Never leak internal trait descriptions.
+    let thought = template.thought || `A ${brief.genre} loop at ${theory.bpm} BPM in ${theory.key}.`;
+
     // 2.2: build more specific thought that includes artist/concept when references or genre indicate mapped request.
     // e.g. prevents the generic "Aether thought" for tiesto/ufo.
     const refStr2 = (brief.references || []).join(' ').toLowerCase();
     if (/tiesto/.test(refStr2) || (brief.genre === 'trance' && /tiesto|uplifting/.test(refStr2))) {
-        thought = `Tiesto-inspired uplifting trance: driving four-on-floor with offbeat bass and bright supersaw arpeggio. ${thought}`;
+        thought = `Tiësto-inspired uplifting trance: driving 909 kick, offbeat bass and bright supersaw layers at ${theory.bpm} BPM.`;
     } else if (/ufo|cosmic|alien/.test(refStr2) || (brief.genre === 'ambient' && /ufo|cosmic/.test(refStr2))) {
-        thought = `UFO communication signals: slow ethereal pads, sparse bass pulses and atmospheric FX textures. ${thought}`;
+        thought = `UFO communication signals: slow ethereal pads, sparse pulses and atmospheric FX at ${theory.bpm} BPM.`;
+    } else if (brief.genre === 'generic') {
+        thought = 'A balanced starting beat with drums, bass and a simple hook.';
     }
 
     // Ensure all tracks are clean idiomatic chains (no redundant nested parens)
@@ -729,7 +723,7 @@ export function refineGeneratedTracks(
         return {
             bpm: fallback.bpm,
             tracks: fallback.tracks,
-            thought: fallback.thought,
+            thought: fallback.thought || 'Fallback due to validation failure.',
         };
     }
 
@@ -789,6 +783,79 @@ export function buildLocalMusicAgentPipeline(input: PipelineInput): MusicAgentPi
             isExecutingOverride = false;
         }
     }
+
+    // Guard: pure chat should not reach music generation (caller should have handled, but be defensive)
+    if (isPureChatGreeting(input.prompt)) {
+        const defaultMusicBrief: MusicBrief = {
+            prompt: '',
+            intentKind: 'greeting',
+            genre: 'generic',
+            subgenre: null,
+            mood: [],
+            bpm: 120,
+            key: 'C',
+            scale: 'major',
+            instruments: [],
+            targetTracks: [],
+            preserveTracks: [],
+            clearTracks: [],
+            requestedScope: 'chat',
+            sectionIntent: 'core_loop',
+            references: [],
+            constraints: [],
+            qualityTarget: {
+                styleIdentity: '',
+                artistReference: null,
+                tempoRange: [40, 240],
+                rhythmicFeel: '',
+                harmony: '',
+                arrangement: '',
+                energy: '',
+                soundDesign: [],
+                requiredTracks: [],
+                requiredCodeTraits: [],
+                forbiddenTraits: [],
+            },
+            currentBpm: 120,
+            contextSummary: '',
+            variationSeed: 0,
+        };
+
+        const defaultTheoryPlan: TheoryPlan = {
+            bpm: 120,
+            key: 'C',
+            scale: 'major',
+            chordProgression: [],
+            bassRoots: [],
+            rhythmicFeel: '',
+            arrangement: '',
+            density: 'balanced',
+            variationSeed: 0,
+        };
+
+        const defaultSoundPlan: SoundPlan = {
+            drumPalette: [],
+            bassPalette: [],
+            melodyPalette: [],
+            fxPalette: [],
+            mixRules: [],
+            realismNotes: [],
+        };
+
+        return {
+            bpm: 120,
+            tracks: { drums: null, bass: null, melody: null, voice: null, fx: null },
+            thought: 'Hey! What kind of music are you in the mood for?',
+            brief: defaultMusicBrief,
+            theory: defaultTheoryPlan,
+            sound: defaultSoundPlan,
+            validation: { valid: true, issues: [] },
+            review: { score: 1, matchesIntent: true, listenability: true, problems: [], improvements: [] },
+            traces: [],
+            source: 'local_pipeline',
+        };
+    }
+
     const context = input.context || buildMusicContext({ currentState: input.currentState, currentCode: input.currentCode });
     const intent = input.intent || routeMusicIntent(input.prompt, context);
     const brief = buildMusicBrief(input.prompt, context, intent);

@@ -61,6 +61,12 @@ export type AgentUpdateResponse = {
     thought: string;
     bpm: number;
     tracks: TrackMap;
+} | {
+    type: 'chat';
+    message: string;
+    bpm: number;
+    tracks: TrackMap;
+    thought?: string;
 };
 
 export type GenreTemplate = {

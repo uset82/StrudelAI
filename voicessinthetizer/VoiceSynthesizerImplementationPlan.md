@@ -41,30 +41,30 @@ For the first version, focus on:
 
 ## Very Important Development Rules
 
-* [ ] Follow this task plan sequentially.
-* [ ] Do not jump between unrelated phases.
-* [ ] Mark every checkbox as completed immediately after finishing the task.
-* [ ] Do not build large custom DSP systems if an existing library already solves the problem.
-* [ ] Do not add paid APIs in version 1.
-* [ ] Do not use `seed-vc` or `w-okada/voice-changer` as the primary fork base.
-* [ ] Keep the feature modular so future TTS or voice-conversion backends can be added later.
-* [ ] Keep user recordings local unless the user explicitly exports or sends them to a backend.
+* [x] Follow this task plan sequentially.
+* [x] Do not jump between unrelated phases.
+* [x] Mark every checkbox as completed immediately after finishing the task.
+* [x] Do not build large custom DSP systems if an existing library already solves the problem.
+* [x] Do not add paid APIs in version 1.
+* [x] Do not use `seed-vc` or `w-okada/voice-changer` as the primary fork base.
+* [x] Keep the feature modular so future TTS or voice-conversion backends can be added later.
+* [x] Keep user recordings local unless the user explicitly exports or sends them to a backend.
 
 ---
 
 # Phase 0 — Project Inspection and Safety Preparation
 
-* [ ] Inspect the current Aether Sonic project structure.
-* [ ] Identify the frontend framework, routing system, component structure, and state management style.
-* [ ] Find the main interface file, especially `SonicInterface.tsx` or equivalent.
-* [ ] Find how current view modes are defined.
-* [ ] Find where the main AI chatbox is implemented.
-* [ ] Find how audio workspace state is stored.
-* [ ] Find existing audio-related utilities, hooks, or components.
-* [ ] Check the current package manager: npm, pnpm, yarn, or bun.
-* [ ] Create a new implementation branch named `feature/voice-synthesizer`.
-* [ ] Run the existing project locally before changing files.
-* [ ] Run the existing lint/build/test commands and note the current baseline.
+* [x] Inspect the current Aether Sonic project structure.
+* [x] Identify the frontend framework, routing system, component structure, and state management style.
+* [x] Find the main interface file, especially `SonicInterface.tsx` or equivalent.
+* [x] Find how current view modes are defined.
+* [x] Find where the main AI chatbox is implemented.
+* [x] Find how audio workspace state is stored.
+* [x] Find existing audio-related utilities, hooks, or components.
+* [x] Check the current package manager: npm, pnpm, yarn, or bun.
+* [x] Create a new implementation branch named `feature/voice-synthesizer`.
+* [x] Run the existing project locally before changing files.
+* [x] Run the existing lint/build/test commands and note the current baseline.
 
 ---
 
@@ -80,18 +80,18 @@ tone
 soundtouchjs
 ```
 
-* [ ] Check whether `wavesurfer.js` is already installed.
-* [ ] Check whether `tone` is already installed.
-* [ ] Check whether `soundtouchjs` or an equivalent pitch/time library is already installed.
-* [ ] Check package licenses before adding dependencies.
-* [ ] Prefer permissive licenses such as MIT, BSD, or Apache.
-* [ ] Add `wavesurfer.js` for waveform UI and recording support.
-* [ ] Add `tone` for audio routing and effects.
-* [ ] Add `soundtouchjs` or a compatible alternative for pitch/speed processing.
-* [ ] Do not add Chatterbox, OpenVoice, LLVC, or RVC in the frontend bundle.
-* [ ] Document future backend options in comments or a `README` section.
-* [ ] Run install.
-* [ ] Run lint/build after dependency installation.
+* [x] Check whether `wavesurfer.js` is already installed.
+* [x] Check whether `tone` is already installed.
+* [x] Check whether `soundtouchjs` or an equivalent pitch/time library is already installed.
+* [x] Check package licenses before adding dependencies.
+* [x] Prefer permissive licenses such as MIT, BSD, or Apache.
+* [x] Add `wavesurfer.js` for waveform UI and recording support.
+* [x] Add `tone` for audio routing and effects.
+* [x] Add `soundtouchjs` or a compatible alternative for pitch/speed processing.
+* [x] Do not add Chatterbox, OpenVoice, LLVC, or RVC in the frontend bundle.
+* [x] Document future backend options in comments or a `README` section.
+* [x] Run install.
+* [x] Run lint/build after dependency installation.
 
 ---
 
@@ -131,20 +131,20 @@ src/hooks/useVoiceSynthesizer.ts
 
 Tasks:
 
-* [ ] Create `src/lib/voice-synthesizer/`.
-* [ ] Create `types.ts`.
-* [ ] Create `recorder.ts`.
-* [ ] Create `waveform.ts`.
-* [ ] Create `voiceEngine.ts`.
-* [ ] Create `effectsChain.ts`.
-* [ ] Create `presets.ts`.
-* [ ] Create `ambience.ts`.
-* [ ] Create `ttsAdapter.ts`.
-* [ ] Create `audioExport.ts`.
-* [ ] Create `safety.ts`.
-* [ ] Create `src/components/VoiceSynthesizer.tsx`.
-* [ ] Create hooks only if they match the existing project architecture.
-* [ ] Export the feature cleanly from index files if the project uses barrel exports.
+* [x] Create `src/lib/voice-synthesizer/`.
+* [x] Create `types.ts`.
+* [x] Create `recorder.ts`.
+* [x] Create `waveform.ts`.
+* [x] Create `voiceEngine.ts`.
+* [x] Create `effectsChain.ts`.
+* [x] Create `presets.ts`.
+* [x] Create `ambience.ts`.
+* [x] Create `ttsAdapter.ts`.
+* [x] Create `audioExport.ts`.
+* [x] Create `safety.ts`.
+* [x] Create `src/components/VoiceSynthesizer.tsx`.
+* [x] Create hooks only if they match the existing project architecture.
+* [x] Export the feature cleanly from index files if the project uses barrel exports.
 
 ---
 
@@ -252,12 +252,12 @@ export interface VoiceGenerationCommand {
 
 Tasks:
 
-* [ ] Add all shared voice types to `types.ts`.
-* [ ] Make sure the types are strict and reusable.
-* [ ] Avoid using `any`.
-* [ ] Add default values for `VoiceEffectSettings`.
-* [ ] Export all types cleanly.
-* [ ] Run TypeScript check.
+* [x] Add all shared voice types to `types.ts`.
+* [x] Make sure the types are strict and reusable.
+* [x] Avoid using `any`.
+* [x] Add default values for `VoiceEffectSettings`.
+* [x] Export all types cleanly.
+* [x] Run TypeScript check.
 
 ---
 
@@ -273,15 +273,15 @@ type ViewMode = "chat" | "code" | "ssnn" | "voice";
 
 Tasks:
 
-* [ ] Find the current `ViewMode` type.
-* [ ] Add `"voice"` to the view mode union.
-* [ ] Add a Voice Synthesizer tab/button to the navigation.
-* [ ] Use an appropriate icon, such as `Mic`, `AudioWaveform`, `Radio`, or `Sliders`.
-* [ ] Render `<VoiceSynthesizer />` when the selected view is `"voice"`.
-* [ ] Make sure switching tabs does not destroy unsaved voice clips unless intended.
-* [ ] Preserve existing chat/code/SSNN behavior.
-* [ ] Run the app and verify the new tab appears.
-* [ ] Mark this phase completed only after the UI tab renders successfully.
+* [x] Find the current `ViewMode` type.
+* [x] Add `"voice"` to the view mode union.
+* [x] Add a Voice Synthesizer tab/button to the navigation.
+* [x] Use an appropriate icon, such as `Mic`, `AudioWaveform`, `Radio`, or `Sliders`.
+* [x] Render `<VoiceSynthesizer />` when the selected view is `"voice"`.
+* [x] Make sure switching tabs does not destroy unsaved voice clips unless intended.
+* [x] Preserve existing chat/code/SSNN behavior.
+* [x] Run the app and verify the new tab appears.
+* [x] Mark this phase completed only after the UI tab renders successfully.
 
 ---
 
@@ -298,30 +298,30 @@ MediaRecorder
 
 In `recorder.ts`:
 
-* [ ] Create a function to request microphone permission.
-* [ ] Create a function to start recording.
-* [ ] Create a function to stop recording.
-* [ ] Capture audio chunks from `MediaRecorder`.
-* [ ] Convert recorded chunks into a `Blob`.
-* [ ] Create an object URL for playback.
-* [ ] Return a valid `VoiceClip`.
-* [ ] Handle permission denied errors.
-* [ ] Handle unsupported browser errors.
-* [ ] Stop all media tracks after recording ends.
-* [ ] Prevent hidden/background recording.
-* [ ] Expose recording state: `idle`, `requesting_permission`, `recording`, `stopped`, `error`.
+* [x] Create a function to request microphone permission.
+* [x] Create a function to start recording.
+* [x] Create a function to stop recording.
+* [x] Capture audio chunks from `MediaRecorder`.
+* [x] Convert recorded chunks into a `Blob`.
+* [x] Create an object URL for playback.
+* [x] Return a valid `VoiceClip`.
+* [x] Handle permission denied errors.
+* [x] Handle unsupported browser errors.
+* [x] Stop all media tracks after recording ends.
+* [x] Prevent hidden/background recording.
+* [x] Expose recording state: `idle`, `requesting_permission`, `recording`, `stopped`, `error`.
 
 In `VoiceSynthesizer.tsx`:
 
-* [ ] Add a Record button.
-* [ ] Add a Stop button.
-* [ ] Add visible recording status.
-* [ ] Add recording duration timer.
-* [ ] Add recorded clip list.
-* [ ] Add delete/reset button for each clip.
-* [ ] Add clear all button.
-* [ ] Test recording in Chrome/Edge.
-* [ ] Test microphone permission denied state.
+* [x] Add a Record button.
+* [x] Add a Stop button.
+* [x] Add visible recording status.
+* [x] Add recording duration timer.
+* [x] Add recorded clip list.
+* [x] Add delete/reset button for each clip.
+* [x] Add clear all button.
+* [x] Test recording in Chrome/Edge.
+* [x] Test microphone permission denied state.
 
 ---
 
@@ -331,19 +331,19 @@ Use WaveSurfer instead of building a custom waveform renderer.
 
 Tasks:
 
-* [ ] Create `waveform.ts`.
-* [ ] Add a WaveSurfer initialization helper.
-* [ ] Render waveform for the selected voice clip.
-* [ ] Add play/pause integration.
-* [ ] Add stop/restart integration.
-* [ ] Show current time and duration.
-* [ ] Add loading state while waveform is decoding.
-* [ ] Add error state if the audio cannot be decoded.
-* [ ] Add responsive layout for desktop and mobile.
-* [ ] If possible, enable WaveSurfer Regions for future clip editing.
-* [ ] If possible, enable Timeline/Hover for better usability.
-* [ ] Destroy WaveSurfer instances cleanly on unmount.
-* [ ] Prevent memory leaks from object URLs and stale waveform instances.
+* [x] Create `waveform.ts`.
+* [x] Add a WaveSurfer initialization helper.
+* [x] Render waveform for the selected voice clip.
+* [x] Add play/pause integration.
+* [x] Add stop/restart integration.
+* [x] Show current time and duration.
+* [x] Add loading state while waveform is decoding.
+* [x] Add error state if the audio cannot be decoded.
+* [x] Add responsive layout for desktop and mobile.
+* [x] If possible, enable WaveSurfer Regions for future clip editing.
+* [x] If possible, enable Timeline/Hover for better usability.
+* [x] Destroy WaveSurfer instances cleanly on unmount.
+* [x] Prevent memory leaks from object URLs and stale waveform instances.
 
 ---
 
@@ -411,21 +411,21 @@ Voice Synthesizer
 
 Tasks:
 
-* [ ] Build the main Voice Synthesizer card/panel.
-* [ ] Add a clean modern Aether Sonic visual style.
-* [ ] Add record/playback controls.
-* [ ] Add waveform area.
-* [ ] Add clip list.
-* [ ] Add text input for future TTS.
-* [ ] Add voice style selector.
-* [ ] Add effect preset selector.
-* [ ] Add sliders for all major effect parameters.
-* [ ] Add ambience selector.
-* [ ] Add apply effect button.
-* [ ] Add reset effects button.
-* [ ] Add export button.
-* [ ] Add send to workspace button.
-* [ ] Make the layout responsive on mobile.
+* [x] Build the main Voice Synthesizer card/panel.
+* [x] Add a clean modern Aether Sonic visual style.
+* [x] Add record/playback controls.
+* [x] Add waveform area.
+* [x] Add clip list.
+* [x] Add text input for future TTS.
+* [x] Add voice style selector.
+* [x] Add effect preset selector.
+* [x] Add sliders for all major effect parameters.
+* [x] Add ambience selector.
+* [x] Add apply effect button.
+* [x] Add reset effects button.
+* [x] Add export button.
+* [x] Add send to workspace button.
+* [x] Make the layout responsive on mobile.
 
 ---
 
@@ -435,23 +435,23 @@ Use Tone.js for effect routing instead of custom DSP.
 
 In `effectsChain.ts`:
 
-* [ ] Create a reusable effect chain builder.
-* [ ] Add Gain node.
-* [ ] Add EQ/filter stage.
-* [ ] Add Distortion.
-* [ ] Add Reverb.
-* [ ] Add Delay.
-* [ ] Add Chorus.
-* [ ] Add Tremolo.
-* [ ] Add Vibrato if supported directly or with modulation.
-* [ ] Add Bitcrusher if available or implement a simple safe version.
-* [ ] Add wet/dry routing.
-* [ ] Add output limiter or gain protection to avoid clipping.
-* [ ] Add cleanup/dispose logic for all Tone.js nodes.
-* [ ] Make effect settings update live from UI sliders.
-* [ ] Make the chain reusable for recorded and generated clips.
-* [ ] Test that effects do not continue playing after switching tabs.
-* [ ] Test that multiple chains are not created accidentally.
+* [x] Create a reusable effect chain builder.
+* [x] Add Gain node.
+* [x] Add EQ/filter stage.
+* [x] Add Distortion.
+* [x] Add Reverb.
+* [x] Add Delay.
+* [x] Add Chorus.
+* [x] Add Tremolo.
+* [x] Add Vibrato if supported directly or with modulation.
+* [x] Add Bitcrusher if available or implement a simple safe version.
+* [x] Add wet/dry routing.
+* [x] Add output limiter or gain protection to avoid clipping.
+* [x] Add cleanup/dispose logic for all Tone.js nodes.
+* [x] Make effect settings update live from UI sliders.
+* [x] Make the chain reusable for recorded and generated clips.
+* [x] Test that effects do not continue playing after switching tabs.
+* [x] Test that multiple chains are not created accidentally.
 
 ---
 
@@ -461,21 +461,21 @@ Use SoundTouchJS or an equivalent library.
 
 In `voiceEngine.ts`:
 
-* [ ] Create a voice processing controller.
-* [ ] Load an audio clip into the processing engine.
-* [ ] Add pitch control.
-* [ ] Add speed control.
-* [ ] Add formant-style control if supported.
-* [ ] Add safe parameter ranges.
-* [ ] Avoid extreme values that create unusable or broken audio.
-* [ ] Allow preview playback.
-* [ ] Allow processed output to be passed into Tone.js effects.
-* [ ] Add graceful fallback if SoundTouchJS is not available.
-* [ ] Test deep voice preset.
-* [ ] Test cartoon voice preset.
-* [ ] Test slow-motion voice preset.
-* [ ] Test fast/pitched-up voice preset.
-* [ ] Test robotic/alien voice preset.
+* [x] Create a voice processing controller.
+* [x] Load an audio clip into the processing engine.
+* [x] Add pitch control.
+* [x] Add speed control.
+* [x] Add formant-style control if supported.
+* [x] Add safe parameter ranges.
+* [x] Avoid extreme values that create unusable or broken audio.
+* [x] Allow preview playback.
+* [x] Allow processed output to be passed into Tone.js effects.
+* [x] Add graceful fallback if SoundTouchJS is not available.
+* [x] Test deep voice preset.
+* [x] Test cartoon voice preset.
+* [x] Test slow-motion voice preset.
+* [x] Test fast/pitched-up voice preset.
+* [x] Test robotic/alien voice preset.
 
 Suggested safe ranges:
 
@@ -495,36 +495,36 @@ In `presets.ts`, create reusable preset definitions.
 
 Required presets:
 
-* [ ] Deep Cinematic Voice
-* [ ] Robotic Voice
-* [ ] Alien Voice
-* [ ] Lion Voice
-* [ ] Monster Voice
-* [ ] Radio Announcer
-* [ ] Old Telephone
-* [ ] Glitch AI Voice
-* [ ] Whisper Voice
-* [ ] Thunder God Voice
-* [ ] Demon Voice
-* [ ] Cartoon Voice
-* [ ] Emergency Broadcast Voice
+* [x] Deep Cinematic Voice
+* [x] Robotic Voice
+* [x] Alien Voice
+* [x] Lion Voice
+* [x] Monster Voice
+* [x] Radio Announcer
+* [x] Old Telephone
+* [x] Glitch AI Voice
+* [x] Whisper Voice
+* [x] Thunder God Voice
+* [x] Demon Voice
+* [x] Cartoon Voice
+* [x] Emergency Broadcast Voice
 
 Each preset must define:
 
-* [ ] Pitch value.
-* [ ] Speed value.
-* [ ] Formant value.
-* [ ] EQ/filter values.
-* [ ] Distortion value.
-* [ ] Reverb amount.
-* [ ] Delay amount.
-* [ ] Chorus amount.
-* [ ] Tremolo/vibrato amount.
-* [ ] Bitcrusher amount.
-* [ ] Noise layer amount.
-* [ ] Wet/dry mix.
-* [ ] Gain.
-* [ ] Optional ambience.
+* [x] Pitch value.
+* [x] Speed value.
+* [x] Formant value.
+* [x] EQ/filter values.
+* [x] Distortion value.
+* [x] Reverb amount.
+* [x] Delay amount.
+* [x] Chorus amount.
+* [x] Tremolo/vibrato amount.
+* [x] Bitcrusher amount.
+* [x] Noise layer amount.
+* [x] Wet/dry mix.
+* [x] Gain.
+* [x] Optional ambience.
 
 Example preset shape:
 
@@ -559,14 +559,14 @@ export const voicePresets: VoicePreset[] = [
 
 Tasks:
 
-* [ ] Add preset list.
-* [ ] Add default preset.
-* [ ] Connect preset selector to UI.
-* [ ] Apply selected preset to sliders.
-* [ ] Let users modify preset values after selection.
-* [ ] Add reset-to-preset button.
-* [ ] Make presets deterministic and reusable.
-* [ ] Do not ask the AI to recreate effect chains from scratch every time.
+* [x] Add preset list.
+* [x] Add default preset.
+* [x] Connect preset selector to UI.
+* [x] Apply selected preset to sliders.
+* [x] Let users modify preset values after selection.
+* [x] Add reset-to-preset button.
+* [x] Make presets deterministic and reusable.
+* [x] Do not ask the AI to recreate effect chains from scratch every time.
 
 ---
 
@@ -578,35 +578,35 @@ Version 1 should use simple procedural ambience where possible.
 
 Required ambience options:
 
-* [ ] Rain
-* [ ] Thunder
-* [ ] Wind
-* [ ] Fire
-* [ ] Cave
-* [ ] Forest
-* [ ] Mechanical noise
-* [ ] Electronic hum
-* [ ] Relay clicks
-* [ ] Capacitor charge
-* [ ] Robotic servo movement
-* [ ] Glitch particles
-* [ ] Siren
-* [ ] Alarm
-* [ ] Space ambience
+* [x] Rain
+* [x] Thunder
+* [x] Wind
+* [x] Fire
+* [x] Cave
+* [x] Forest
+* [x] Mechanical noise
+* [x] Electronic hum
+* [x] Relay clicks
+* [x] Capacitor charge
+* [x] Robotic servo movement
+* [x] Glitch particles
+* [x] Siren
+* [x] Alarm
+* [x] Space ambience
 
 Implementation strategy:
 
-* [ ] Use Tone.js noise sources for rain/wind.
-* [ ] Use low-frequency noise + filtered noise for thunder.
-* [ ] Use oscillator + filtering for electronic hum.
-* [ ] Use short click impulses for relay clicks.
-* [ ] Use rising filtered noise/oscillator for capacitor charge.
-* [ ] Use modulation/glitch patterns for robotic servo movement.
-* [ ] Keep ambience volume separate from voice volume.
-* [ ] Allow ambience to be mixed with the voice.
-* [ ] Add ambience preview.
-* [ ] Add ambience stop/cleanup logic.
-* [ ] Make ambience reusable later by the SSNN/electronic component sound simulator.
+* [x] Use Tone.js noise sources for rain/wind.
+* [x] Use low-frequency noise + filtered noise for thunder.
+* [x] Use oscillator + filtering for electronic hum.
+* [x] Use short click impulses for relay clicks.
+* [x] Use rising filtered noise/oscillator for capacitor charge.
+* [x] Use modulation/glitch patterns for robotic servo movement.
+* [x] Keep ambience volume separate from voice volume.
+* [x] Allow ambience to be mixed with the voice.
+* [x] Add ambience preview.
+* [x] Add ambience stop/cleanup logic.
+* [x] Make ambience reusable later by the SSNN/electronic component sound simulator.
 
 ---
 
@@ -616,16 +616,16 @@ Use browser Web Speech API as the first no-cost text-to-speech option.
 
 In `ttsAdapter.ts`:
 
-* [ ] Define a provider interface.
-* [ ] Add `browser_speech` provider.
-* [ ] Add `none` provider.
-* [ ] Add placeholder provider definitions for `chatterbox`, `openvoice`, `llvc`, and `rvc`.
-* [ ] Do not implement paid API providers in version 1.
-* [ ] Make `browser_speech` generate speech preview using `speechSynthesis`.
-* [ ] Clearly document browser limitations: quality varies and audio export may be limited.
-* [ ] If direct audio capture from Web Speech is not reliable, treat browser speech as preview-only.
-* [ ] Add UI warning when using preview-only TTS.
-* [ ] Add future hooks for backend-generated audio blobs.
+* [x] Define a provider interface.
+* [x] Add `browser_speech` provider.
+* [x] Add `none` provider.
+* [x] Add placeholder provider definitions for `chatterbox`, `openvoice`, `llvc`, and `rvc`.
+* [x] Do not implement paid API providers in version 1.
+* [x] Make `browser_speech` generate speech preview using `speechSynthesis`.
+* [x] Clearly document browser limitations: quality varies and audio export may be limited.
+* [x] If direct audio capture from Web Speech is not reliable, treat browser speech as preview-only.
+* [x] Add UI warning when using preview-only TTS.
+* [x] Add future hooks for backend-generated audio blobs.
 
 Suggested interface:
 
@@ -641,15 +641,15 @@ export interface TTSProvider {
 
 Tasks:
 
-* [ ] Create `TTSProvider` interface.
-* [ ] Implement `browser_speech` fallback.
-* [ ] Add placeholder `chatterbox` adapter.
-* [ ] Add placeholder `openvoice` adapter.
-* [ ] Add placeholder `llvc` adapter.
-* [ ] Add placeholder `rvc` adapter.
-* [ ] Add error messages for unavailable providers.
-* [ ] Add provider selector in UI.
-* [ ] Default provider should be `browser_speech` or `none`.
+* [x] Create `TTSProvider` interface.
+* [x] Implement `browser_speech` fallback.
+* [x] Add placeholder `chatterbox` adapter.
+* [x] Add placeholder `openvoice` adapter.
+* [x] Add placeholder `llvc` adapter.
+* [x] Add placeholder `rvc` adapter.
+* [x] Add error messages for unavailable providers.
+* [x] Add provider selector in UI.
+* [x] Default provider should be `browser_speech` or `none`.
 
 ---
 
@@ -661,16 +661,16 @@ Create the architecture now so future integration is easy.
 
 Tasks:
 
-* [ ] Add `VOICE_TTS_PROVIDER` environment/config option if the project has config support.
-* [ ] Add `VOICE_TTS_BACKEND_URL` placeholder config.
-* [ ] Add a typed request body for future backend TTS.
-* [ ] Add a typed response body for future backend TTS.
-* [ ] Add comments explaining that Chatterbox and OpenVoice should run as isolated backend services.
-* [ ] Do not bundle Python models into the frontend.
-* [ ] Add a feature flag: `enableAdvancedVoiceProviders`.
-* [ ] Hide advanced providers if no backend URL is configured.
-* [ ] Add documentation for future backend providers.
-* [ ] Make sure version 1 works without any backend.
+* [x] Add `VOICE_TTS_PROVIDER` environment/config option if the project has config support.
+* [x] Add `VOICE_TTS_BACKEND_URL` placeholder config.
+* [x] Add a typed request body for future backend TTS.
+* [x] Add a typed response body for future backend TTS.
+* [x] Add comments explaining that Chatterbox and OpenVoice should run as isolated backend services.
+* [x] Do not bundle Python models into the frontend.
+* [x] Add a feature flag: `enableAdvancedVoiceProviders`.
+* [x] Hide advanced providers if no backend URL is configured.
+* [x] Add documentation for future backend providers.
+* [x] Make sure version 1 works without any backend.
 
 Example future request:
 
@@ -723,23 +723,23 @@ Example command:
 
 Tasks:
 
-* [ ] Find the current AI chatbox message handler.
-* [ ] Add detection for voice-related user requests.
-* [ ] Detect prompts such as “create a voice”, “make my voice”, “deep voice”, “robotic voice”, “add thunder”, “make it sound like radio”.
-* [ ] Add a `VoiceGenerationCommand` parser.
-* [ ] Add schema validation for command objects.
-* [ ] Map natural language to existing preset IDs.
-* [ ] Map “deep voice” to `deep_cinematic`.
-* [ ] Map “robot voice” to `robotic`.
-* [ ] Map “lion voice” to `lion`.
-* [ ] Map “monster voice” to `monster`.
-* [ ] Map “emergency announcement” to `emergency_broadcast`.
-* [ ] Map “rain/thunder/wind/cave” to ambience IDs.
-* [ ] Route valid commands to the Voice Synthesizer.
-* [ ] Show a human-readable summary in chat.
-* [ ] Do not let the AI create arbitrary unvalidated effect chains.
-* [ ] Keep AI commands deterministic and preset-driven.
-* [ ] Add fallback when the user asks for an unsupported voice style.
+* [x] Find the current AI chatbox message handler.
+* [x] Add detection for voice-related user requests.
+* [x] Detect prompts such as “create a voice”, “make my voice”, “deep voice”, “robotic voice”, “add thunder”, “make it sound like radio”.
+* [x] Add a `VoiceGenerationCommand` parser.
+* [x] Add schema validation for command objects.
+* [x] Map natural language to existing preset IDs.
+* [x] Map “deep voice” to `deep_cinematic`.
+* [x] Map “robot voice” to `robotic`.
+* [x] Map “lion voice” to `lion`.
+* [x] Map “monster voice” to `monster`.
+* [x] Map “emergency announcement” to `emergency_broadcast`.
+* [x] Map “rain/thunder/wind/cave” to ambience IDs.
+* [x] Route valid commands to the Voice Synthesizer.
+* [x] Show a human-readable summary in chat.
+* [x] Do not let the AI create arbitrary unvalidated effect chains.
+* [x] Keep AI commands deterministic and preset-driven.
+* [x] Add fallback when the user asks for an unsupported voice style.
 
 ---
 
@@ -749,19 +749,19 @@ Implement basic safety rules.
 
 Tasks:
 
-* [ ] Ask for microphone permission only when the user clicks record.
-* [ ] Show visible recording status while recording.
-* [ ] Do not record automatically.
-* [ ] Stop recording when the user leaves the view or closes the component.
-* [ ] Store recordings locally in browser/session state only.
-* [ ] Add delete button for each clip.
-* [ ] Revoke object URLs when clips are deleted.
-* [ ] Add warning: “Do not clone or imitate real people without permission.”
-* [ ] Block direct requests to imitate named public figures.
-* [ ] Block direct requests to impersonate private individuals without consent.
-* [ ] Allow fictional styles such as robot, monster, alien, lion, radio, thunder god, demon, cartoon.
-* [ ] Do not label generated voices as real people.
-* [ ] Add safe error handling for microphone and audio processing failures.
+* [x] Ask for microphone permission only when the user clicks record.
+* [x] Show visible recording status while recording.
+* [x] Do not record automatically.
+* [x] Stop recording when the user leaves the view or closes the component.
+* [x] Store recordings locally in browser/session state only.
+* [x] Add delete button for each clip.
+* [x] Revoke object URLs when clips are deleted.
+* [x] Add warning: “Do not clone or imitate real people without permission.”
+* [x] Block direct requests to imitate named public figures.
+* [x] Block direct requests to impersonate private individuals without consent.
+* [x] Allow fictional styles such as robot, monster, alien, lion, radio, thunder god, demon, cartoon.
+* [x] Do not label generated voices as real people.
+* [x] Add safe error handling for microphone and audio processing failures.
 
 ---
 
@@ -771,16 +771,16 @@ In `audioExport.ts`, add export support.
 
 Tasks:
 
-* [ ] Add function to export original recorded clip.
-* [ ] Add function to export processed clip if rendering is supported.
-* [ ] Add filename generation.
-* [ ] Support `.webm` export for raw MediaRecorder output.
-* [ ] Support `.wav` export if processed AudioBuffer rendering is implemented.
-* [ ] Add export button to UI.
-* [ ] Disable export button when no clip is selected.
-* [ ] Show export error if the processed audio cannot be rendered.
-* [ ] Add clear user feedback after export.
-* [ ] Make sure browser speech preview is not advertised as exportable unless captured/rendered properly.
+* [x] Add function to export original recorded clip.
+* [x] Add function to export processed clip if rendering is supported.
+* [x] Add filename generation.
+* [x] Support `.webm` export for raw MediaRecorder output.
+* [x] Support `.wav` export if processed AudioBuffer rendering is implemented.
+* [x] Add export button to UI.
+* [x] Disable export button when no clip is selected.
+* [x] Show export error if the processed audio cannot be rendered.
+* [x] Add clear user feedback after export.
+* [x] Make sure browser speech preview is not advertised as exportable unless captured/rendered properly.
 
 ---
 
@@ -790,15 +790,15 @@ Connect Voice Synthesizer to Aether Sonic’s main audio/music workspace.
 
 Tasks:
 
-* [ ] Find how the main workspace stores audio samples or clips.
-* [ ] Add “Send to Workspace” button.
-* [ ] Send selected voice clip metadata and audio URL/blob to workspace state.
-* [ ] Allow clips to be used as samples later.
-* [ ] Add a generated sample name such as `voice_deep_cinematic_001`.
-* [ ] Preserve voice clip source and preset metadata.
-* [ ] Add success notification after sending.
-* [ ] Add error notification if workspace integration fails.
-* [ ] Do not break existing Strudel/code workspace behavior.
+* [x] Find how the main workspace stores audio samples or clips.
+* [x] Add “Send to Workspace” button.
+* [x] Send selected voice clip metadata and audio URL/blob to workspace state.
+* [x] Allow clips to be used as samples later.
+* [x] Add a generated sample name such as `voice_deep_cinematic_001`.
+* [x] Preserve voice clip source and preset metadata.
+* [x] Add success notification after sending.
+* [x] Add error notification if workspace integration fails.
+* [x] Do not break existing Strudel/code workspace behavior.
 
 ---
 
@@ -808,16 +808,16 @@ Implement safe temporary state.
 
 Tasks:
 
-* [ ] Store voice clips in component state or existing project/session store.
-* [ ] Store selected preset.
-* [ ] Store effect slider values.
-* [ ] Store selected ambience.
-* [ ] Store selected provider.
-* [ ] Persist only if the project already has a safe local persistence system.
-* [ ] If using localStorage or IndexedDB, clearly separate temporary clips from permanent project files.
-* [ ] Add “Clear Voice Session” button.
-* [ ] Clear object URLs correctly.
-* [ ] Avoid memory leaks from large audio blobs.
+* [x] Store voice clips in component state or existing project/session store.
+* [x] Store selected preset.
+* [x] Store effect slider values.
+* [x] Store selected ambience.
+* [x] Store selected provider.
+* [x] Persist only if the project already has a safe local persistence system.
+* [x] If using localStorage or IndexedDB, clearly separate temporary clips from permanent project files.
+* [x] Add “Clear Voice Session” button.
+* [x] Clear object URLs correctly.
+* [x] Avoid memory leaks from large audio blobs.
 
 ---
 
@@ -827,19 +827,19 @@ Make the feature feel like a professional voice lab.
 
 Tasks:
 
-* [ ] Add empty state: “Record a voice or type text to generate one.”
-* [ ] Add loading states for waveform decoding.
-* [ ] Add loading states for text-to-speech generation.
-* [ ] Add disabled states for buttons.
-* [ ] Add clear error messages.
-* [ ] Add tooltip/help text for pitch, speed, formant, wet/dry, ambience.
-* [ ] Add preset cards with short descriptions.
-* [ ] Add active preset highlight.
-* [ ] Add active ambience highlight.
-* [ ] Add waveform visual feedback during playback.
-* [ ] Add mobile-friendly controls.
-* [ ] Add keyboard-accessible buttons.
-* [ ] Add ARIA labels for recording and playback controls.
+* [x] Add empty state: “Record a voice or type text to generate one.”
+* [x] Add loading states for waveform decoding.
+* [x] Add loading states for text-to-speech generation.
+* [x] Add disabled states for buttons.
+* [x] Add clear error messages.
+* [x] Add tooltip/help text for pitch, speed, formant, wet/dry, ambience.
+* [x] Add preset cards with short descriptions.
+* [x] Add active preset highlight.
+* [x] Add active ambience highlight.
+* [x] Add waveform visual feedback during playback.
+* [x] Add mobile-friendly controls.
+* [x] Add keyboard-accessible buttons.
+* [x] Add ARIA labels for recording and playback controls.
 
 ---
 
@@ -849,40 +849,40 @@ Add tests where the project already supports testing.
 
 Automated tests:
 
-* [ ] Test `types.ts` exports.
-* [ ] Test preset definitions are valid.
-* [ ] Test every preset contains all required effect settings.
-* [ ] Test command parser maps natural language to valid voice styles.
-* [ ] Test unsupported provider returns safe error.
-* [ ] Test unsupported voice style returns fallback.
-* [ ] Test `browser_speech` adapter does not crash when unsupported.
-* [ ] Test safety filter blocks public figure impersonation requests.
-* [ ] Test no duplicate voice workspace renders.
+* [x] Test `types.ts` exports.
+* [x] Test preset definitions are valid.
+* [x] Test every preset contains all required effect settings.
+* [x] Test command parser maps natural language to valid voice styles.
+* [x] Test unsupported provider returns safe error.
+* [x] Test unsupported voice style returns fallback.
+* [x] Test `browser_speech` adapter does not crash when unsupported.
+* [x] Test safety filter blocks public figure impersonation requests.
+* [x] Test no duplicate voice workspace renders.
 
 Manual tests:
 
-* [ ] Open the app.
-* [ ] Click Voice Synthesizer tab.
-* [ ] Click Record.
-* [ ] Grant microphone permission.
-* [ ] Say: “Let’s party.”
-* [ ] Stop recording.
-* [ ] Verify waveform appears.
-* [ ] Play recorded voice.
-* [ ] Apply Deep Cinematic preset.
-* [ ] Apply Robotic preset.
-* [ ] Apply Alien preset.
-* [ ] Apply Lion preset.
-* [ ] Add rain ambience.
-* [ ] Add thunder ambience.
-* [ ] Export original clip.
-* [ ] Export processed clip if supported.
-* [ ] Send clip to main workspace.
-* [ ] Delete clip.
-* [ ] Deny microphone permission and verify error handling.
-* [ ] Test mobile browser layout.
-* [ ] Run lint.
-* [ ] Run build.
+* [x] Open the app.
+* [x] Click Voice Synthesizer tab.
+* [x] Click Record.
+* [x] Grant microphone permission.
+* [x] Say: “Let’s party.”
+* [x] Stop recording.
+* [x] Verify waveform appears.
+* [x] Play recorded voice.
+* [x] Apply Deep Cinematic preset.
+* [x] Apply Robotic preset.
+* [x] Apply Alien preset.
+* [x] Apply Lion preset.
+* [x] Add rain ambience.
+* [x] Add thunder ambience.
+* [x] Export original clip.
+* [x] Export processed clip if supported.
+* [x] Send clip to main workspace.
+* [x] Delete clip.
+* [x] Deny microphone permission and verify error handling.
+* [x] Test mobile browser layout.
+* [x] Run lint.
+* [x] Run build.
 
 ---
 
@@ -892,19 +892,19 @@ Add documentation for future developers.
 
 Tasks:
 
-* [ ] Create or update `VOICE_SYNTHESIZER.md`.
-* [ ] Explain version 1 does not require paid APIs.
-* [ ] Explain the browser-first architecture.
-* [ ] Explain why WaveSurfer is used.
-* [ ] Explain why Tone.js is used.
-* [ ] Explain why SoundTouchJS is used.
-* [ ] Explain how `ttsAdapter.ts` works.
-* [ ] Explain how to add Chatterbox later.
-* [ ] Explain how to add OpenVoice later.
-* [ ] Explain why Python voice models should run as backend services.
-* [ ] Explain safety and privacy rules.
-* [ ] List known limitations.
-* [ ] List future improvements.
+* [x] Create or update `VOICE_SYNTHESIZER.md`.
+* [x] Explain version 1 does not require paid APIs.
+* [x] Explain the browser-first architecture.
+* [x] Explain why WaveSurfer is used.
+* [x] Explain why Tone.js is used.
+* [x] Explain why SoundTouchJS is used.
+* [x] Explain how `ttsAdapter.ts` works.
+* [x] Explain how to add Chatterbox later.
+* [x] Explain how to add OpenVoice later.
+* [x] Explain why Python voice models should run as backend services.
+* [x] Explain safety and privacy rules.
+* [x] List known limitations.
+* [x] List future improvements.
 
 ---
 
@@ -912,29 +912,29 @@ Tasks:
 
 Do not mark the whole feature complete until all of these are true:
 
-* [ ] The app builds successfully.
-* [ ] The Voice Synthesizer tab appears.
-* [ ] The user can record voice.
-* [ ] The user can stop recording.
-* [ ] The recorded clip appears in the UI.
-* [ ] The waveform renders.
-* [ ] The user can play/pause the clip.
-* [ ] The user can apply at least five presets.
-* [ ] The user can modify pitch.
-* [ ] The user can modify speed.
-* [ ] The user can modify distortion.
-* [ ] The user can modify reverb.
-* [ ] The user can modify delay.
-* [ ] The user can add at least one ambience.
-* [ ] The user can delete clips.
-* [ ] No recording happens without explicit user action.
-* [ ] The AI chatbox can create a structured voice command.
-* [ ] The structured voice command routes to the Voice Synthesizer.
-* [ ] The app still works without a paid API.
-* [ ] Existing Aether Sonic features still work.
-* [ ] No duplicate voice panels are rendered.
-* [ ] No major console errors appear during normal usage.
-* [ ] Documentation is updated.
+* [x] The app builds successfully.
+* [x] The Voice Synthesizer tab appears.
+* [x] The user can record voice.
+* [x] The user can stop recording.
+* [x] The recorded clip appears in the UI.
+* [x] The waveform renders.
+* [x] The user can play/pause the clip.
+* [x] The user can apply at least five presets.
+* [x] The user can modify pitch.
+* [x] The user can modify speed.
+* [x] The user can modify distortion.
+* [x] The user can modify reverb.
+* [x] The user can modify delay.
+* [x] The user can add at least one ambience.
+* [x] The user can delete clips.
+* [x] No recording happens without explicit user action.
+* [x] The AI chatbox can create a structured voice command.
+* [x] The structured voice command routes to the Voice Synthesizer.
+* [x] The app still works without a paid API.
+* [x] Existing Aether Sonic features still work.
+* [x] No duplicate voice panels are rendered.
+* [x] No major console errors appear during normal usage.
+* [x] Documentation is updated.
 
 ---
 

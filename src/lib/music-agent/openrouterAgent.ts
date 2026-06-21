@@ -6,7 +6,7 @@ import {
     OPENROUTER_TIMEOUT_MS,
     getOpenRouterModelCandidates,
 } from '@/lib/ai/openrouter-config';
-import { buildMusicContext, routeMusicIntent, type MusicContext, type MusicIntent } from '@/lib/music/musicIntent';
+import { buildMusicContext, routeMusicIntent, isPureChatGreeting, type MusicContext, type MusicIntent } from '@/lib/music/musicIntent';
 import type { SonicSessionState, InstrumentType } from '@/types/sonic';
 import type { AgentUpdateResponse, TrackMap } from '@/lib/music/genreTemplates';
 import { validateGeneratedTracks } from '@/lib/music/strudelValidation';
@@ -39,6 +39,20 @@ type MusicAgentDebugMetadata = {
     review: Pick<MusicAgentPipelineResult['review'], 'score' | 'matchesIntent' | 'listenability' | 'problems' | 'improvements'>;
     traces: MusicAgentPipelineResult['traces'];
 };
+
+function getFriendlyChatReply(prompt: string): string {
+    const p = prompt.toLowerCase().trim();
+    if (/^hi|hello|hey|yo/.test(p)) {
+        return "Hey! What kind of music are you feeling today?";
+    }
+    if (/good (morning|afternoon|evening)/.test(p)) {
+        return "Good one! Ready to make some tracks?";
+    }
+    if (/thanks?|thank you/.test(p)) {
+        return "You're welcome! Anything else you'd like to tweak?";
+    }
+    return "Got it. Tell me what kind of vibe or changes you're after.";
+}
 
 type AgentUpdateResponseWithDebug = AgentUpdateResponse & {
     debug?: MusicAgentDebugMetadata;
@@ -111,7 +125,14 @@ function applyIntentClears(response: AgentUpdateResponse, intent: MusicIntent): 
     for (const trackId of intent.clearTracks) {
         tracks[trackId] = 'silence';
     }
-    return { ...response, tracks, thought: isRapVocalBedIntent(intent) ? RAP_VOCAL_BED_THOUGHT : response.thought };
+    if (response.type === 'chat') {
+        return { ...response, tracks };
+    }
+    return { 
+        ...response, 
+        tracks, 
+        thought: isRapVocalBedIntent(intent) ? RAP_VOCAL_BED_THOUGHT : response.thought 
+    };
 }
 
 const AgentResponseSchema = z.object({
@@ -371,6 +392,14 @@ export async function runMusicAgentPipeline(params: {
 }): Promise<AgentUpdateResponseWithDebug> {
     const context = params.context || buildMusicContext({ currentState: params.currentState, currentCode: params.currentCode });
     const intent = params.intent || routeMusicIntent(params.prompt, context);
+
+    // Early exit for pure chat/greetings — do not force music generation
+    if (isPureChatGreeting(params.prompt)) {
+        const reply = getFriendlyChatReply(params.prompt);
+        // Return a chat-shaped response (UI handles type: 'chat' and ignores extra music fields)
+        return { type: 'chat', message: reply } as AgentUpdateResponseWithDebug;
+    }
+
     const local = buildLocalMusicAgentPipeline({ ...params, context, intent });
     const localResponse = toAgentUpdateResponse(local);
 

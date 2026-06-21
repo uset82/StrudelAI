@@ -17,12 +17,13 @@ import {
     buildTemplateGrounding,
     getTemplateForPrompt,
 } from '@/lib/music/genreTemplates';
-import { MusicContext, MusicIntent, buildMusicContext, routeMusicIntent } from '@/lib/music/musicIntent';
+import { MusicContext, MusicIntent, buildMusicContext, routeMusicIntent, isPureChatGreeting } from '@/lib/music/musicIntent';
 import { formatTrainingExamplesForPrompt } from '@/lib/music/trainingCorpus';
 import { validateGeneratedTracks } from '@/lib/music/strudelValidation';
 import { runMusicAgentPipeline } from '@/lib/music-agent';
 import { validateStrudelCode } from '@/agents/StrudelCodeAudioValidationAgent';
 import { tryRuleBasedUpdate } from '@/lib/agent/runtime';
+import { VoiceStyle, VoiceEffectSettings, AmbienceType, VoiceGenerationCommand } from '@/lib/voice-synthesizer/types';
 
 // MusicGen server URL
 const MUSICGEN_URL = process.env.MUSICGEN_URL || 'http://localhost:5001';
@@ -38,7 +39,6 @@ const openai = new OpenAI({
     maxRetries: 0,
     defaultHeaders: OPENROUTER_HEADERS,
 });
-
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -260,6 +260,137 @@ async function analyzeYouTubeVideo(url: string, duration: number = 30): Promise<
         console.error('[YouTube] Error:', err);
         return null;
     }
+}
+
+// Detect and parse Voice Synthesizer requests
+function detectVoiceRequest(prompt: string): { 
+    shouldHandle: boolean; 
+    thought?: string; 
+    command?: VoiceGenerationCommand; 
+} {
+    const p = prompt.toLowerCase();
+    
+    // Core triggers that indicate a Voice Lab request
+    const voiceTriggers = [
+        /\b(voice|speech|speak|say|tts|pronounce|vocalize|impersonate|clone)\b/i,
+        /\b(robotic|deep|alien|monster|lion|radio|telephone|glitch|whisper|thunder|demon|cartoon|emergency|announcer|broadcast)\s+voice\b/i
+    ];
+    
+    const isVoice = voiceTriggers.some(t => t.test(p));
+    if (!isVoice) {
+        return { shouldHandle: false };
+    }
+    
+    // Determine style
+    let voiceStyle: VoiceStyle = 'neutral';
+    let thought = 'Detected voice request. Applying neutral profile.';
+    
+    if (/\b(deep|cinematic|trailer|movie)\b/i.test(p)) {
+        voiceStyle = 'deep_cinematic';
+        thought = 'Applying Deep Cinematic voice preset: low-pitched with rich space and saturation.';
+    } else if (/\b(robot|robotic|vocoder|cybernetic|cyborg|machine)\b/i.test(p)) {
+        voiceStyle = 'robotic';
+        thought = 'Applying Robotic preset: metallic, digital synthesis style.';
+    } else if (/\b(alien|space|ufo|martian|extraterrestrial)\b/i.test(p)) {
+        voiceStyle = 'alien';
+        thought = 'Applying Alien preset: modulated pitch shifts with cosmic delay.';
+    } else if (/\b(monster|beast|growl|creature)\b/i.test(p)) {
+        voiceStyle = 'monster';
+        thought = 'Applying Monster preset: massive pitch drop with tube drive.';
+    } else if (/\b(lion|roar|predator)\b/i.test(p)) {
+        voiceStyle = 'lion';
+        thought = 'Applying Lion preset: low guttural resonance with sharp overdrive.';
+    } else if (/\b(radio|announcer|broadcast|dj|podcast)\b/i.test(p)) {
+        voiceStyle = 'radio_announcer';
+        thought = 'Applying Radio Announcer preset: crisp presence and direct communication feel.';
+    } else if (/\b(telephone|phone|lofi|retro)\b/i.test(p)) {
+        voiceStyle = 'old_telephone';
+        thought = 'Applying Old Telephone preset: bandpass filter and retro microphone crunch.';
+    } else if (/\b(glitch|glitchy|broken)\b/i.test(p)) {
+        voiceStyle = 'glitch_ai';
+        thought = 'Applying Glitchy AI preset: high pitch fluctuations and digital grain.';
+    } else if (/\b(whisper|whispering|quiet|soft)\b/i.test(p)) {
+        voiceStyle = 'whisper';
+        thought = 'Applying Whisper preset: high breathiness layer and soft dynamics.';
+    } else if (/\b(thunder|god|thor|booming)\b/i.test(p)) {
+        voiceStyle = 'thunder_god';
+        thought = 'Applying Thunder God preset: booming pitch shift with thunder atmosphere.';
+    } else if (/\b(demon|satanic|evil|diabolical|underworld)\b/i.test(p)) {
+        voiceStyle = 'demon';
+        thought = 'Applying Demon preset: dual pitch drops and deep cavern depth.';
+    } else if (/\b(cartoon|chipmunk|funny|high)\b/i.test(p)) {
+        voiceStyle = 'cartoon';
+        thought = 'Applying Cartoon preset: high-pitched and playful.';
+    } else if (/\b(emergency|alert|warning|alarm|siren)\b/i.test(p)) {
+        voiceStyle = 'emergency_broadcast';
+        thought = 'Applying Emergency Broadcast preset: high saturation and siren atmosphere.';
+    }
+    
+    // Extract text
+    let text = '';
+    const quoteMatch = prompt.match(/(?:say|speak|voice|pronounce)\s+["'“]([^"'“”]+)["'”]/i);
+    if (quoteMatch) {
+        text = quoteMatch[1];
+    } else {
+        const simpleMatch = prompt.match(/(?:say|speak)\s+([a-zA-Z0-9\s!,.-]+)$/i);
+        if (simpleMatch) {
+            text = simpleMatch[1];
+        }
+    }
+    
+    // Additional effect parameter changes
+    const effects: Partial<VoiceEffectSettings> = {};
+    if (/\b(higher pitch|pitch up|more pitch|pitch higher)\b/i.test(p)) {
+        effects.pitch = 6;
+    } else if (/\b(lower pitch|pitch down|pitch lower)\b/i.test(p)) {
+        effects.pitch = -6;
+    }
+    
+    if (/\b(faster|speed up)\b/i.test(p)) {
+        effects.speed = 1.35;
+    } else if (/\b(slower|speed down)\b/i.test(p)) {
+        effects.speed = 0.75;
+    }
+
+    if (/\b(more reverb|reverb|echo)\b/i.test(p)) {
+        effects.reverb = 0.5;
+    }
+
+    if (/\b(distortion|saturate|drive|crunch)\b/i.test(p)) {
+        effects.distortion = 0.4;
+    }
+
+    if (/\b(delay|feedback)\b/i.test(p)) {
+        effects.delay = 0.35;
+    }
+
+    // Ambience layer detection
+    const ambience: AmbienceType[] = [];
+    if (/\brain\b/i.test(p)) ambience.push('rain');
+    if (/\bwind\b/i.test(p)) ambience.push('wind');
+    if (/\bthunder\b/i.test(p)) ambience.push('thunder');
+    if (/\bcave\b/i.test(p)) ambience.push('cave');
+    if (/\bspace\b/i.test(p)) ambience.push('space_ambience');
+    if (/\bhum\b/i.test(p)) ambience.push('electronic_hum');
+    if (/\bclick\b/i.test(p)) ambience.push('relay_clicks');
+    if (/\bservo\b/i.test(p)) ambience.push('robotic_servo');
+    if (/\bglitch\b/i.test(p)) ambience.push('glitch_particles');
+    if (/\balarm\b/i.test(p)) ambience.push('alarm');
+    if (/\bsiren\b/i.test(p)) ambience.push('siren');
+
+    return {
+        shouldHandle: true,
+        thought,
+        command: {
+            mode: text ? 'voice_generation' : 'voice_transform',
+            text: text || undefined,
+            voiceStyle,
+            effects,
+            ambience: ambience.length > 0 ? ambience : undefined,
+            provider: 'browser_speech',
+            target: 'voice_workspace'
+        }
+    };
 }
 
 import {
@@ -772,6 +903,14 @@ export async function POST(req: Request) {
         const context = buildMusicContext({ currentState, currentCode });
         const intent = routeMusicIntent(prompt, context);
 
+        // Early conversational gate — "hi", "hello", short chat should not force music generation
+        if (isPureChatGreeting(prompt)) {
+            const reply = /^(hi|hello|hey|yo)/i.test(prompt.trim())
+                ? "Hey! What kind of track do you want to build?"
+                : "Got it — what would you like to create or change?";
+            return jsonWithCors({ type: 'chat', message: reply });
+        }
+
         // Check if this is a MusicGen request
         const musicGenCheck = detectMusicGenRequest(prompt);
         if (musicGenCheck.shouldGenerate) {
@@ -795,6 +934,17 @@ export async function POST(req: Request) {
                 // Fallback to Strudel if MusicGen fails
                 console.log('[API/Agent] MusicGen failed, falling back to Strudel');
             }
+        }
+
+        // Check if this is a Voice Synthesizer request
+        const voiceCheck = detectVoiceRequest(prompt);
+        if (voiceCheck.shouldHandle) {
+            console.log('[API/Agent] Voice Synthesizer request detected:', prompt);
+            return jsonWithCors({
+                type: 'voice_command',
+                thought: voiceCheck.thought,
+                command: voiceCheck.command
+            });
         }
 
         // Check if prompt contains a YouTube URL
@@ -1129,7 +1279,8 @@ User Request: ${prompt}`
 
         // Check if user's input is a short conversational query (not a music request)
         const promptLower = prompt.toLowerCase().trim();
-        const isConversational = /^(really\??|what\??|huh\??|ok|okay|nice|cool|thanks?|thank you|wow|amazing|lol|haha|yes|no|yep|nope|sure|great|awesome|perfect|sounds? good|love it|i like it|why\??)$/i.test(promptLower);
+        const isConversational = isPureChatGreeting(prompt) ||
+            /^(really\??|what\??|huh\??|ok|okay|nice|cool|thanks?|thank you|wow|amazing|lol|haha|yes|no|yep|nope|sure|great|awesome|perfect|sounds? good|love it|i like it|why\??|hi|hello|hey|yo)$/i.test(promptLower);
 
         if (isConversational) {
             // Return a friendly conversational response

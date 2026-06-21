@@ -8,6 +8,7 @@ import {
     detectGenre,
     isDoubleTapDrumPrompt,
     isDrumOnlyPrompt,
+    AgentUpdateResponse,
 } from './src/lib/music/genreTemplates';
 import { buildMusicContext, routeMusicIntent } from './src/lib/music/musicIntent';
 import { STRUDEL_TRAINING_CORPUS, formatTrainingExamplesForPrompt, getRelevantTrainingExamples } from './src/lib/music/trainingCorpus';
@@ -39,7 +40,7 @@ const currentRockCode = Object.values(GENRE_TEMPLATES.rock.tracks)
     .filter(Boolean)
     .join('\n');
 
-const rock = buildDeterministicMusicResponse('play some rock');
+const rock = buildDeterministicMusicResponse('play some rock') as Extract<AgentUpdateResponse, { type: 'update_tracks' }>;
 assert.ok(rock, 'rock prompt should use deterministic template');
 assert.equal(rock?.type, 'update_tracks');
 assert.ok(rock!.bpm >= 125 && rock!.bpm <= 145, 'rock BPM should be in rock range');
@@ -49,17 +50,17 @@ assert.ok(hasTrack(rock!.tracks.melody), 'rock needs riff/chord melody');
 assert.match(rock!.tracks.melody || '', /distort|sawtooth|e2|b2/i, 'rock melody should be guitar-like');
 assert.doesNotMatch(rock!.tracks.drums || '', /RolandTR909_bd\*4.*RolandTR909_hh\*16/i, 'rock should not be generic techno');
 
-const humanized = buildDeterministicMusicResponse('that not even sound', currentRockCode);
+const humanized = buildDeterministicMusicResponse('that not even sound', currentRockCode) as Extract<AgentUpdateResponse, { type: 'update_tracks' }>;
 assert.ok(humanized, 'less-even prompt should use deterministic humanized template');
 assert.match(humanized!.thought, /human|syncopated|less rigid|syncopation/i);
 assert.match(humanized!.tracks.drums || '', /RolandTR909_bd ~ ~ RolandTR909_bd/i, 'humanized drums should add controlled syncopation');
 
-const repaired = buildDeterministicMusicResponse('sounds horrible', currentRockCode);
+const repaired = buildDeterministicMusicResponse('sounds horrible', currentRockCode) as Extract<AgentUpdateResponse, { type: 'update_tracks' }>;
 assert.ok(repaired, 'repair prompt should use deterministic repair template');
 assert.match(repaired!.thought, /clean|simpl|distortion|harsh/i);
 assert.doesNotMatch(repaired!.tracks.melody || '', /distort\(0\.[4-9]|gain\(1/i, 'repair should avoid high distortion/gain');
 
-const pureDrums = buildDeterministicMusicResponse('some pure drums', currentRockCode);
+const pureDrums = buildDeterministicMusicResponse('some pure drums', currentRockCode) as Extract<AgentUpdateResponse, { type: 'update_tracks' }>;
 assert.ok(pureDrums, 'pure drums should use deterministic drum-only template');
 assert.equal(isDrumOnlyPrompt('some pure drums'), true);
 assert.ok(hasTrack(pureDrums!.tracks.drums), 'pure drums needs a drum pattern');
@@ -69,7 +70,7 @@ assert.equal(pureDrums!.tracks.voice, 'silence', 'pure drums must clear existing
 assert.equal(pureDrums!.tracks.fx, 'silence', 'pure drums must clear existing fx');
 assert.doesNotMatch(pureDrums!.tracks.drums || '', /c4 eb4|triangle|sawtooth.*lpf\(520\)/i, 'pure drums must not include generic bass/melody material');
 
-const doubleTapDrums = buildDeterministicMusicResponse('double tap drums', pureDrums!.tracks.drums || '');
+const doubleTapDrums = buildDeterministicMusicResponse('double tap drums', pureDrums!.tracks.drums || '') as Extract<AgentUpdateResponse, { type: 'update_tracks' }>;
 assert.ok(doubleTapDrums, 'double tap drums should use deterministic drum-only template');
 assert.equal(isDrumOnlyPrompt('double tap drums'), true);
 assert.equal(isDoubleTapDrumPrompt('double tap drums'), true);
@@ -155,7 +156,7 @@ const applyIntentTurn = (prompt: string, previous?: { bpm: number; tracks: typeo
     });
     const intent = routeMusicIntent(prompt, context);
     const response = buildDeterministicMusicResponse(intent, context) || buildIntentFallback(intent, context, 'test fallback');
-    return { intent, response };
+    return { intent, response: response as Extract<AgentUpdateResponse, { type: 'update_tracks' }> };
 };
 
 const cleanDrumsTurn = applyIntentTurn('play some clean drums');
@@ -656,7 +657,7 @@ const localCinematicPipeline = assertStylePipeline(
 );
 assert.match(localCinematicPipeline.brief.qualityTarget.requiredCodeTraits.join(' '), /relay-clicks|capacitor-plucks/);
 
-const deterministicRap = buildDeterministicMusicResponse('play some rap');
+const deterministicRap = buildDeterministicMusicResponse('play some rap') as Extract<AgentUpdateResponse, { type: 'update_tracks' }>;
 assert.ok(deterministicRap, 'plain rap should have deterministic hip-hop fallback coverage');
 assert.match(deterministicRap!.thought, /rap|vocals|808/i, 'plain rap thought should describe a vocal-friendly rap beat');
 assert.ok(hasTrack(deterministicRap!.tracks.drums), 'plain rap deterministic fallback needs drums');
