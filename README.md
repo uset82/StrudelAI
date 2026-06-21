@@ -2,7 +2,7 @@
 
 **AI-Powered Live Coding Music System** with Voice Control, Synplant Genetic Sound Design, and Professional DJ Tools.
 
-🌐 **Live Demo:** Canner deployment — public URL pending
+🌐 **Live Demo:** [https://strudelzeroai.app.canner.ca/](https://strudelzeroai.app.canner.ca/) (or mirror at [https://strudelai.netlify.app](https://strudelai.netlify.app))
 
 Built for **live coding festivals**, music producers, and creative technologists - create music layer-by-layer with natural language commands, voice control, genetic sound evolution, and AI-powered pattern generation.
 
@@ -12,10 +12,20 @@ Built for **live coding festivals**, music producers, and creative technologists
 
 ### Core Features
 - **🎤 Voice Control:** Speak natural language commands to create music
-- **🤖 AI-Powered:** Uses [Nex N2 Pro](https://openrouter.ai/nex-agi/nex-n2-pro:free) (free) via OpenRouter
+- **🤖 AI-Powered:** Uses [DeepSeek V3.1 Nex N1](https://openrouter.ai/nex-agi/deepseek-v3.1-nex-n1:free) (free) via OpenRouter
 - **🎹 Live Coding Engine:** Generates Strudel (TidalCycles) patterns in real-time
 - **📊 Real-Time Analysis:** FFT spectrum analyzer with frequency band visualization
 - **🎚️ Track Layering:** Ableton-style 5-track system (Drums, Bass, Melody, Voice, FX)
+
+### 🎙️ Voice Synthesizer / Voice Lab (NEW)
+Browser-native voice processing and synthesis suite:
+- **Text-to-Speech (TTS):** Custom presets (Robot, Alien, Cyber-Chant, Deep-Space, Whisper) powered by the Web Speech API.
+- **Audio Recording:** Live microphone capture with real-time feedback.
+- **Waveform Rendering:** Interactive wave visualizer using WaveSurfer.js.
+- **Multi-Effects DSP Chain:** Real-time processing via Tone.js (Pitch Shift, Distortion, BitCrusher, Chorus, Tremolo, Delay, Reverb).
+- **Procedural Ambience Layering:** Layer background noise (rain, wind, thunder, space hum, telemetry alerts) using synthesized sound generators.
+- **WAV Export & Registering:** Build-to-file exports using Tone.Offline and custom binary WAV encoding, automatically registered into the Strudel audio workspace.
+- **AI Commands:** Automatically configure settings, presets, and text using voice/text chat commands.
 
 ### 🌱 Synplant Garden (NEW - December 2025)
 Grow and evolve sounds using genetic algorithms, inspired by Sonic Charge's Synplant:
@@ -72,10 +82,8 @@ OPENROUTER_API_KEY=your_openrouter_api_key_here
 # Optional
 GOOGLE_API_KEY=your_gemini_api_key_here
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-MODEL_NAME=nex-agi/nex-n2-pro:free
+MODEL_NAME=nex-agi/deepseek-v3.1-nex-n1:free
 ```
-
-On Canner, set `NEXT_PUBLIC_APP_URL` to the public deployment URL shown after a successful deploy. Do not use the dashboard URL: it is for project management, not the app's public origin.
 
 ### 3. Run Development Server
 
@@ -96,7 +104,8 @@ The app has multiple views accessible from the navigation:
 1. **🎹 Sonic Interface** - Main AI-powered music creation
 2. **🌱 Synplant Garden** - Genetic sound design and evolution
 3. **🎛️ DJ Mixer** - Professional dual-deck mixing
-4. **📝 Strudel Code** - Direct code editing with live preview
+4. **🎙️ Voice Lab** - Advanced Voice Synthesis & Effects processing
+5. **📝 Strudel Code** - Direct code editing with live preview
 
 ### Synplant Garden Workflow
 
@@ -111,6 +120,13 @@ The app has multiple views accessible from the navigation:
 2. Use EQ and filter to shape each deck
 3. Use the crossfader to mix between decks
 4. Trigger pads for live effects and sounds
+
+### Voice Lab Workflow
+
+1. **Synthesize/Record:** Select a preset and generate voice using Text-to-Speech, or record live audio using your microphone.
+2. **Shape Audio:** Customize Pitch, Distortion, Filter, Delay, and Reverb via the DSP Effects Chain sliders.
+3. **Layer Ambience:** Add procedural background layers (e.g. Space Hum, Wind, or Telemetry Alerts) and adjust their mix level.
+4. **Export & Integrate:** Export the custom processed clip as a WAV file. It will automatically compile and register into the Strudel runtime, ready to be sequenced using code (e.g. `s("voice")`).
 
 ### Voice/Text Commands
 
@@ -234,6 +250,7 @@ StrudelAI/
 │   │   ├── SonicInterface.tsx    # Main AI music UI
 │   │   ├── SynplantGarden.tsx    # Genetic sound design
 │   │   ├── DJMixerView.tsx       # Dual-deck DJ interface
+│   │   ├── VoiceSynthesizer.tsx  # Advanced Voice Lab interface
 │   │   ├── StrudelCodeView.tsx   # Live code editor
 │   │   ├── SpectrumAnalyzer.tsx  # FFT visualization
 │   │   ├── TrackStrip.tsx        # Track controls
@@ -245,7 +262,8 @@ StrudelAI/
 │   │   ├── synplant/genome.ts    # Genetic sound algorithms
 │   │   ├── dj/audio-deck.ts      # DJ deck audio processing
 │   │   ├── gemini/client.ts      # Gemini AI client
-│   │   └── musicgen/client.ts    # MusicGen AI client
+│   │   ├── musicgen/client.ts    # MusicGen AI client
+│   │   └── voice-synthesizer/    # Voice DSP, presets & export
 │   └── types/
 │       └── sonic.ts              # TypeScript interfaces
 ├── tools/
