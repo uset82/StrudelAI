@@ -230,6 +230,25 @@ export function tryRuleBasedUpdate(text: string, state: SonicSessionState): { ch
             updates.push('stable balance preset');
         }
 
+        if (/\b(?:harder|louder|closer|forward|up\s+front|more\s+present|punchier)\b/.test(lowered)) {
+            ssnn.mgain = Math.max(ssnn.mgain, 1.0);
+            ssnn.wetDry = Math.min(ssnn.wetDry, 0.22);
+            ssnn.decay = Math.min(ssnn.decay, 0.48);
+            ssnn.columns.forEach((column) => {
+                if (column.gain > 0.001) column.gain = Math.max(column.gain, 0.9);
+                column.pan *= 0.45;
+            });
+            if (!ssnn.activeEngines.includes('pulse')) ssnn.activeEngines.unshift('pulse');
+            updates.push('forward punch preset');
+        }
+
+        if (/\b(?:softer|quieter|farther|further\s+back|less\s+present)\b/.test(lowered)) {
+            ssnn.mgain = Math.max(0, ssnn.mgain - 0.18);
+            ssnn.wetDry = Math.max(ssnn.wetDry, 0.68);
+            ssnn.decay = Math.max(ssnn.decay, 0.65);
+            updates.push('receded soft preset');
+        }
+
         if (updates.length > 0) {
             changed = true;
             return { changed, newState, response: `Updated SSNN: ${updates.join(', ')}.` };

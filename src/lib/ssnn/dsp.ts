@@ -1,6 +1,26 @@
 import { SSNNState } from '../../types/ssnn';
 import { SSNN_NEURONS_PER_LAYER, SSNN_LAYERS } from './engine';
 
+export interface SSNNOutputCharacter {
+    presenceDb: number;
+    makeupGain: number;
+    stereoWidth: number;
+}
+
+/**
+ * Translate the SSNN dry/wet control into a stable output character. A drier
+ * mix is intentionally closer, brighter, and narrower; a wetter mix remains
+ * wider without dropping behind the workstation mix.
+ */
+export function getSsnnOutputCharacter(wetDry: number): SSNNOutputCharacter {
+    const wet = Math.max(0, Math.min(1, Number.isFinite(wetDry) ? wetDry : 0.32));
+    return {
+        presenceDb: 1.5 + (1 - wet) * 3.0,
+        makeupGain: 1.08 + (1 - wet) * 0.22,
+        stereoWidth: 0.5 + wet * 0.35,
+    };
+}
+
 // Helper to map index to frequencies in various musical scales
 export function getScaleFrequencies(scaleName: string, rootFreq = 130.81 /* C3 */): number[] {
     const freqs: number[] = [];
@@ -46,6 +66,9 @@ export class SSNNSynthManager {
     private outputNode: GainNode;
     private state: SSNNState;
     private scaleFreqs: number[] = [];
+    private presenceFilter: BiquadFilterNode;
+    private outputCompressor: DynamicsCompressorNode;
+    private makeupGain: GainNode;
     
     // Tape & Granular Recording Buffer
     private recordBuffer: AudioBuffer | null = null;
@@ -57,8 +80,35 @@ export class SSNNSynthManager {
 
     constructor(ctx: AudioContext, outputNode: GainNode, initialState: SSNNState) {
         this.ctx = ctx;
-        this.outputNode = outputNode;
         this.state = initialState;
+
+        // All voices feed a shared presence bus. The compressor controls dense
+        // spike bursts while the high shelf and makeup gain keep SSNN in front
+        // of the workstation mix instead of sounding filtered and far away.
+        this.outputNode = ctx.createGain();
+        const rumbleFilter = ctx.createBiquadFilter();
+        rumbleFilter.type = 'highpass';
+        rumbleFilter.frequency.value = 38;
+        rumbleFilter.Q.value = 0.7;
+
+        this.presenceFilter = ctx.createBiquadFilter();
+        this.presenceFilter.type = 'highshelf';
+        this.presenceFilter.frequency.value = 1800;
+
+        this.outputCompressor = ctx.createDynamicsCompressor();
+        this.outputCompressor.threshold.value = -22;
+        this.outputCompressor.knee.value = 18;
+        this.outputCompressor.ratio.value = 3.2;
+        this.outputCompressor.attack.value = 0.003;
+        this.outputCompressor.release.value = 0.12;
+
+        this.makeupGain = ctx.createGain();
+        this.outputNode.connect(rumbleFilter);
+        rumbleFilter.connect(this.presenceFilter);
+        this.presenceFilter.connect(this.outputCompressor);
+        this.outputCompressor.connect(this.makeupGain);
+        this.makeupGain.connect(outputNode);
+        this.applyOutputCharacter();
         
         this.updateScale();
         this.initializeRecordBuffer();
@@ -75,6 +125,14 @@ export class SSNNSynthManager {
         if (oldBufferLength !== this.state.buffLen) {
             this.initializeRecordBuffer();
         }
+        this.applyOutputCharacter();
+    }
+
+    private applyOutputCharacter() {
+        const character = getSsnnOutputCharacter(this.state.wetDry);
+        const now = this.ctx.currentTime;
+        this.presenceFilter.gain.setTargetAtTime(character.presenceDb, now, 0.025);
+        this.makeupGain.gain.setTargetAtTime(character.makeupGain, now, 0.025);
     }
 
     private updateScale() {
@@ -261,7 +319,8 @@ export class SSNNSynthManager {
     private createPanNode(panVal: number): StereoPannerNode | null {
         if (this.ctx.createStereoPanner) {
             const panner = this.ctx.createStereoPanner();
-            panner.pan.value = Math.max(-1.0, Math.min(1.0, panVal));
+            const { stereoWidth } = getSsnnOutputCharacter(this.state.wetDry);
+            panner.pan.value = Math.max(-1.0, Math.min(1.0, panVal * stereoWidth));
             return panner;
         }
         return null;
@@ -283,13 +342,13 @@ export class SSNNSynthManager {
         osc.frequency.exponentialRampToValueAtTime(freq, time + 0.02);
 
         gainNode.gain.setValueAtTime(0.0, time);
-        gainNode.gain.linearRampToValueAtTime(intensity * layerVol * 0.25, time + 0.002);
+        gainNode.gain.linearRampToValueAtTime(intensity * layerVol * 0.31, time + 0.002);
         gainNode.gain.exponentialRampToValueAtTime(0.0001, time + decayTime);
 
         const filter = this.ctx.createBiquadFilter();
         filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(freq * 2.0, time);
-        filter.frequency.exponentialRampToValueAtTime(freq * 0.2, time + decayTime);
+        filter.frequency.setValueAtTime(Math.min(14000, Math.max(1800, freq * 4.5)), time);
+        filter.frequency.exponentialRampToValueAtTime(Math.max(220, freq * 0.75), time + decayTime);
 
         osc.connect(filter);
         filter.connect(gainNode);
@@ -314,12 +373,12 @@ export class SSNNSynthManager {
             
             noiseGain = this.ctx.createGain();
             noiseGain.gain.setValueAtTime(0.0, time);
-            noiseGain.gain.linearRampToValueAtTime(intensity * layerVol * 0.42, time + 0.001);
+            noiseGain.gain.linearRampToValueAtTime(intensity * layerVol * 0.36, time + 0.001);
             noiseGain.gain.exponentialRampToValueAtTime(0.0001, time + 0.008);
             
             noiseFilter = this.ctx.createBiquadFilter();
             noiseFilter.type = 'highpass';
-            noiseFilter.frequency.setValueAtTime(4500.0, time);
+            noiseFilter.frequency.setValueAtTime(2600.0, time);
             
             noiseSource.connect(noiseFilter);
             noiseFilter.connect(noiseGain);

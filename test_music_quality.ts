@@ -25,6 +25,7 @@ import {
 import { cleanStrudelCode } from './src/lib/music/codeExtractor';
 import { tryRuleBasedUpdate } from './src/lib/agent/runtime';
 import { mapFftDecibelsToSsnnBands } from './src/lib/ssnn/fft';
+import { getSsnnOutputCharacter } from './src/lib/ssnn/dsp';
 import type { SonicSessionState, InstrumentType } from './src/types/sonic';
 
 const hasTrack = (value: string | null) => typeof value === 'string' && value.trim().length > 0;
@@ -352,6 +353,18 @@ assert.equal(ssnnTauByChat.newState.ssnn?.tau, 7, 'chat should control individua
 const stableSsnnByChat = tryRuleBasedUpdate('make the SSNN stable and less jittery', controlState);
 assert.equal(stableSsnnByChat.newState.ssnn?.qntRnd, 0, 'stable SSNN command should remove quantization jitter');
 assert.equal(stableSsnnByChat.newState.ssnn?.updateRate, 2, 'stable SSNN command should cap neural update load');
+
+const forwardSsnnByChat = tryRuleBasedUpdate('make a SSNN sound harder and closer', controlState);
+assert.equal(forwardSsnnByChat.changed, true, 'harder SSNN request should be handled as a control command');
+assert.ok((forwardSsnnByChat.newState.ssnn?.mgain ?? 0) >= 1, 'harder SSNN should raise its master gain');
+assert.ok((forwardSsnnByChat.newState.ssnn?.wetDry ?? 1) <= 0.22, 'harder SSNN should move toward a dry, forward mix');
+assert.ok(Math.abs(forwardSsnnByChat.newState.ssnn?.columns[0].pan ?? 1) < 0.3, 'harder SSNN should narrow active voices');
+
+const defaultSsnnCharacter = getSsnnOutputCharacter(0.32);
+const distantSsnnCharacter = getSsnnOutputCharacter(0.8);
+assert.ok(defaultSsnnCharacter.presenceDb > distantSsnnCharacter.presenceDb, 'drier SSNN mix should have more presence');
+assert.ok(defaultSsnnCharacter.makeupGain > distantSsnnCharacter.makeupGain, 'drier SSNN mix should receive controlled makeup gain');
+assert.ok(defaultSsnnCharacter.stereoWidth < distantSsnnCharacter.stereoWidth, 'drier SSNN mix should be narrower and closer');
 
 const silentFft = new Float32Array(512).fill(-100);
 const silentNeuralBands = mapFftDecibelsToSsnnBands(silentFft, 44100, 1024);
