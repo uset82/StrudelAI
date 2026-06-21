@@ -2,6 +2,7 @@ import { SSNNEngine } from './engine';
 
 let engine: SSNNEngine | null = null;
 let intervalId: ReturnType<typeof setInterval> | null = null;
+let externalInput: Float32Array | undefined;
 
 // Self typing for Web Worker scope
 const ctx: Worker = self as unknown as Worker;
@@ -26,22 +27,33 @@ ctx.onmessage = (e: MessageEvent) => {
             }
             break;
 
+        case 'SET_INPUT':
+            externalInput = data?.spectrum
+                ? new Float32Array(data.spectrum)
+                : undefined;
+            if (engine && externalInput && data?.learn) {
+                engine.learnFromFFT(externalInput);
+            }
+            break;
+
         case 'START':
             if (intervalId) clearInterval(intervalId);
             
-            // Run SNN updates at ~60Hz
-            const tickRate = 16.67; // ms
+            // A 25 Hz simulation clock is sufficient for musical events and
+            // keeps the 960-neuron matrix away from the React/UI thread.
+            const tickRate = 40;
             intervalId = setInterval(() => {
                 if (!engine) return;
-                
-                const externalInput = data?.externalInput;
-                const spikes = engine.step(externalInput);
+                const steps = Math.max(1, Math.min(8, Math.round(engine.getState().updateRate)));
+                const spikes: number[] = [];
+                for (let step = 0; step < steps; step++) {
+                    spikes.push(...engine.step(externalInput));
+                }
                 
                 ctx.postMessage({
                     type: 'TICK',
                     spikes,
-                    potentials: Array.from(engine.potentials),
-                    visualSpikes: Array.from(engine.visualSpikes)
+                    visualSpikes: engine.visualSpikes.slice(),
                 });
             }, tickRate);
             break;

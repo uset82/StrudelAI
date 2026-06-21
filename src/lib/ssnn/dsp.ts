@@ -53,6 +53,7 @@ export class SSNNSynthManager {
     private isRecording = false;
     private activeVoiceEvents = 0;
     private readonly maxVoiceEvents = 24;
+    private noiseBuffer: AudioBuffer | null = null;
 
     constructor(ctx: AudioContext, outputNode: GainNode, initialState: SSNNState) {
         this.ctx = ctx;
@@ -61,6 +62,7 @@ export class SSNNSynthManager {
         
         this.updateScale();
         this.initializeRecordBuffer();
+        this.initializeNoiseBuffer();
     }
 
     public updateState(newState: Partial<SSNNState>) {
@@ -79,6 +81,20 @@ export class SSNNSynthManager {
         // Base root frequency for scale mapping (e.g. C3 = 130.81Hz)
         const root = 130.81;
         this.scaleFreqs = getScaleFrequencies(this.state.tuningScale, root);
+    }
+
+    private initializeNoiseBuffer() {
+        const sampleRate = this.ctx.sampleRate || 44100;
+        const bufferSize = sampleRate * 2; // 2 seconds of noise
+        try {
+            this.noiseBuffer = this.ctx.createBuffer(1, bufferSize, sampleRate);
+            const data = this.noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2.0 - 1.0;
+            }
+        } catch (e) {
+            console.error('[SSNNSynthManager] Failed to create noiseBuffer:', e);
+        }
     }
 
     private initializeRecordBuffer() {
@@ -286,8 +302,53 @@ export class SSNNSynthManager {
             gainNode.connect(this.outputNode);
         }
 
+        // Spark transient static discharge click
+        let noiseSource: AudioBufferSourceNode | null = null;
+        let noiseGain: GainNode | null = null;
+        let noiseFilter: BiquadFilterNode | null = null;
+        
+        if (this.noiseBuffer) {
+            noiseSource = this.ctx.createBufferSource();
+            noiseSource.buffer = this.noiseBuffer;
+            const offset = Math.random() * (this.noiseBuffer.duration - 0.015);
+            
+            noiseGain = this.ctx.createGain();
+            noiseGain.gain.setValueAtTime(0.0, time);
+            noiseGain.gain.linearRampToValueAtTime(intensity * layerVol * 0.42, time + 0.001);
+            noiseGain.gain.exponentialRampToValueAtTime(0.0001, time + 0.008);
+            
+            noiseFilter = this.ctx.createBiquadFilter();
+            noiseFilter.type = 'highpass';
+            noiseFilter.frequency.setValueAtTime(4500.0, time);
+            
+            noiseSource.connect(noiseFilter);
+            noiseFilter.connect(noiseGain);
+            
+            if (panner) {
+                noiseGain.connect(panner);
+            } else {
+                noiseGain.connect(this.outputNode);
+            }
+            
+            noiseSource.start(time, offset);
+            noiseSource.stop(time + 0.015);
+        }
+
         osc.start(time);
         osc.stop(time + decayTime + 0.05);
+
+        // Explicit cleanup to avoid any potential nodes leakage
+        window.setTimeout(() => {
+            try {
+                osc.disconnect();
+                gainNode.disconnect();
+                filter.disconnect();
+                panner?.disconnect();
+                if (noiseSource) noiseSource.disconnect();
+                if (noiseGain) noiseGain.disconnect();
+                if (noiseFilter) noiseFilter.disconnect();
+            } catch {}
+        }, Math.ceil((decayTime + 0.1) * 1000));
     }
 
     /**
@@ -319,10 +380,39 @@ export class SSNNSynthManager {
             gainNode.connect(this.outputNode);
         }
 
+        // Mallet excitation click tick
+        let noiseSource: AudioBufferSourceNode | null = null;
+        let noiseGain: GainNode | null = null;
+        let noiseFilter: BiquadFilterNode | null = null;
+        
+        if (this.noiseBuffer) {
+            noiseSource = this.ctx.createBufferSource();
+            noiseSource.buffer = this.noiseBuffer;
+            const offset = Math.random() * (this.noiseBuffer.duration - 0.01);
+            
+            noiseGain = this.ctx.createGain();
+            noiseGain.gain.setValueAtTime(0.0, time);
+            noiseGain.gain.linearRampToValueAtTime(intensity * layerVol * 0.38, time + 0.001);
+            noiseGain.gain.exponentialRampToValueAtTime(0.0001, time + 0.005);
+            
+            noiseFilter = this.ctx.createBiquadFilter();
+            noiseFilter.type = 'bandpass';
+            noiseFilter.frequency.setValueAtTime(2800.0, time);
+            noiseFilter.Q.setValueAtTime(5.0, time);
+            
+            noiseSource.connect(noiseFilter);
+            noiseFilter.connect(noiseGain);
+            noiseGain.connect(target);
+            
+            noiseSource.start(time, offset);
+            noiseSource.stop(time + 0.01);
+        }
+
         osc.start(time);
         osc.stop(time + decayTime + 0.05);
 
         // Partial resonators
+        const resonators: Array<{ pOsc: OscillatorNode; pGain: GainNode }> = [];
         partialRatios.forEach((ratio, i) => {
             const pOsc = this.ctx.createOscillator();
             const pGain = this.ctx.createGain();
@@ -339,7 +429,24 @@ export class SSNNSynthManager {
 
             pOsc.start(time);
             pOsc.stop(time + decayTime + 0.05);
+            resonators.push({ pOsc, pGain });
         });
+
+        // Cleanup resources
+        window.setTimeout(() => {
+            try {
+                osc.disconnect();
+                gainNode.disconnect();
+                panner?.disconnect();
+                if (noiseSource) noiseSource.disconnect();
+                if (noiseGain) noiseGain.disconnect();
+                if (noiseFilter) noiseFilter.disconnect();
+                resonators.forEach(res => {
+                    res.pOsc.disconnect();
+                    res.pGain.disconnect();
+                });
+            } catch {}
+        }, Math.ceil((decayTime + 0.1) * 1000));
     }
 
     /**
@@ -479,8 +586,10 @@ export class SSNNSynthManager {
         const bufferSize = this.ctx.sampleRate * 0.01;
         const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
         const data = buffer.getChannelData(0);
+        // Double energy and saturate the excitation buffer for "explosive metallic shock"
         for (let i = 0; i < bufferSize; i++) {
-            data[i] = (Math.random() * 2.0 - 1.0) * Math.exp(-80.0 * i / bufferSize);
+            const rawNoise = (Math.random() * 2.0 - 1.0) * 2.2 * Math.exp(-80.0 * i / bufferSize);
+            data[i] = Math.tanh(rawNoise); // soft clipping saturation
         }
 
         const exciter = this.ctx.createBufferSource();

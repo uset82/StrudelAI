@@ -1,149 +1,55 @@
-# Spiking and Sounding Neural Network (SSNN) Implementation Plan
+# SSNN Spiking Vitality & Electrical Impulse Effects - Implementation Plan
 
-SSNN is an advanced, high-fidelity Spiking Neural Network synthesizer feature. It models a leaky integrate-and-fire (LIF) neural network containing 960 neurons across 32 layers running alongside the Web Audio synthesis engine. It listens, learns (via continuous FFT analysis mapped to connection weights), and resynthesizes its own input using eight synthesis engines: Pulse, Modal, SYNaptic, Granular, FM, Comb, Tape, and Arpeg.
-
-This plan details the design, architecture, components, and phase-by-phase task list for developing and integrating the SSNN synthesizer into Aether Sonic.
+This plan details the design, architecture, and step-by-step tasks required to make the Spiking and Sounding Neural Network (SSNN) spiking visualizer and synthesis engines feel more alive with explosive shocks, lightning-bolt connection arcs, and electrical impulse sounds.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> **Production Choice - High-Performance Web Worker Architecture:**
-> To ensure flawless performance and zero build/deployment issues for a live internet launch, we will implement the 960-neuron LIF network simulation using highly optimized TypeScript and **Web Workers** rather than WebAssembly (C++/Rust). 
-> * **Zero Build Risk:** Does not require local C++/Rust compiler setups or emscripten binaries on deployment platforms (Vercel, Netlify).
-> * **Zero Main-Thread Lag:** The spiking calculation runs in a background thread, preventing visual lag or Web Audio frame drops.
-> * **Garbage-Collector-Free:** Stores potentials, connections, and weight matrices in flat `Float32Array` buffers.
-
-
-> [!TIP]
-> The Pulse generator will simulate electronic component sounds (resistors, capacitors, relays, transistors, 555 timers) by utilizing low-level noise filters, envelope triggers, and pulse generators.
+> **Performance Safety vs. Aesthetic Density:**
+> Drawing 27,900 synaptic connections at 60Hz would choke the UI. We will implement a threshold gate (only drawing connections with weights `> 0.6` originating from active spiking neurons) to render beautiful, lightweight branching path lines.
+> 
+> **Auto-Disposable Audio Nodes:**
+> Adding noise generators to the synth voices increases the number of concurrent nodes. We will implement strict cleanup timers using `window.setTimeout` to disconnect and dispose of all transient nodes, preventing memory leaks.
 
 ## Open Questions
 
-> [!WARNING]
-> Do you have any preference for the OSC Spike broadcast port numbers or specific format, or should we simulate the OSC spike broadcast locally (e.g. outputting to a console/socket event) and convert them directly to MIDI via the NNnotes wrapper? We plan to implement the OSC transmitter as a backend Socket.io broadcast that client-side virtual plugins can connect to.
+> [!NOTE]
+> Do you prefer standard yellow-orange sparks, or should the electrical impulse colors match the active synthesis engines (e.g. blue for FM/Comb, orange for Pulse/Granular)? We will default to a dynamic mix of electric white, yellow, and cyan.
 
 ---
 
 ## Proposed Changes
 
-### Synthesis & DSP Engine
-We will create a dedicated SSNN engine namespace containing the spiking model, the FFT analyzer, and the 8 synthesis engines.
+### 1. Visual Spiking Grid (Canvas-based Particles & Lightning Arcs)
+Modify [SSNNSynthesizer.tsx](file:///d:/Proyectos/StrudelAI-main/StrudelAI-main/src/components/SSNNSynthesizer.tsx):
+- **Lightning Synaptic Arcs:** Draw branching lines between layer transitions `L -> L+1` when a pre-synaptic neuron spikes, introducing slight organic offsets (jagged lightning pathing) and opacity scaling with synaptic weights.
+- **Explosive Shockwaves:** Implement expanding ring animations centered at the coordinates of any neuron that fires a spike in the current frame.
+- **Electrical Impulse Sparks:** Implement a lightweight particle simulation ref (`sparksRef`) tracking tiny sparks that eject outward from spiking nodes and decay over a few frames.
 
-#### [NEW] [engine.ts](file:///d:/Proyectos/StrudelAI-main/StrudelAI-main/src/lib/ssnn/engine.ts)
-Core SSNN class executing the Leaky-Integrate-and-Fire model, maintaining membrane potential, handling threshold spikes, weight matrices, and routing spike outputs to synthesis voices.
-
-#### [NEW] [dsp.ts](file:///d:/Proyectos/StrudelAI-main/StrudelAI-main/src/lib/ssnn/dsp.ts)
-Implementation of the 8 synthesis models:
-- **Pulse**: Electronic component model (555 timer, transistor clicks, capacitors, relays).
-- **Modal**: Wood percussions (resonant bandpass filters on impulse exciters).
-- **SYNaptic**: FM synthesis modulated by neuron spikes.
-- **Granular**: 32-layer granular wavetable with real-time transient detection.
-- **FM**: Traditional frequency modulation synthesis.
-- **Comb**: Physical-modeling resonator with feedback delay.
-- **Tape**: Light Tape Looper (32-layer delay line with per-layer offsets).
-- **Arpeg**: Chord progression mapper with Scala scale tuning.
-
-#### [NEW] [fft.ts](file:///d:/Proyectos/StrudelAI-main/StrudelAI-main/src/lib/ssnn/fft.ts)
-FFT analyser and weight mapping tool. Measures spectral profile of incoming audio and updates the SNN connection weights.
-
----
-
-### AI Agent & Chat Integration
-We will connect the SSNN parameters and configuration options to the AI chat interface on both LLM tool-calling and rule-based parsing levels.
-
-#### [MODIFY] [sonic.ts](file:///d:/Proyectos/StrudelAI-main/StrudelAI-main/src/types/sonic.ts)
-Extend `SonicSessionState` to hold the complete structured settings of the SSNN synthesizer (`ssnn?: SSNNState`), allowing seamless synchronization between the client and server.
-
-#### [MODIFY] [runtime.ts](file:///d:/Proyectos/StrudelAI-main/StrudelAI-main/src/lib/agent/runtime.ts)
-Update the AI agent command pipeline:
-- Add keywords (e.g. `ssnn`, `spiking`, `temporal identity`, `comb filter`, `neural column`, `arpeggiator`) to the action keywords.
-- Implement explicit rule-based parser mapping for specific live prompts:
-  * *"Creating a temporal identity..."* → Set `specListen: true`, adjust `sweight`, set `morph`.
-  * *"add a comb filter... second NN column..."* → Enable `comb` engine and configure `column[1]` to DSP with comb filter.
-  * *"now the arpeggiator is active..."* → Activate `arpeg` engine and enable/adjust resonant filters (`reson` values).
-
-#### [MODIFY] [tool-bridge.ts](file:///d:/Proyectos/StrudelAI-main/StrudelAI-main/src/lib/agent/tool-bridge.ts)
-Add the `update_ssnn` function to the `AGENT_TOOLS` registry, exposing the parameters (`specListen`, `morph`, `sweight`, `tau`, `bernoulli`, `activeEngines`, etc.) to the language model for dynamic synthesis adjustments.
-
----
-
-### User Interface (UI)
-We will add a new ViewMode `ssnn` to the main studio screen, rendering a highly polished, vector-based dashboard matching the sonicLAB aesthetic.
-
-
-#### [NEW] [SSNNSynthesizer.tsx](file:///d:/Proyectos/StrudelAI-main/StrudelAI-main/src/components/SSNNSynthesizer.tsx)
-The main SSNN panel component containing:
-- **Left Panel**: SpecListen, Morph, Sweight, InputGain, Bernoulli, Tau, SpikeDec, wCoef, G4, UpdateRate, BuffLen, BalanceTh, SpikeVis, VoiceAlloc, and the Leaky-Integrate-and-Fire diagram.
-- **Middle Panel 1**: SVG-based 32-layer connection matrix and neural network activity visualizer flashing spikes at 60Hz.
-- **Middle Panel 2**: Audio transient loop monitor showing 32 channels of wave segments/offsets.
-- **Bottom Panel**: Spectral Shift slider, step graphic, channel faders (Gain, Pan, GM, PM), and Mgain.
-- **Right Panel**: SpikeQ settings (SpikeQth, spikeQ, EnvSTq, QntRnd), Scale/Tuning dropdown, Decay/Wet Dry gauges, engine select buttons, voice frequencies (Freq1-4), engine parameters (CF Gain, Reson/LoPass, ModDepth, DecayFact), preset selector (1-12, IMP, EXP, DUP).
-
-#### [MODIFY] [SonicInterface.tsx](file:///d:/Proyectos/StrudelAI-main/StrudelAI-main/src/components/SonicInterface.tsx)
-Extend `ViewMode` type to include `'ssnn'`, add the SSNN tab into the header with a relevant Lucide icon (e.g. `Network`), and render `<SSNNSynthesizer />` when selected.
+### 2. Audio Synthesis (Static Discharge & Shocks)
+Modify [dsp.ts](file:///d:/Proyectos/StrudelAI-main/StrudelAI-main/src/lib/ssnn/dsp.ts):
+- **Static Discharge (Pulse Engine):** Introduce a parallel high-pass filtered white noise burst transient (5ms duration) playing at the attack stage of the pulse voice, simulating a relay contact spark or capacitor discharge tick.
+- **Explosive Metallic Shocks (Comb Engine):** Increase the excitation noise impulse amplitude and add waveshaped saturation to give the feedback delay resonator a clashing, distorted electric shock tone.
+- **Mallet Excitation Click (Modal Engine):** Add a sharp initial transient tick to the Modal sweeps to give wood mallets an explosive strike.
 
 ---
 
 ## Detailed Task Plan (Checklist)
 
-### Phase 1: Foundation & Spiking Neural Network (LIF) Model
-- [x] Create folder structure `src/lib/ssnn` and types for neural states, connection weights, and engine parameters.
-- [x] Implement `src/lib/ssnn/engine.ts` simulating the Leaky-Integrate-and-Fire (LIF) equations:
-  $$V_i(t) = V_i(t-1) + \frac{I_i(t) - \lambda V_i(t-1)}{\tau}$$
-- [x] Add support for 960 neurons (32 layers × 30 neurons) with stochastic Bernoulli noise injections.
-- [x] Implement parameter controls for `Tau`, `bernoulli`, `spikeDec`, `wCoef`, and `BalanceTh`.
+### Phase 1: Interactive Particle & Lightning Visuals
+- [ ] Declare `shockwavesRef` and `sparksRef` tracking animations without React state re-render overhead inside [SSNNSynthesizer.tsx](file:///d:/Proyectos/StrudelAI-main/StrudelAI-main/src/components/SSNNSynthesizer.tsx).
+- [ ] Add logic inside the `runSimulation` loop to push new shockwaves and sparks whenever `engine.spikes[idx] === 1` is detected.
+- [ ] Implement jagged lightning-bolt pathing inside `drawGridCanvas` to render branching connection paths from active neurons to their synapses.
+- [ ] Implement update and render passes inside `drawGridCanvas` to draw and prune expanding circles and decaying spark particles.
 
-### Phase 2: Closed-Loop FFT & Weight Morphing
-- [x] Implement `src/lib/ssnn/fft.ts` using the Web Audio API AnalyzerNode.
-- [x] Write logic to analyze incoming spectrum and map spectral bins to neural connection weights in real-time.
-- [x] Implement the `Sweight` contrast scaling (positive strengthens strong bins, negative strengthens weak bins).
-- [x] Implement weight `Morph` (interpolating between learned weights and random distribution) and `Spectral Shift`.
+### Phase 2: Electric Impulse & Static Audio DSP
+- [ ] Create a reusable cached white noise buffer in `SSNNSynthManager` inside [dsp.ts](file:///d:/Proyectos/StrudelAI-main/StrudelAI-main/src/lib/ssnn/dsp.ts).
+- [ ] Modify `triggerPulseEngine` to play a tiny, high-pass filtered white noise burst slice at the start of the voice.
+- [ ] Modify `triggerCombEngine` to double excitation noise impulse energy, and inject saturation to create distorted metallic ring-outs.
+- [ ] Modify `triggerModalEngine` to feed a sharp excitation tick, amplifying attack punchiness.
+- [ ] Ensure strict garbage collection and disconnection for all newly introduced noise/gain nodes to prevent memory growth.
 
-### Phase 3: The 8 Synthesis Engines
-- [x] Create the Web Audio nodes and algorithms inside `src/lib/ssnn/dsp.ts`.
-- [x] Implement **Pulse**: Resistor, capacitor charging curves, transistor behavior, and relay clicks.
-- [x] Implement **Modal**: Wood percussions and resonators.
-- [x] Implement **SYNaptic**: Spike-triggered FM operators.
-- [x] Implement **Granular**: Buffer slicer with transient detection.
-- [x] Implement **FM**, **Comb**, and **Tape** (32-layer delay machine).
-- [x] Implement **Arpeg**: Multi-layer arpeggiator mapping to chord structures.
-
-### Phase 4: Presets, Scales & Quantization
-- [x] Implement `SpikeQ` quantization logic snapping neuron triggers to metronome ticks.
-- [x] Implement Scala scale tuning parser and scale select dropdown (Pentatonic, Wholetone, Diatonic, etc.).
-- [x] Set up the 12 preset slots on the panel with save, import, export, and duplicate actions.
-
-### Phase 5: High-Fidelity UI Panels & Visualizers
-- [x] Build the left controller panel with LIF model diagrams, toggles, and sliders.
-- [x] Create the central SVG network layout showing 32 layers of spiking nodes and connecting paths.
-- [x] Build the 32-row wave segment looper display rendering active buffer segments.
-- [x] Create the right engine editor panel with interactive sliders, dials, and preset controls.
-
-### Phase 6: Multi-Core Simulator & OSC Broadcast
-- [x] Set up simulation code that maps neuron spikes to OSC messages and sends them to the backend socket.
-- [x] Add the NNnotes converter component transforming spikes into MIDI note notes.
-- [x] Hook the audio loops and inputs together into a fully closed-loop synthesis model.
-
-### Phase 7: AI Chat Box & Command Parser Integration
-- [x] Add SSNN-specific parameters (`ssnn?: SSNNState`) to `SonicSessionState` in `src/types/sonic.ts`.
-- [x] Extend `AGENT_TOOLS` with the `update_ssnn` function tool-definition inside `src/lib/agent/tool-bridge.ts`.
-- [x] Add rule-based command keywords and phrase parsing inside `src/lib/agent/runtime.ts`'s `tryRuleBasedUpdate`:
-  * Add regex / string checks for: *"Creating a temporal identity..."*, *"add a comb filter..."*, and *"now the arpeggiator is active..."*
-  * Execute state mutations on the SSNN properties and return appropriate confirmation chat messages.
-- [x] Hook the frontend component state so it dynamically updates its sliders, visualizations, and DSP settings whenever a new state is received from the socket link.
-
----
-
-
-## Verification Plan
-
-### Automated Tests
-- Run `npm run lint` and `npm run build` to verify TS compilation and bundle integrity.
-- Run `npm run test:music-quality` to check synth engines do not degrade background audio.
-
-### Manual Verification
-- Launch the server with `npm run dev` and navigate to the SSNN workspace.
-- Interact with sliders (`Tau`, `bernoulli`, `Sweight`) to verify they change network visualization dynamically.
-- Enable `SpecListen` and feed audio (microphone/audio file) to verify weights adjust in real-time.
-- Select different synthesis engines (Pulse, Modal, SYNaptic) and trigger notes to check audio generation.
-- Check that the preset bank works correctly and saves parameters locally.
+### Phase 3: Verification & Polish
+- [ ] Verify that Next.js compilation builds successfully with `npm run build`.
+- [ ] Run `npm run lint` to verify clean syntax and lack of errors.
+- [ ] Run `npm run test:music-quality` to check that synth modifications pass regression suites.

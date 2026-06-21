@@ -54,6 +54,11 @@ textarea {
 .studio-scrollbar {
   scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
   scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+
+.ssnn-canvas-shell {
+  contain: layout paint;
 }
 
 .studio-scrollbar::-webkit-scrollbar {

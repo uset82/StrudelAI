@@ -704,6 +704,7 @@ export default function SonicInterface() {
                             <SSNNSynthesizer
                                 sessionBpm={bpm || 128}
                                 isPlaying={isPlaying}
+                                workstationAnalyser={analyser}
                                 ssnnState={state?.ssnn}
                                 onStateChange={setSsnnState}
                             />

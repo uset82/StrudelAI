@@ -1,5 +1,37 @@
 import { SSNN_NEURONS_PER_LAYER } from './engine';
 
+export function mapFftDecibelsToSsnnBands(
+    decibels: Float32Array<ArrayBufferLike>,
+    sampleRate: number,
+    fftSize: number,
+    output: Float32Array<ArrayBufferLike> = new Float32Array(SSNN_NEURONS_PER_LAYER),
+): Float32Array<ArrayBufferLike> {
+    const minFreq = 50;
+    const maxFreq = Math.min(8000, sampleRate / 2);
+    const logMin = Math.log10(minFreq);
+    const logMax = Math.log10(maxFreq);
+    const binHz = sampleRate / fftSize;
+
+    for (let bandIndex = 0; bandIndex < SSNN_NEURONS_PER_LAYER; bandIndex++) {
+        const startFreq = Math.pow(10, logMin + (bandIndex / SSNN_NEURONS_PER_LAYER) * (logMax - logMin));
+        const endFreq = Math.pow(10, logMin + ((bandIndex + 1) / SSNN_NEURONS_PER_LAYER) * (logMax - logMin));
+        const startBin = Math.max(0, Math.floor(startFreq / binHz));
+        const endBin = Math.min(decibels.length, Math.max(startBin + 1, Math.ceil(endFreq / binHz)));
+        let energy = 0;
+
+        for (let bin = startBin; bin < endBin; bin++) {
+            const db = Number.isFinite(decibels[bin]) ? decibels[bin] : -100;
+            energy += Math.max(0, Math.min(1, (db + 80) / 77));
+        }
+
+        output[bandIndex] = endBin > startBin
+            ? energy / (endBin - startBin)
+            : (bandIndex > 0 ? output[bandIndex - 1] * 0.5 : 0);
+    }
+
+    return output;
+}
+
 export class SSNNAudioAnalyser {
     private analyser: AnalyserNode | null = null;
     private audioContext: AudioContext | null = null;
@@ -7,30 +39,8 @@ export class SSNNAudioAnalyser {
     private dataArray: Float32Array = new Float32Array(0);
     private outputSpectrum: Float32Array;
 
-    // Frequencies of our 30 neuron columns, mapped logarithmically from 50Hz to 8000Hz
-    private bandBoundaries: number[] = [];
-
     constructor() {
         this.outputSpectrum = new Float32Array(SSNN_NEURONS_PER_LAYER);
-        this.calculateLogBands();
-    }
-
-    /**
-     * Map 30 frequency bands logarithmically between 50Hz and 8000Hz
-     */
-    private calculateLogBands() {
-        const minFreq = 50.0;
-        const maxFreq = 8000.0;
-        const count = SSNN_NEURONS_PER_LAYER;
-
-        const logMin = Math.log10(minFreq);
-        const logMax = Math.log10(maxFreq);
-        const step = (logMax - logMin) / count;
-
-        this.bandBoundaries = [];
-        for (let i = 0; i <= count; i++) {
-            this.bandBoundaries.push(Math.pow(10, logMin + i * step));
-        }
     }
 
     /**
@@ -82,46 +92,26 @@ export class SSNNAudioAnalyser {
             return this.outputSpectrum;
         }
 
-        // Get raw FFT frequency energy
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        this.analyser.getFloatFrequencyData(this.dataArray as any);
+        this.analyser.getFloatFrequencyData(this.dataArray as Float32Array<ArrayBuffer>);
+        return mapFftDecibelsToSsnnBands(
+            this.dataArray,
+            this.audioContext.sampleRate,
+            this.analyser.fftSize,
+            this.outputSpectrum,
+        );
+    }
 
-        const sampleRate = this.audioContext.sampleRate;
-        const binCount = this.analyser.frequencyBinCount;
-        const binHz = sampleRate / this.analyser.fftSize;
-
-        // Group the linear FFT bins into our 30 logarithmic bands
-        for (let bandIdx = 0; bandIdx < SSNN_NEURONS_PER_LAYER; bandIdx++) {
-            const startFreq = this.bandBoundaries[bandIdx];
-            const endFreq = this.bandBoundaries[bandIdx + 1];
-
-            let sumEnergy = 0;
-            let count = 0;
-
-            for (let bin = 0; bin < binCount; bin++) {
-                const freq = bin * binHz;
-                if (freq >= startFreq && freq < endFreq) {
-                    // Raw value is in decibels (dB), ranging from -100dB (silent) to 0dB (peak)
-                    const db = this.dataArray[bin];
-                    // Convert dB to a normalized linear amplitude scale (0.0 to 1.0)
-                    // -80dB is treated as floor, -3dB as maximum peak threshold
-                    const floorDb = -80.0;
-                    const peakDb = -3.0;
-                    const normalized = Math.max(0.0, Math.min(1.0, (db - floorDb) / (peakDb - floorDb)));
-                    
-                    sumEnergy += normalized;
-                    count++;
-                }
-            }
-
-            if (count > 0) {
-                this.outputSpectrum[bandIdx] = sumEnergy / count;
-            } else {
-                // Fallback: interpolate value if band is too narrow for bins at lower frequencies
-                this.outputSpectrum[bandIdx] = this.outputSpectrum[Math.max(0, bandIdx - 1)] * 0.5;
-            }
+    /** Read the analyser already attached to the main Strudel mix. */
+    public analyzeNode(analyser: AnalyserNode): Float32Array {
+        if (this.dataArray.length !== analyser.frequencyBinCount) {
+            this.dataArray = new Float32Array(analyser.frequencyBinCount);
         }
-
-        return this.outputSpectrum;
+        analyser.getFloatFrequencyData(this.dataArray as Float32Array<ArrayBuffer>);
+        return mapFftDecibelsToSsnnBands(
+            this.dataArray,
+            analyser.context.sampleRate,
+            analyser.fftSize,
+            this.outputSpectrum,
+        );
     }
 }

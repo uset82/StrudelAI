@@ -2,7 +2,7 @@
 
 **AI-Powered Live Coding Music System** with Voice Control, Synplant Genetic Sound Design, and Professional DJ Tools.
 
-🌐 **Live Demo:** [https://strudelzeroai.canner.ca](https://strudelzeroai.canner.ca)
+🌐 **Live Demo:** Canner deployment — public URL pending
 
 Built for **live coding festivals**, music producers, and creative technologists - create music layer-by-layer with natural language commands, voice control, genetic sound evolution, and AI-powered pattern generation.
 
@@ -74,6 +74,8 @@ GOOGLE_API_KEY=your_gemini_api_key_here
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 MODEL_NAME=nex-agi/nex-n2-pro:free
 ```
+
+On Canner, set `NEXT_PUBLIC_APP_URL` to the public deployment URL shown after a successful deploy. Do not use the dashboard URL: it is for project management, not the app's public origin.
 
 ### 3. Run Development Server
 

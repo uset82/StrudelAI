@@ -24,6 +24,7 @@ import {
 } from './src/lib/music-agent';
 import { cleanStrudelCode } from './src/lib/music/codeExtractor';
 import { tryRuleBasedUpdate } from './src/lib/agent/runtime';
+import { mapFftDecibelsToSsnnBands } from './src/lib/ssnn/fft';
 import type { SonicSessionState, InstrumentType } from './src/types/sonic';
 
 const hasTrack = (value: string | null) => typeof value === 'string' && value.trim().length > 0;
@@ -351,6 +352,14 @@ assert.equal(ssnnTauByChat.newState.ssnn?.tau, 7, 'chat should control individua
 const stableSsnnByChat = tryRuleBasedUpdate('make the SSNN stable and less jittery', controlState);
 assert.equal(stableSsnnByChat.newState.ssnn?.qntRnd, 0, 'stable SSNN command should remove quantization jitter');
 assert.equal(stableSsnnByChat.newState.ssnn?.updateRate, 2, 'stable SSNN command should cap neural update load');
+
+const silentFft = new Float32Array(512).fill(-100);
+const silentNeuralBands = mapFftDecibelsToSsnnBands(silentFft, 44100, 1024);
+assert.equal(Math.max(...silentNeuralBands), 0, 'silent workstation FFT should not inject false neural energy');
+const tonalFft = new Float32Array(512).fill(-100);
+tonalFft[Math.round(440 / (44100 / 1024))] = -3;
+const tonalNeuralBands = mapFftDecibelsToSsnnBands(tonalFft, 44100, 1024);
+assert.ok(Math.max(...tonalNeuralBands) > 0.1, 'audible workstation FFT energy should reach at least one LIF input band');
 
 const displayedCode = buildStrudelCode({
     bpm: 120,
