@@ -2,7 +2,7 @@
 
 **AI-Powered Live Coding Music System** with Voice Control, Synplant Genetic Sound Design, and Professional DJ Tools.
 
-🌐 **Live Demo:** [https://strudelai.netlify.app](https://strudelai.netlify.app)
+🌐 **Live Demo:** [https://strudelzeroai.canner.ca](https://strudelzeroai.canner.ca)
 
 Built for **live coding festivals**, music producers, and creative technologists - create music layer-by-layer with natural language commands, voice control, genetic sound evolution, and AI-powered pattern generation.
 

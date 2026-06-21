@@ -342,14 +342,15 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, ssnnState, onStateChang
         void toggleMicInput();
     }, [state.specListen]);
 
-    // Sync volume with gain node
+    // Sync transport and master volume with a short ramp so stop/start commands
+    // do not leave a resonator ringing or introduce a click.
     useEffect(() => {
         if (mainOutputGainRef.current) {
             const now = audioContextRef.current?.currentTime || 0;
             mainOutputGainRef.current.gain.cancelScheduledValues(now);
-            mainOutputGainRef.current.gain.setTargetAtTime(state.mgain, now, 0.025);
+            mainOutputGainRef.current.gain.setTargetAtTime(isPlaying ? state.mgain : 0, now, 0.025);
         }
-    }, [state.mgain]);
+    }, [isPlaying, state.mgain]);
 
     // Sync parameters to engine & synth refs
     useEffect(() => {
