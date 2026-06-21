@@ -1446,17 +1446,7 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
                         </button>
                     </div>
 
-                    {/* Preset Name field */}
-                    <div className="flex gap-2 items-center">
-                        <input
-                            type="text"
-                            value={state.presetName}
-                            onChange={e => handleParameterChange('presetName', e.target.value)}
-                            placeholder="Preset Name..."
-                            className="flex-1 rounded border border-white/10 bg-black/45 px-2 py-1 text-[11px] text-slate-300 font-mono"
-                        />
-                        <span className="text-[10px] text-[#06b6d4] font-bold uppercase font-sans tracking-widest shrink-0">SONIC LAB</span>
-                    </div>
+
                 </div>
             </footer>
         </div>
