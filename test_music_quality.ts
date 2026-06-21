@@ -11,7 +11,8 @@ import {
 import { buildMusicContext, routeMusicIntent } from './src/lib/music/musicIntent';
 import { STRUDEL_TRAINING_CORPUS, formatTrainingExamplesForPrompt, getRelevantTrainingExamples } from './src/lib/music/trainingCorpus';
 import { validateGeneratedTracks } from './src/lib/music/strudelValidation';
-import { buildStrudelCode, formatStrudelDisplayCode } from './src/lib/strudel/engine';
+import { buildStrudelCode, buildArrangementCode, formatStrudelDisplayCode } from './src/lib/strudel/engine';
+import { createDefaultArrangement } from './src/lib/arrangement/sessionSync';
 import {
     MusicBriefSchema,
     QualityReviewSchema,
@@ -21,6 +22,7 @@ import {
     buildLocalMusicAgentPipeline,
     buildMusicBrief,
 } from './src/lib/music-agent';
+import { cleanStrudelCode } from './src/lib/music/codeExtractor';
 import type { SonicSessionState, InstrumentType } from './src/types/sonic';
 
 const hasTrack = (value: string | null) => typeof value === 'string' && value.trim().length > 0;
@@ -372,6 +374,21 @@ assert.match(sparseDisplayedCode, /\/\/ 1\. Drums/, 'sparse display should keep 
 assert.match(sparseDisplayedCode, /\/\/ 2\. FX/, 'sparse display should renumber the next active section');
 assert.doesNotMatch(sparseDisplayedCode, /\/\/ \d+\. Bass|\/\/ \d+\. Melody|\/\/ \d+\. Voice/, 'sparse display should skip silent, empty, and muted tracks');
 
+const arrangement = createDefaultArrangement();
+const vocalLane = arrangement.groups[0].lanes.find((lane) => lane.name === 'Vocals');
+const drumsLane = arrangement.groups[0].lanes.find((lane) => lane.name === 'Drums');
+const bassLane = arrangement.groups[0].lanes.find((lane) => lane.name === 'Bass');
+assert.ok(vocalLane?.clips[0], 'default arrangement should include a vocal clip');
+assert.ok(drumsLane?.clips[0], 'default arrangement should include a drum clip');
+assert.ok(bassLane?.clips[0], 'default arrangement should include a bass clip');
+assert.equal(vocalLane!.clips[0].startBar, 0, 'vocal clip should start at bar 1');
+assert.equal(drumsLane!.clips[0].startBar, 0, 'drum clip should start at bar 1');
+assert.equal(bassLane!.clips[0].startBar, 8, 'bass clip should start later in the arrangement');
+const arrangementCode = buildArrangementCode(arrangement);
+assert.match(arrangementCode, /\.mask\("1 1 1 1 1 1 1 1"\)/, 'vocal clip should be masked to the first eight bars');
+assert.match(arrangementCode, /\.mask\("0 0 0 0 0 0 0 0 1 1 1 1 1 1 1 1"\)/, 'bass clip should be masked to the second eight bars');
+assert.doesNotMatch(arrangementCode, /\.bank\s*\(|\.slider\s*\(|\.analyze\s*\(/, 'arrangement playback code should stay within supported Strudel helpers');
+
 const compactRawStack = "stack(stack(s('RolandTR909_bd ~ RolandTR909_bd ~').gain(0.78), s('~ RolandTR909_sd ~ RolandTR909_sd').gain(0.58), s('RolandTR909_hh*8').gain(0.16).hpf(6500)), note(m('c2 ~ eb2 ~ g1 ~ bb1 ~')).s('triangle').att(0.01).decay(0.2).lpf(520).gain(0.58), note(m('c4 eb4 g4 bb4')).s('sine').att(0.01).decay(0.2).room(0.25).gain(0.32).slow(2))";
 const formattedRawStack = formatStrudelDisplayCode(compactRawStack);
 assert.match(formattedRawStack, /\/\/ 1\. Drums\n  stack\(/, 'raw compact stack should become a commented drums section');
@@ -613,6 +630,44 @@ const invalidMelodicDrums = validateGeneratedTracks({
 }, 'drums only');
 assert.equal(invalidMelodicDrums.valid, false, 'melodic synth material should not validate as drums');
 assert.ok(invalidMelodicDrums.issues.some((issue) => issue.reason.includes('kick/snare/hat')), JSON.stringify(invalidMelodicDrums.issues));
+
+// ─── Regression: clean Strudel chains (no redundant nested parens) ─────────────
+const nastyNestedVoice = "(((((stack(note(m('<c4 e4 g4>'))).s('sawtooth').vowel('a').room(0.84)).delay(0.72)).slow(1.10)).gain(0.54)))";
+const cleanedVoice = cleanStrudelCode(nastyNestedVoice);
+assert.doesNotMatch(cleanedVoice, /\(\s*\(\s*\(\s*\(/, 'cleanStrudelCode must remove deep redundant nesting');
+assert.match(cleanedVoice, /^stack\(|^note\(/, 'cleaned voice must start with valid root expr');
+assert.ok(!/^\(/.test(cleanedVoice) || cleanedVoice.split('(').length < 8, 'cleaned result must not retain excessive outer parens');
+
+const technoPipeline = buildLocalMusicAgentPipeline({ prompt: 'make techno', enableOpenRouter: false });
+assert.equal(technoPipeline.validation.valid, true, JSON.stringify(technoPipeline.validation.issues));
+assert.ok(hasTrack(technoPipeline.tracks.drums), 'techno must produce drums');
+assert.match(technoPipeline.tracks.drums || '', /RolandTR909_bd\*4/, 'techno must use four-on-floor kick');
+assert.match(technoPipeline.tracks.drums || '', /RolandTR909_cp/, 'techno must include clap on 2&4');
+assert.match(technoPipeline.tracks.drums || '', /RolandTR909_hh\*16/, 'techno must drive 16th hats');
+assert.ok(hasTrack(technoPipeline.tracks.bass), 'techno must produce bass');
+assert.match(technoPipeline.tracks.bass || '', /c1|eb1/, 'techno bass must use low roots');
+assert.match(technoPipeline.tracks.bass || '', /lpf\(|\.lpf\(/, 'techno bass must be filtered');
+assert.doesNotMatch((technoPipeline.tracks.bass || '') + (technoPipeline.tracks.drums || ''), /melody|supersaw.*c4/i, 'techno should not bleed melody into bass/drums by default');
+assert.equal(technoPipeline.tracks.melody, null, 'techno default should keep melody null for clear separation');
+
+// Voice must be clean if produced
+const voicePipeline = buildLocalMusicAgentPipeline({ prompt: 'add angel choir voices', enableOpenRouter: false });
+if (voicePipeline.tracks.voice) {
+    assert.doesNotMatch(voicePipeline.tracks.voice, /\(\s*\(\s*\(\s*\(/, 'voice track must never contain redundant triple+ nested parens');
+    assert.match(voicePipeline.tracks.voice, /vowel\(|stack\(/, 'voice should use formant or stack');
+}
+
+// Role separation and validate still works
+const roleCheck = validateGeneratedTracks(technoPipeline.tracks, 'make techno');
+assert.equal(roleCheck.valid, true, 'techno output must pass validateGeneratedTracks role separation');
+
+// All final tracks must pass the no-deep-nest test after full pipeline
+for (const tid of ['drums', 'bass', 'melody', 'voice', 'fx'] as const) {
+    const t = technoPipeline.tracks[tid];
+    if (t && t !== 'silence') {
+        assert.doesNotMatch(t, /\(\s*\(\s*\(\s*\(/, `${tid} must not emit deeply nested parens`);
+    }
+}
 
 const invalidHighBass = validateGeneratedTracks({
     drums: null,

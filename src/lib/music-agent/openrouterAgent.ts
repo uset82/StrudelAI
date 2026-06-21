@@ -24,6 +24,7 @@ import {
 import {
     extractCodeFromMarkdown,
     sanitizeGeneratedCode,
+    cleanStrudelCode,
     parseStrudelCodeToTracks,
 } from '@/lib/music/codeExtractor';
 
@@ -92,6 +93,7 @@ function sanitizeTrack(value: string | null) {
         (stripped.startsWith('`') && stripped.endsWith('`'))) {
         stripped = stripped.slice(1, -1).trim();
     }
+    stripped = cleanStrudelCode(stripped);
     return isSilentPlaceholder(stripped) ? null : stripped;
 }
 
@@ -404,14 +406,18 @@ export async function runMusicAgentPipeline(params: {
             if (!agentResult.approved) {
                 const patch = agentResult.errors.find(e => e.suggestedPatch)?.suggestedPatch;
                 if (patch) {
-                    (finalResponse.tracks as Record<string, string | null>)[trackId] = patch;
+                    (finalResponse.tracks as Record<string, string | null>)[trackId] = cleanStrudelCode(patch);
                     console.log(`[ValidationAgent] Applied final patch for track "${trackId}" in pipeline`);
                 } else {
                     console.warn(`[ValidationAgent] Final track "${trackId}" in pipeline rejected and cannot patch:`, agentResult.errors.map(e => e.message).join('; '));
                 }
+            } else {
+                // Always clean even on approval to remove redundant nesting
+                (finalResponse.tracks as Record<string, string | null>)[trackId] = cleanStrudelCode(trackCode);
             }
         } catch (err) {
             console.warn(`[ValidationAgent] Error in final track validation for "${trackId}":`, err);
+            (finalResponse.tracks as Record<string, string | null>)[trackId] = cleanStrudelCode(trackCode);
         }
     }
 

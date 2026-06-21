@@ -6,10 +6,10 @@ type NetlifyRuntime = typeof globalThis & {
     };
 };
 
-const DEFAULT_OPENROUTER_MODEL = 'google/gemini-3.1-flash-lite';
+const DEFAULT_OPENROUTER_MODEL = 'nex-agi/nex-n2-pro:free';
 const DEFAULT_OPENROUTER_FALLBACK_MODELS = [
-    'moonshotai/kimi-k2.6',
-    'qwen/qwen3-coder-flash',
+    'nex-agi/deepseek-v3.1-nex-n1:free',
+    'google/gemini-2.0-flash-exp:free',
 ];
 
 export function getServerEnv(name: string) {

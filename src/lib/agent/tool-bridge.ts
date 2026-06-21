@@ -1,5 +1,6 @@
 import { ChatCompletionTool } from "openai/resources/chat/completions";
 import { SonicSessionState, InstrumentType } from "../../types/sonic";
+import { createDefaultSSNNState } from '../ssnn/engine';
 
 export const AGENT_TOOLS: ChatCompletionTool[] = [
     {
@@ -12,7 +13,7 @@ export const AGENT_TOOLS: ChatCompletionTool[] = [
                 properties: {
                     trackId: {
                         type: "string",
-                        enum: ["drums", "bass", "melody", "fx"],
+                        enum: ["drums", "bass", "melody", "voice", "fx"],
                         description: "The track to update.",
                     },
                     pattern: {
@@ -26,6 +27,20 @@ export const AGENT_TOOLS: ChatCompletionTool[] = [
                     muted: {
                         type: "boolean",
                         description: "Whether the track is muted.",
+                    },
+                    solo: {
+                        type: "boolean",
+                        description: "Whether this track is soloed.",
+                    },
+                    fx: {
+                        type: "object",
+                        properties: {
+                            lpf: { type: "number", description: "Low-pass amount (0.0 to 1.0)." },
+                            reverb: { type: "number", description: "Reverb amount (0.0 to 1.0)." },
+                            delay: { type: "number", description: "Delay amount (0.0 to 1.0)." },
+                            speed: { type: "number", description: "Speed control (0.0 to 1.0)." },
+                            pitch: { type: "number", description: "Pitch control (0.0 to 1.0)." },
+                        },
                     },
                 },
                 required: ["trackId"],
@@ -83,6 +98,58 @@ export const AGENT_TOOLS: ChatCompletionTool[] = [
             },
         },
     },
+    {
+        type: "function",
+        function: {
+            name: "update_ssnn",
+            description: "Updates parameters, engines, arpeggiator patterns, or routing configurations of the Spiking and Sounding Neural Network (SSNN).",
+            parameters: {
+                type: "object",
+                properties: {
+                    specListen: { type: "boolean", description: "Enable continuous FFT spectral listening." },
+                    morph: { type: "number", description: "Weight morphing interpolation (0.0 to 1.0, random to learned)." },
+                    sweight: { type: "number", description: "Contrast scaling coefficient (-1.0 to 1.0)." },
+                    inputGain: { type: "number", description: "FFT input gain (0.0 to 20.0)." },
+                    bernoulli: { type: "number", description: "Bernoulli noise injection probability (0.0 to 1.0)." },
+                    tau: { type: "number", description: "Decay time constant (0.1 to 10.0)." },
+                    spikeDec: { type: "number", description: "Visual spikes decay rate (0.0 to 1.0)." },
+                    wCoef: { type: "number", description: "Weight coefficient multiplier (0.0 to 10.0)." },
+                    g4: { type: "number", description: "Output threshold/gain parameter (0.0 to 5.0)." },
+                    updateRate: { type: "number", description: "Neural simulation update speed (0.1 to 50.0)." },
+                    balanceTh: { type: "number", description: "Firing threshold (0.0 to 1.0)." },
+                    spectralShift: { type: "integer", description: "Log-frequency shift mapping index (0 to 10)." },
+                    activeEngines: {
+                        type: "array",
+                        items: { type: "string", enum: ["pulse", "modal", "synaptic", "granular", "fm", "comb", "tape", "arpeg"] },
+                        description: "List of active synthesizer engines."
+                    },
+                    cfGain: { type: "number", description: "Comb Filter Gain (0.0 to 2.0)." },
+                    reson: { type: "number", description: "Filter resonance or comb resonance (0.0 to 1.0)." },
+                    loPass: { type: "boolean", description: "Enable lowpass filter on comb." },
+                    modDepth: { type: "number", description: "Modulation depth (0.0 to 1.0)." },
+                    decayFact: { type: "number", description: "Decay factor (0.0 to 1.0)." },
+                    arpeggiatorPattern: { type: "string", description: "Arpeggiator pattern (e.g., 'min-tri', 'octave', '5th')." },
+                    activePreset: { type: "integer", description: "Preset slot to load (1 to 12)." },
+                    columns: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            properties: {
+                                columnIndex: { type: "integer", description: "Index of the column to update (0 to 3)." },
+                                activeEngine: { type: "string", enum: ["pulse", "modal", "synaptic", "granular", "fm", "comb", "tape", "arpeg"] },
+                                gain: { type: "number", description: "Column gain (0.0 to 1.5)." },
+                                pan: { type: "number", description: "Column pan (-1.0 to 1.0)." },
+                                gainMod: { type: "boolean" },
+                                pitchMod: { type: "boolean" }
+                            },
+                            required: ["columnIndex"]
+                        },
+                        description: "Specific neural columns to update."
+                    }
+                }
+            }
+        }
+    }
 ];
 
 /**
@@ -118,9 +185,13 @@ type ToolArgs = {
     pattern?: string;
     volume?: number;
     muted?: boolean;
+    solo?: boolean;
+    fx?: SonicSessionState['tracks'][InstrumentType]['fx'];
     bpm?: number;
     scale?: string;
     isPlaying?: boolean;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    [key: string]: any;
 };
 
 export async function executeTool(
@@ -141,8 +212,10 @@ export async function executeTool(
                     // Normalize the pattern to use synthetic sounds
                     track.pattern = normalizePattern(args.trackId as InstrumentType, args.pattern);
                 }
-                if (args.volume !== undefined) track.volume = args.volume;
+                if (args.volume !== undefined) track.volume = Math.min(1.5, Math.max(0, args.volume));
                 if (args.muted !== undefined) track.muted = args.muted;
+                if (args.solo !== undefined) track.solo = args.solo;
+                if (args.fx !== undefined) track.fx = { ...(track.fx || {}), ...args.fx };
                 newState.isPlaying = true;
                 return { success: true, message: `Updated ${args.trackId}`, newState };
             }
@@ -160,6 +233,39 @@ export async function executeTool(
         case "control_playback":
             newState.isPlaying = args.isPlaying;
             return { success: true, message: args.isPlaying ? "Playback started" : "Playback stopped", newState };
+
+        case "update_ssnn":
+            if (!newState.ssnn) {
+                newState.ssnn = createDefaultSSNNState();
+            }
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const ssnnArgs = args as any;
+            
+            // Loop through all properties in args and apply them if they are not columns
+            for (const key of Object.keys(ssnnArgs)) {
+                if (key !== 'columns' && ssnnArgs[key] !== undefined) {
+                    newState.ssnn[key] = ssnnArgs[key];
+                }
+            }
+
+            // Handle column updates
+            if (ssnnArgs.columns && Array.isArray(ssnnArgs.columns)) {
+                for (const colUpdate of ssnnArgs.columns) {
+                    const colIdx = colUpdate.columnIndex;
+                    if (colIdx >= 0 && colIdx < 4) {
+                        const col = newState.ssnn.columns[colIdx];
+                        if (col) {
+                            if (colUpdate.activeEngine !== undefined) col.activeEngine = colUpdate.activeEngine;
+                            if (colUpdate.gain !== undefined) col.gain = colUpdate.gain;
+                            if (colUpdate.pan !== undefined) col.pan = colUpdate.pan;
+                            if (colUpdate.gainMod !== undefined) col.gainMod = colUpdate.gainMod;
+                            if (colUpdate.pitchMod !== undefined) col.pitchMod = colUpdate.pitchMod;
+                        }
+                    }
+                }
+            }
+
+            return { success: true, message: `Updated SSNN parameters`, newState };
 
         default:
             return { success: false, message: `Unknown tool: ${name}` };

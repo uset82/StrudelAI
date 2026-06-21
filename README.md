@@ -12,7 +12,7 @@ Built for **live coding festivals**, music producers, and creative technologists
 
 ### Core Features
 - **🎤 Voice Control:** Speak natural language commands to create music
-- **🤖 AI-Powered:** Uses [DeepSeek V3.1 Nex N1](https://openrouter.ai/nex-agi/deepseek-v3.1-nex-n1:free) (free) via OpenRouter
+- **🤖 AI-Powered:** Uses [Nex N2 Pro](https://openrouter.ai/nex-agi/nex-n2-pro:free) (free) via OpenRouter
 - **🎹 Live Coding Engine:** Generates Strudel (TidalCycles) patterns in real-time
 - **📊 Real-Time Analysis:** FFT spectrum analyzer with frequency band visualization
 - **🎚️ Track Layering:** Ableton-style 5-track system (Drums, Bass, Melody, Voice, FX)
@@ -72,7 +72,7 @@ OPENROUTER_API_KEY=your_openrouter_api_key_here
 # Optional
 GOOGLE_API_KEY=your_gemini_api_key_here
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-MODEL_NAME=nex-agi/deepseek-v3.1-nex-n1:free
+MODEL_NAME=nex-agi/nex-n2-pro:free
 ```
 
 ### 3. Run Development Server

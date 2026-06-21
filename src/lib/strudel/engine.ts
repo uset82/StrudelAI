@@ -779,120 +779,133 @@ export function buildStrudelCode(state: SonicSessionState) {
 // ARRANGEMENT MODE: Build Strudel code from layered clips
 // ═══════════════════════════════════════════════════════════════════════════
 
+function stripExprPrefix(pattern: string): string {
+    const trimmed = pattern.trim();
+    return trimmed.startsWith(EXPR_PREFIX) ? trimmed.slice(EXPR_PREFIX.length) : trimmed;
+}
+
+function applyLaneMix(pattern: string, lane: Lane, group: LaneGroup): string {
+    let mixed = pattern;
+    const vol = lane.volume * group.volume;
+    if (vol !== 1 && vol > 0) {
+        mixed = `(${mixed}).gain(${vol.toFixed(3)})`;
+    }
+    if (lane.pan !== 0) {
+        mixed = `(${mixed}).pan(${((lane.pan + 1) / 2).toFixed(3)})`;
+    }
+    if (lane.fx?.reverb && lane.fx.reverb > 0) {
+        mixed = `(${mixed}).room(${lane.fx.reverb.toFixed(2)})`;
+    }
+    if (lane.fx?.delay && lane.fx.delay > 0) {
+        mixed = `(${mixed}).delay(${lane.fx.delay.toFixed(2)})`;
+    }
+    if (lane.fx?.filter) {
+        const f = lane.fx.filter;
+        mixed = `(${mixed}).${f.type}(${f.cutoff})`;
+    }
+    return mixed;
+}
+
+/** One cycle = one bar in 4/4 with DEFAULT_BEATS_PER_CYCLE */
+function buildCycleMask(startBar: number, lengthBars: number): string {
+    return [
+        ...Array(Math.max(0, startBar)).fill('0'),
+        ...Array(Math.max(1, lengthBars)).fill('1'),
+    ].join(' ');
+}
+
 /**
- * Convert a clip's pattern to Strudel code
- * The arrangement mode is simplified - we just stack all active clips
- * and let them all play simultaneously (like a basic mixer)
+ * Convert a clip to timeline-aware Strudel code.
+ * Uses cycle masks so clips start/end on the arrangement grid.
  */
-function buildClipCode(clip: Clip, lane: Lane, group: LaneGroup): string | null {
+function applyClipModifiers(pattern: string, clip: Clip): string {
+    let modified = pattern;
+    const gain = clip.gain ?? 1;
+    if (clip.phaseInverted && gain !== 0) {
+        modified = `(${modified}).gain(${(-gain).toFixed(3)})`;
+    } else if (gain !== 1) {
+        modified = `(${modified}).gain(${gain.toFixed(3)})`;
+    }
+    return modified;
+}
+
+function buildTimedClipCode(clip: Clip, lane: Lane, group: LaneGroup): string | null {
     if (clip.muted || lane.muted || group.muted) {
         return null;
     }
 
-    let pattern = clip.pattern.trim();
+    const raw = stripExprPrefix(clip.pattern);
+    if (!raw) return null;
 
-    // Apply volume
-    const vol = lane.volume * group.volume;
-    if (vol !== 1) {
-        pattern = `(${pattern}).gain(${vol.toFixed(3)})`;
-    }
+    const startBar = Math.max(0, Math.round(clip.startBar));
+    const lengthBars = Math.max(1, Math.round(clip.lengthBars));
+    const masked = applyLaneMix(applyClipModifiers(raw, clip), lane, group);
+    const mask = buildCycleMask(startBar, lengthBars);
 
-    // Apply pan
-    if (lane.pan !== 0) {
-        pattern = `(${pattern}).pan(${((lane.pan + 1) / 2).toFixed(3)})`;
-    }
-
-    // Apply FX
-    if (lane.fx?.reverb && lane.fx.reverb > 0) {
-        pattern = `(${pattern}).room(${lane.fx.reverb.toFixed(2)})`;
-    }
-    if (lane.fx?.delay && lane.fx.delay > 0) {
-        pattern = `(${pattern}).delay(${lane.fx.delay.toFixed(2)})`;
-    }
-    if (lane.fx?.filter) {
-        const f = lane.fx.filter;
-        pattern = `(${pattern}).${f.type}(${f.cutoff})`;
-    }
-
-    return pattern;
+    return `(${masked}).mask("${mask}")`;
 }
 
 /**
- * Build a Strudel expression for a single lane with all its clips
- * SIMPLIFIED: All clips in a lane are stacked together
+ * Build a Strudel expression for a single lane with all its clips on the timeline.
  */
-function buildLaneCode(lane: Lane, group: LaneGroup): string | null {
+function buildLaneCode(lane: Lane, group: LaneGroup, allGroups: LaneGroup[]): string | null {
     if (lane.muted || group.muted || lane.clips.length === 0) {
         return null;
     }
 
-    // Check for solo - if any lane is soloed, only play soloed lanes
-    const hasSolo = group.lanes.some(l => l.solo);
-    if (hasSolo && !lane.solo) {
+    const hasSolo = allGroups.some((g) =>
+        g.solo || g.lanes.some((l) => l.solo)
+    );
+    if (hasSolo && !lane.solo && !group.solo) {
         return null;
     }
 
-    // Get all non-muted clips
-    const activeClips = lane.clips.filter(c => !c.muted);
-    if (activeClips.length === 0) {
-        return null;
-    }
-
-    // Build each clip's pattern
-    const clipPatterns = activeClips
-        .map(clip => buildClipCode(clip, lane, group))
-        .filter((p): p is string => p !== null);
+    const clipPatterns = lane.clips
+        .filter((clip) => !clip.muted)
+        .map((clip) => buildTimedClipCode(clip, lane, group))
+        .filter((pattern): pattern is string => pattern !== null);
 
     if (clipPatterns.length === 0) {
         return null;
     }
 
-    // If single clip, return it directly
     if (clipPatterns.length === 1) {
         return clipPatterns[0];
     }
 
-    // Stack multiple clips
     return `stack(${clipPatterns.join(', ')})`;
 }
 
 /**
- * Build complete arrangement Strudel code
- * SIMPLIFIED VERSION: All lanes are stacked together and play simultaneously
- * This is more like a basic mixer than a full arrangement timeline
+ * Build complete arrangement Strudel code with per-clip timeline placement.
+ * Call setTempoBpm(arrangement.bpm) before eval for correct bar timing.
  */
 export function buildArrangementCode(arrangement: ArrangementState): string {
     const { groups } = arrangement;
-
-    // Collect all lane patterns
     const allLanePatterns: string[] = [];
 
     for (const group of groups) {
         if (group.muted) continue;
 
-        // Check for solo at group level
-        const hasGroupSolo = groups.some(g => g.solo);
+        const hasGroupSolo = groups.some((g) => g.solo);
         if (hasGroupSolo && !group.solo) continue;
 
         for (const lane of group.lanes) {
-            const laneCode = buildLaneCode(lane, group);
+            const laneCode = buildLaneCode(lane, group, groups);
             if (laneCode !== null) {
                 allLanePatterns.push(laneCode);
             }
         }
     }
 
-    // If no patterns, return silence
     if (allLanePatterns.length === 0) {
         return 'silence';
     }
 
-    // If single pattern, return it directly
     if (allLanePatterns.length === 1) {
-        return allLanePatterns[0];
+        return `stack(${allLanePatterns[0]})`;
     }
 
-    // Stack all patterns together
     return `stack(\n  ${allLanePatterns.join(',\n  ')}\n)`;
 }
 

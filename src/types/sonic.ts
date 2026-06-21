@@ -13,6 +13,8 @@ export interface Clip {
     lengthBars: number;        // How many bars this clip lasts
     color: string;             // UI color (hex)
     muted: boolean;
+    gain?: number;             // Clip-level gain, 0-1.5
+    phaseInverted?: boolean;   // Visual/audio inversion flag for DAW actions
 }
 
 /** A lane/track in the arrangement - holds multiple clips that don't overlap */
@@ -46,6 +48,14 @@ export interface LaneGroup {
     volume: number;
 }
 
+/** Timeline marker (intro, drop, etc.) */
+export interface ArrangementMarker {
+    id: string;
+    name: string;
+    bar: number;
+    color?: string;
+}
+
 /** The full arrangement state */
 export interface ArrangementState {
     bpm: number;
@@ -55,6 +65,7 @@ export interface ArrangementState {
     loopEnd: number;           // Bar to end loop
     loopEnabled: boolean;
     groups: LaneGroup[];
+    markers: ArrangementMarker[];
     currentBar: number;        // Playhead position
     isPlaying: boolean;
     scale: string;             // Musical scale e.g., "C minor"
@@ -76,6 +87,8 @@ export interface TrackState {
     };
 }
 
+import { SSNNState } from './ssnn';
+
 export interface SonicSessionState {
     bpm: number;
     scale: string; // e.g., "C minor"
@@ -89,7 +102,9 @@ export interface SonicSessionState {
     arrangement?: ArrangementState;
     useArrangement?: boolean; // If true, use arrangement instead of tracks
     trackDescription?: string; // Description of the current track style/vibe
+    ssnn?: SSNNState;
 }
+
 
 // WebSocket Messages
 export type ServerToClientEvents = {

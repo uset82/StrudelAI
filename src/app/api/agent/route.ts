@@ -21,6 +21,7 @@ import { formatTrainingExamplesForPrompt } from '@/lib/music/trainingCorpus';
 import { validateGeneratedTracks } from '@/lib/music/strudelValidation';
 import { runMusicAgentPipeline } from '@/lib/music-agent';
 import { validateStrudelCode } from '@/agents/StrudelCodeAudioValidationAgent';
+import { tryRuleBasedUpdate } from '@/lib/agent/runtime';
 
 // MusicGen server URL
 const MUSICGEN_URL = process.env.MUSICGEN_URL || 'http://localhost:5001';
@@ -264,6 +265,7 @@ import {
     coerceBpmValue,
     extractBpmFromPrompt,
     sanitizeGeneratedCode,
+    cleanStrudelCode,
     parseStrudelCodeToTracks,
     toTrackMap,
 } from '@/lib/music/codeExtractor';
@@ -401,11 +403,12 @@ const buildValidatedTrackPayload = async (params: {
                 // Use suggested patch if available, otherwise fall back
                 const patch = agentResult.errors.find(e => e.suggestedPatch)?.suggestedPatch;
                 if (patch) {
-                    (finalTracks as Record<string, string | null>)[trackId] = patch;
+                    (finalTracks as Record<string, string | null>)[trackId] = cleanStrudelCode(patch);
                     console.log(`[ValidationAgent] Applied patch for track "${trackId}"`);
                 } else {
                     // Cannot patch — log and let the track stay for now (existing fallback handles it)
                     console.warn(`[ValidationAgent] No patch available for track "${trackId}", keeping original.`);
+                    (finalTracks as Record<string, string | null>)[trackId] = cleanStrudelCode(trackCode);
                 }
             } else if (agentResult.warnings.length > 0) {
                 console.log(
@@ -444,6 +447,7 @@ You are performing at a LIVE CODING FESTIVAL. Your goal is to BUILD UP a track l
 5. **VALID VOWELS ONLY**: For .vowel(), ONLY use: "a", "e", "i", "o", "u". NEVER use words like "zorro", "robot", etc.
 6. **TEMPO LOCK**: If the user requests tempo (e.g. "140 bpm", "faster", "slower"), include a top-level "bpm" field (integer 40-240). NEVER simulate tempo with fractional .fast(1.1)/.slow(0.93)/.speed(1.07). Only use .fast/.slow with 2, 4, or 0.5 for rhythmic subdivision.
 7. **CONVERSATIONAL QUERIES**: If the user asks a question like "really?", "what?", "huh?", "ok", "nice", respond with a chat message, NOT code.
+8. **CLEAN READABLE CHAINS (CRITICAL)**: NEVER emit redundant nested parentheses. Always use direct readable chains. GOOD: "stack(s('RolandTR909_bd*4'), s('~ RolandTR909_cp ~ RolandTR909_cp')).gain(0.9).room(0.2)". BAD: "(((((stack(...))).room(0.84)).delay(0.72)).slow(1.1)).gain(0.5)". The track value must be copy-pasteable directly into a Strudel editor and run.
 
 ## COMMAND TYPE DETECTION
 
@@ -547,13 +551,13 @@ Parameters can be patterns: .lpf(sine.range(200, 2000).slow(4))
 Input: "techno" or "make techno" or "techno beat" or "techno sound"
 {
   "type": "update_tracks",
-  "thought": "Techno: Industrial 4/4 kick, clap on 2&4, driving 16th hi-hats, dark minor-key bass. Key: C minor.",
+  "thought": "Techno: four-on-floor 909 kick, clap on 2&4, crisp 16th hats, dark filtered saw bass separated from kick in C minor. Clean direct chains only.",
   "tracks": {
-    "drums": "stack(s('RolandTR909_bd*4').gain(1), s('~ RolandTR909_cp ~ RolandTR909_cp').gain(0.8), s('RolandTR909_hh*16').gain(0.35), s('~ RolandTR909_oh ~ RolandTR909_oh').gain(0.22))",
-    "bass": "note(m('c1 ~ c1 ~ eb1 ~ g1 ~')).s('sawtooth').att(0.01).decay(0.2).lpf(sine.range(220, 650).slow(4)).resonance(10).gain(0.7)",
-    "melody": "note(m('<c4 eb4 g4> ~ ~ <c4 eb4 g4>')).s('supersaw').att(0.01).decay(0.18).lpf(2600).room(0.25).delay(0.15).gain(0.35).slow(2)",
+    "drums": "stack(s('RolandTR909_bd*4').gain(0.98), s('~ RolandTR909_cp ~ RolandTR909_cp').gain(0.82), s('RolandTR909_hh*16').gain(0.32), s('~ RolandTR909_oh ~ RolandTR909_oh').gain(0.18))",
+    "bass": "note(m('c1 ~ c1 ~ eb1 ~ g1 ~')).s('sawtooth').att(0.008).decay(0.22).lpf(sine.range(180, 580).slow(3)).resonance(12).gain(0.72)",
+    "melody": null,
     "voice": null,
-    "fx": "s('pink').hpf(sine.range(200, 12000).slow(8)).gain(sine.range(0.1, 0.4).slow(8))"
+    "fx": "s('pink').hpf(sine.range(180, 11000).slow(8)).gain(sine.range(0.06, 0.28).slow(8))"
   }
 }
 
@@ -681,7 +685,7 @@ Input: "add angel voices" or "add heavenly choir" or "orchestra" or "orchestral"
     "drums": null,
     "bass": null,
     "melody": null,
-    "voice": "stack(note(m(\\"<c4 e4 g4> <g4 b4 d5> <a4 c5 e5> <f4 a4 c5>\\")).s(\\"sawtooth\\").vowel(\\"a\\").slow(8).room(0.95).delay(0.4).gain(0.4), note(m(\\"<e4 g4 b4> <c5 e5 g5>\\")).s(\\"sine\\").vowel(\\"o\\").slow(16).room(0.9).gain(0.3), note(m(\\"c5 e5 g5 c6\\")).s(\\"triangle\\").vowel(\\"e\\").slow(4).room(0.8).lpf(3000).gain(0.25))",
+    "voice": "stack(note(m(\"<c4 e4 g4> <g4 b4 d5> <a4 c5 e5> <f4 a4 c5>\")).s(\"sawtooth\").vowel(\"a\").slow(8).room(0.95).delay(0.4).gain(0.4), note(m(\"<e4 g4 b4> <c5 e5 g5>\")).s(\"sine\").vowel(\"o\").slow(16).room(0.9).gain(0.3), note(m(\"c5 e5 g5 c6\")).s(\"triangle\").vowel(\"e\").slow(4).room(0.8).lpf(3000).gain(0.25))",
     "fx": null
   }
 }
@@ -720,6 +724,37 @@ export async function POST(req: Request) {
 
         if (!prompt) {
             return jsonWithCors({ error: 'Prompt is required' }, { status: 400 });
+        }
+
+        // Run rule-based checks first to intercept SSNN/playback/tempo commands
+        if (currentState) {
+            const quick = tryRuleBasedUpdate(prompt, currentState);
+            if (quick.changed) {
+                console.log(`[API/Agent] Rule-based update triggered for prompt: "${prompt}"`);
+                return jsonWithCors({
+                    type: 'update_tracks',
+                    thought: quick.response,
+                    bpm: quick.newState.bpm,
+                    tracks: Object.fromEntries(
+                        Object.entries(quick.newState.tracks).map(([k, v]) => [k, v.pattern])
+                    ),
+                    ssnn: quick.newState.ssnn,
+                    statePatch: {
+                        bpm: quick.newState.bpm,
+                        scale: quick.newState.scale,
+                        isPlaying: quick.newState.isPlaying,
+                        tracks: Object.fromEntries(
+                            Object.entries(quick.newState.tracks).map(([key, track]) => [key, {
+                                muted: track.muted,
+                                solo: track.solo,
+                                volume: track.volume,
+                                fx: track.fx,
+                            }])
+                        ),
+                        ssnn: quick.newState.ssnn,
+                    },
+                });
+            }
         }
 
         const context = buildMusicContext({ currentState, currentCode });
@@ -772,7 +807,7 @@ export async function POST(req: Request) {
                 const sanitizedTracks: Record<string, string | null> = {};
                 for (const [key, value] of Object.entries(tracks)) {
                     if (value && typeof value === 'string') {
-                        sanitizedTracks[key] = sanitizeGeneratedCode(value);
+                        sanitizedTracks[key] = cleanStrudelCode(sanitizeGeneratedCode(value));
                     } else {
                         sanitizedTracks[key] = null;
                     }
@@ -973,7 +1008,7 @@ User Request: ${prompt}`
             const extractedCode = extractCodeFromMarkdown(raw);
             if (extractedCode) {
                 console.log('[API/Agent] Extracted code from markdown blocks:', extractedCode.substring(0, 80));
-                const sanitizedCode = sanitizeGeneratedCode(extractedCode);
+                const sanitizedCode = cleanStrudelCode(sanitizeGeneratedCode(extractedCode));
                 const detectedTracks: Record<string, string | null> = {
                     drums: null, bass: null, melody: null, voice: null, fx: null
                 };
@@ -1028,7 +1063,7 @@ User Request: ${prompt}`
                 const sanitizedTracks: Record<string, string | null> = {};
                 for (const [key, value] of Object.entries(parsed.tracks)) {
                     if (value && typeof value === 'string') {
-                        const cleaned = sanitizeGeneratedCode(value);
+                        const cleaned = cleanStrudelCode(sanitizeGeneratedCode(value));
                         // Only keep if it actually looks like Strudel code, not plain text
                         sanitizedTracks[key] = looksLikeCode(cleaned) ? cleaned.trim() : null;
                     } else {
@@ -1098,7 +1133,7 @@ User Request: ${prompt}`
         const looksLikeRawCode = /^(stack\(|note\(|s\(|sound\(|m\(|\(\s*\(\s*\)\s*=>)/i.test(strippedForCheck.trim());
         if (looksLikeRawCode) {
             console.log('[API/Agent] Detected raw Strudel code, treating as single-track code output');
-            const sanitizedCode = sanitizeGeneratedCode(strippedForCheck);
+            const sanitizedCode = cleanStrudelCode(sanitizeGeneratedCode(strippedForCheck));
             // Try to intelligently assign to a track based on content
             const detectedTracks: Record<string, string | null> = {
                 drums: null,

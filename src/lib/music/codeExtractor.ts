@@ -96,8 +96,27 @@ export const balanceDelimiters = (src: string) => {
     return balanced;
 };
 
+export function cleanStrudelCode(code: string): string {
+    if (!code || typeof code !== 'string') return code;
+    let output = code.trim();
+
+    // Remove surrounding quotes if the whole thing is quoted
+    if ((output.startsWith('"') && output.endsWith('"')) ||
+        (output.startsWith("'") && output.endsWith("'")) ||
+        (output.startsWith('`') && output.endsWith('`'))) {
+        output = output.slice(1, -1).trim();
+    }
+
+    // This ensures no redundant nesting and produces copy-pasteable clean code.
+    output = sanitizeGeneratedCode(output);
+    return output;
+}
+
 export const sanitizeGeneratedCode = (input: string) => {
     let output = input.trim();
+
+    // Early strip of redundant outer wrapper parens from bad generators (prevents ((( nesting))
+    output = output.replace(/^\(+/, '');
 
     // Strip surrounding quotes around the entire code string if present (e.g. "stack(...)")
     if ((output.startsWith('"') && output.endsWith('"')) ||

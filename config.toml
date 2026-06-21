@@ -1,0 +1,20 @@
+# StrudelAI / Aether Sonic — OpenRouter model config (THIS APP ONLY)
+# NOT Cursor IDE config. For Cursor + OpenRouter, use Settings → Models → API Keys.
+# Keys here mirror .env.local. Env vars take precedence at runtime.
+
+[openrouter]
+# Primary model (free tier on OpenRouter)
+model = "nex-agi/nex-n2-pro:free"
+service_tier = "fast"
+
+# Comma-separated fallbacks if the primary is rate-limited or unavailable
+fallback_models = [
+    "nex-agi/deepseek-v3.1-nex-n1:free",
+    "google/gemini-2.0-flash-exp:free",
+]
+
+# Request timeout in milliseconds
+timeout_ms = 15000
+
+# Set your API key in .env.local (never commit secrets):
+# OPENROUTER_API_KEY=sk-or-v1-...

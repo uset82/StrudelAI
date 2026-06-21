@@ -38,6 +38,13 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
+/* Keep Next.js dev tools anchored to the viewport on tall/mobile layouts */
+nextjs-portal {
+  position: fixed !important;
+  inset: auto auto 12px 12px !important;
+  z-index: 99999;
+}
+
 button,
 input,
 textarea {

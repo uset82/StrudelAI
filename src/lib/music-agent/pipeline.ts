@@ -10,6 +10,7 @@ import { MusicContext, MusicIntent, buildMusicContext, routeMusicIntent } from '
 import { validateGeneratedTracks } from '@/lib/music/strudelValidation';
 import { formatTrainingExamplesForPrompt } from '@/lib/music/trainingCorpus';
 import { GENRE_STYLE_TRAITS } from './styleTraits';
+import { cleanStrudelCode } from '@/lib/music/codeExtractor';
 import {
     GeneratedTrackSet,
     MusicAgentPipelineResult,
@@ -346,6 +347,19 @@ function rockFamilyTracks(brief: MusicBrief): TrackMap {
     };
 }
 
+function cleanVoiceForPrompt(brief: MusicBrief): string | null {
+    const p = normalizePrompt(brief.prompt);
+    const keyBase = (brief.key || 'C minor').split(' ')[0].toLowerCase() || 'c';
+    if (/\b(choir|angel|heaven|ethereal|vocal|sing)\b/i.test(p)) {
+        return `stack(note(m("<${keyBase}4 e4 g4> <g4 b4 d5>")).s("sawtooth").vowel("a").slow(4).room(0.92).delay(0.35).gain(0.38), note(m("<e4 g4 b4> <${keyBase}5 e5 g5>")).s("sine").vowel("o").slow(8).room(0.88).gain(0.28))`;
+    }
+    if (/\b(robot|robotic|talk|machine)\b/i.test(p)) {
+        return `note(m("${keyBase}4 e4 g4 ${keyBase}5")).s("square").vowel("o").crush(5).room(0.35).slow(2).gain(0.32)`;
+    }
+    // Generic clean voice pad/harmony
+    return `note(m("<${keyBase}4 e4 g4> ~ <g4 b4 d5> ~")).s("sawtooth").vowel("a").slow(4).room(0.85).gain(0.36)`;
+}
+
 function genreTracks(brief: MusicBrief): TrackMap {
     const seed = brief.variationSeed;
     switch (brief.genre) {
@@ -391,6 +405,14 @@ function genreTracks(brief: MusicBrief): TrackMap {
                 voice: null,
                 fx: "s('pink').lpf(sine.range(600, 7500).slow(16)).gain(sine.range(0.03, 0.16).slow(16)).room(0.32)",
             };
+        case 'techno':
+            return {
+                drums: "stack(s('RolandTR909_bd*4').gain(0.98), s('~ RolandTR909_cp ~ RolandTR909_cp').gain(0.82), s('RolandTR909_hh*16').gain(0.32), s('~ RolandTR909_oh ~ RolandTR909_oh').gain(0.18))",
+                bass: "note(m('c1 ~ c1 ~ eb1 ~ g1 ~')).s('sawtooth').att(0.008).decay(0.22).lpf(sine.range(180, 580).slow(3)).resonance(12).gain(0.72)",
+                melody: null,
+                voice: null,
+                fx: "s('pink').hpf(sine.range(180, 11000).slow(8)).gain(sine.range(0.06, 0.28).slow(8))",
+            };
         case 'hiphop':
             return {
                 drums: pick(seed, [
@@ -424,7 +446,14 @@ export function generateTracksFromPlans(brief: MusicBrief, theory: TheoryPlan, s
 
     const drumTemplate = composeDrumTemplateTracks(brief);
     const baseTracks = drumTemplate || genreTracks(brief);
-    const tracks = silenceClears({ ...emptyTracks(), ...baseTracks }, intent.clearTracks);
+    let tracks = silenceClears({ ...emptyTracks(), ...baseTracks }, intent.clearTracks);
+
+    // Provide clean idiomatic voice when requested and not already set
+    if ((brief.instruments.includes('voice') || brief.targetTracks.includes('voice')) &&
+        (!tracks.voice || tracks.voice === 'silence' || tracks.voice === null)) {
+        const v = cleanVoiceForPrompt(brief);
+        if (v) tracks = { ...tracks, voice: cleanStrudelCode(v) };
+    }
     const traits = GENRE_STYLE_TRAITS[brief.genre];
     const template = GENRE_TEMPLATES[brief.genre];
     const isReferenceTemplate = template?.intentTags.includes('song') || template?.intentTags.includes('reference');
@@ -439,9 +468,18 @@ export function generateTracksFromPlans(brief: MusicBrief, theory: TheoryPlan, s
         ].join(' ');
     }
 
+    // Ensure all tracks are clean idiomatic chains (no redundant nested parens)
+    const cleanedTracks: TrackMap = {
+        drums: tracks.drums ? cleanStrudelCode(tracks.drums) : null,
+        bass: tracks.bass ? cleanStrudelCode(tracks.bass) : null,
+        melody: tracks.melody ? cleanStrudelCode(tracks.melody) : null,
+        voice: tracks.voice ? cleanStrudelCode(tracks.voice) : null,
+        fx: tracks.fx ? cleanStrudelCode(tracks.fx) : null,
+    };
+
     return {
         bpm: theory.bpm,
-        tracks,
+        tracks: cleanedTracks,
         thought,
     };
 }
@@ -543,9 +581,17 @@ export function refineGeneratedTracks(
     if (hasExcessiveControlledRockDistortion(brief, tracks)) {
         tracks.melody = rockFamilyTracks({ ...brief, genre: 'rock', variationSeed: brief.variationSeed + 5 }).melody;
     }
+    // Always re-clean after refinement
+    const cleaned: TrackMap = {
+        drums: tracks.drums ? cleanStrudelCode(tracks.drums) : null,
+        bass: tracks.bass ? cleanStrudelCode(tracks.bass) : null,
+        melody: tracks.melody ? cleanStrudelCode(tracks.melody) : null,
+        voice: tracks.voice ? cleanStrudelCode(tracks.voice) : null,
+        fx: tracks.fx ? cleanStrudelCode(tracks.fx) : null,
+    };
     return {
         ...generated,
-        tracks,
+        tracks: cleaned,
         thought: `${generated.thought} Refined to reduce repetition and keep the loop more musical.`,
     };
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { ClientToServerEvents, ServerToClientEvents, SonicSessionState, InstrumentType } from '@/types/sonic';
+import { SSNNState } from '@/types/ssnn';
 import { updateStrudel, initAudio, buildStrudelCode, evalStrudelCode, refreshAnalyser, addMusicGenSample, playMusicGenSample, formatStrudelDisplayCode } from '../lib/strudel/engine';
 
 function resolveSocketUrl() {
@@ -215,6 +216,18 @@ export function useSonicSocket() {
             autoConnect: true
         });
         socketRef.current = socket;
+
+        // Connect the SSNN OSC Spike broadcaster to this client socket
+        import('@/lib/ssnn/osc').then(({ oscSpikeBroadcaster }) => {
+            oscSpikeBroadcaster.connectSocket((event, data) => {
+                if (socket.connected) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    socket.emit(event as any, data);
+                }
+            });
+        }).catch(err => {
+            console.warn('[SonicSocket] Failed to dynamic import oscSpikeBroadcaster:', err);
+        });
 
         socket.on('connect', async () => {
             console.log('[SonicSocket] ✅ Connected to server');
@@ -480,6 +493,37 @@ export function useSonicSocket() {
         return nextState;
     }, [normalizeLocalPattern]);
 
+    const applyAgentStatePatch = useCallback((
+        baseState: SonicSessionState,
+        patch: unknown,
+    ): SonicSessionState => {
+        if (!patch || typeof patch !== 'object') return baseState;
+        const incoming = patch as Partial<SonicSessionState>;
+        const next = hydrateSonicState({ ...baseState, ...incoming, tracks: baseState.tracks }, baseState.isPlaying);
+
+        if (incoming.tracks && typeof incoming.tracks === 'object') {
+            Object.entries(incoming.tracks).forEach(([key, trackPatch]) => {
+                if (!(key in next.tracks) || !trackPatch || typeof trackPatch !== 'object') return;
+                const trackId = key as InstrumentType;
+                next.tracks[trackId] = {
+                    ...next.tracks[trackId],
+                    ...(trackPatch as Partial<SonicSessionState['tracks'][InstrumentType]>),
+                    id: trackId,
+                    name: next.tracks[trackId].name,
+                };
+            });
+        }
+
+        if (incoming.ssnn) {
+            next.ssnn = {
+                ...(baseState.ssnn || incoming.ssnn),
+                ...incoming.ssnn,
+                columns: incoming.ssnn.columns || baseState.ssnn?.columns || [],
+            };
+        }
+        return next;
+    }, []);
+
     // ... (existing code)
 
     const sendCommand = useCallback(async (text: string) => {
@@ -636,7 +680,17 @@ export function useSonicSocket() {
                     setMessages(prev => [...prev, `AI Thought: ${data.thought}`]);
                 }
 
-                const nextState = applyAgentTrackUpdate(createBaseState(stateRef.current), data);
+                let nextState = applyAgentTrackUpdate(createBaseState(stateRef.current), data);
+                if (data.ssnn) {
+                    nextState = {
+                        ...nextState,
+                        ssnn: {
+                            ...(nextState.ssnn || {}),
+                            ...data.ssnn
+                        }
+                    };
+                }
+                nextState = applyAgentStatePatch(nextState, data.statePatch);
                 console.log('[useSonicSocket] Updated state from tracks:', nextState);
                 setState(nextState);
                 setCurrentCode(buildStrudelCode(nextState));
@@ -649,7 +703,7 @@ export function useSonicSocket() {
                         `System: Generated Strudel patterns from audio analysis!`
                     ]);
                 } else {
-                    setMessages(prev => [...prev, `System: Tracks updated successfully`]);
+                    setMessages(prev => [...prev, data.statePatch ? `System: Controls updated successfully` : `System: Tracks updated successfully`]);
                 }
 
             } else if (data.type === 'code') {
@@ -732,7 +786,7 @@ export function useSonicSocket() {
         } finally {
             setIsThinking(false);
         }
-    }, [ensureAudioReady, isAudioReady, createBaseState, normalizeLocalPattern, applyAgentTrackUpdate]);
+    }, [ensureAudioReady, isAudioReady, createBaseState, normalizeLocalPattern, applyAgentTrackUpdate, applyAgentStatePatch]);
 
     const startSession = useCallback(async () => {
         try {
@@ -872,6 +926,19 @@ export function useSonicSocket() {
         });
     }, [createBaseState, ensureAudioReady, isAudioReady, normalizeLocalPattern]);
 
+    const setSsnnState = useCallback((ssnnState: Partial<SSNNState>) => {
+        setState(prev => {
+            if (!prev) return null;
+            return {
+                ...prev,
+                ssnn: {
+                    ...(prev.ssnn || {}),
+                    ...ssnnState
+                }
+            } as SonicSessionState;
+        });
+    }, []);
+
     return {
         state,
         isConnected,
@@ -890,5 +957,6 @@ export function useSonicSocket() {
         setTrackFx,
         setBpm,
         setTrackPattern,
+        setSsnnState,
     };
 }

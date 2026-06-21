@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSonicSocket } from '@/hooks/useSonicSocket';
-import { Mic, MicOff, Play, Square, Code, Layers, LayoutGrid, Sprout, Disc3, ChevronLeft, ChevronRight, GripVertical, Send } from 'lucide-react';
+import { Mic, MicOff, Play, Square, Code, Layers, LayoutGrid, Sprout, Disc3, ChevronLeft, ChevronRight, GripVertical, Send, Brain } from 'lucide-react';
 import { SpectrumAnalyzer } from './SpectrumAnalyzer';
 import { StrudelCodeView } from './StrudelCodeView';
 import { DJMixerView } from './DJMixerView';
 import { SynplantGarden } from './SynplantGarden';
-import { evalStrudelCode, buildArrangementCode, buildStrudelCode } from '@/lib/strudel/engine';
+import { SSNNSynthesizer } from './SSNNSynthesizer';
+import { evalStrudelCode, buildArrangementCode, buildStrudelCode, setTempoBpm } from '@/lib/strudel/engine';
 import { TrackStrip } from './TrackStrip';
 import { ArrangementView, createDefaultArrangement } from './ArrangementView';
 import { ArrangementState } from '@/types/sonic';
@@ -22,7 +23,7 @@ const UI_STORAGE_KEYS = {
     rightPanelCollapsed: 'aether:rightPanelCollapsed',
 } as const;
 
-type ViewMode = 'simple' | 'arrangement' | 'garden' | 'djmixer';
+type ViewMode = 'simple' | 'arrangement' | 'garden' | 'djmixer' | 'ssnn';
 
 const VIEW_MODE_META: Record<ViewMode, {
     label: string;
@@ -53,6 +54,12 @@ const VIEW_MODE_META: Record<ViewMode, {
         title: 'DJ Mixer',
         subtitle: 'Decks and performance',
         Icon: Disc3,
+    },
+    ssnn: {
+        label: 'SSNN',
+        title: 'Neural Network',
+        subtitle: 'LIF Synth Engine',
+        Icon: Brain,
     },
 };
 
@@ -153,6 +160,7 @@ export default function SonicInterface() {
         setTrackFx,
         setBpm,
         setTrackPattern,
+        setSsnnState,
     } = useSonicSocket();
 
     const [isRecording, setIsRecording] = useState(false);
@@ -174,6 +182,28 @@ export default function SonicInterface() {
     const [isHelpOpen, setIsHelpOpen] = useState(false);
     const [isCompactViewport, setIsCompactViewport] = useState(false);
     const lastLiveCodeRef = useRef<string | null>(null);
+    const strudelAudioRef = useRef<AudioContext | null>(null);
+
+    const resumeStrudelAudio = useCallback(() => {
+        const existing = strudelAudioRef.current;
+        if (existing) {
+            if (existing.state === 'suspended') {
+                existing.resume().catch(() => {});
+            }
+            return;
+        }
+
+        import('@strudel/webaudio').then(({ getAudioContext }) => {
+            const ctx = getAudioContext();
+            if (!ctx) return;
+            strudelAudioRef.current = ctx;
+            if (ctx.state === 'suspended') {
+                ctx.resume().catch(() => {});
+            }
+        }).catch((err) => {
+            console.warn('[SonicInterface] Strudel audio resume failed:', err);
+        });
+    }, []);
 
     const clampRightPanelWidth = useCallback((width: number) => {
         if (typeof window === 'undefined') return clampNumber(width, RIGHT_PANEL_MIN_WIDTH, RIGHT_PANEL_MAX_WIDTH);
@@ -251,6 +281,8 @@ export default function SonicInterface() {
     // Sync arrangement playback with audio
     useEffect(() => {
         if (viewMode !== 'arrangement' || !isAudioReady) return;
+
+        setTempoBpm(arrangement.bpm);
 
         if (arrangement.isPlaying) {
             if (!lastLiveCodeRef.current) {
@@ -454,7 +486,8 @@ export default function SonicInterface() {
         setIsRecording(false);
     }, [isRecording]);
 
-    const testAudio = () => {
+    const testAudio = useCallback(() => {
+        resumeStrudelAudio();
         const audioWindow = window as AudioWindow;
         const Ctx = audioWindow.AudioContext || audioWindow.webkitAudioContext;
         if (!Ctx) return;
@@ -464,7 +497,12 @@ export default function SonicInterface() {
         osc.start();
         osc.stop(ctx.currentTime + 0.2);
         console.log('Test beep played');
-    };
+    }, [resumeStrudelAudio]);
+
+    const handleInitClick = useCallback(() => {
+        resumeStrudelAudio();
+        startSession();
+    }, [resumeStrudelAudio, startSession]);
 
     const startResizeRightPanel = useCallback((clientX: number) => {
         if (isRightPanelCollapsed) setIsRightPanelCollapsed(false);
@@ -599,7 +637,7 @@ export default function SonicInterface() {
                         </div>
                     </header>
 
-                    <div className="min-h-0 bg-[#11151b] max-lg:w-full max-lg:max-w-full lg:flex-1">
+                    <div className="flex min-h-0 flex-1 flex-col bg-[#11151b] max-lg:w-full max-lg:max-w-full lg:overflow-hidden">
                         <div className={`min-h-0 flex-col gap-4 p-5 max-lg:w-full max-lg:max-w-full max-lg:p-3 lg:h-full ${viewMode === 'simple' ? 'flex' : 'hidden'}`}>
                             <section className="flex min-h-[320px] min-w-0 flex-col overflow-hidden rounded-md border border-white/[0.07] bg-[#090b0f] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] max-lg:h-[430px] max-lg:w-full max-lg:max-w-full max-sm:h-[390px] lg:flex-1">
                                 <div className="flex shrink-0 items-center justify-between border-b border-white/[0.07] px-3 py-2.5">
@@ -641,11 +679,13 @@ export default function SonicInterface() {
                             </section>
                         </div>
 
-                        <div className={`min-h-[620px] overflow-hidden lg:h-full lg:min-h-0 ${viewMode === 'arrangement' ? '' : 'hidden'}`}>
+                        <div className={`flex min-h-0 flex-1 flex-col overflow-hidden ${viewMode === 'arrangement' ? '' : 'hidden'}`}>
                             <ArrangementView
                                 arrangement={arrangement}
                                 onUpdate={handleArrangementUpdate}
                                 onBuildCode={buildArrangementCode}
+                                sessionState={state}
+                                isAudioReady={isAudioReady}
                             />
                         </div>
 
@@ -658,6 +698,15 @@ export default function SonicInterface() {
 
                         <div className={`min-h-[620px] overflow-y-auto overflow-x-hidden lg:h-full lg:min-h-0 ${viewMode === 'djmixer' ? '' : 'hidden'}`}>
                             <DJMixerView bpm={bpm || 120} />
+                        </div>
+
+                        <div className={`min-h-[620px] overflow-hidden lg:h-full lg:min-h-0 ${viewMode === 'ssnn' ? '' : 'hidden'}`}>
+                            <SSNNSynthesizer
+                                sessionBpm={bpm || 128}
+                                isPlaying={isPlaying}
+                                ssnnState={state?.ssnn}
+                                onStateChange={setSsnnState}
+                            />
                         </div>
                     </div>
                 </section>
@@ -754,7 +803,10 @@ export default function SonicInterface() {
                                     </div>
                                     <button
                                         type="button"
-                                        onClick={togglePlayback}
+                                        onClick={() => {
+                                            resumeStrudelAudio();
+                                            togglePlayback();
+                                        }}
                                         className={`rounded-lg border px-3 py-2 text-left transition-colors max-sm:px-2 ${isPlaying
                                             ? 'border-cyan-300/40 bg-cyan-300/10 text-cyan-100'
                                             : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-cyan-300/30 hover:text-cyan-100'
@@ -806,9 +858,7 @@ export default function SonicInterface() {
                                         <div className="mt-4 grid grid-cols-[1fr_auto] gap-2 max-sm:grid-cols-1">
                                             <button
                                                 type="button"
-                                                onClick={() => {
-                                                    startSession();
-                                                }}
+                                                onClick={handleInitClick}
                                                 className="min-h-11 rounded-lg bg-cyan-300 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-200"
                                             >
                                                 Initialize session
