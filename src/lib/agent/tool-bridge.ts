@@ -117,7 +117,26 @@ export const AGENT_TOOLS: ChatCompletionTool[] = [
                     g4: { type: "number", description: "Output threshold/gain parameter (0.0 to 5.0)." },
                     updateRate: { type: "number", description: "Neural simulation update speed (0.1 to 50.0)." },
                     balanceTh: { type: "number", description: "Firing threshold (0.0 to 1.0)." },
+                    buffLen: { type: "integer", description: "Tape/granular buffer length in samples (1000 to 50000)." },
+                    spikeVis: { type: "boolean", description: "Enable spike visualization." },
+                    voiceAlloc: { type: "boolean", description: "Enable voice-allocation visualization." },
                     spectralShift: { type: "integer", description: "Log-frequency shift mapping index (0 to 10)." },
+                    mgain: { type: "number", description: "SSNN master output gain (0.0 to 1.5)." },
+                    spikeQth: { type: "number", description: "Spike quantization threshold (0.0 to 1.0)." },
+                    spikeQ: { type: "boolean", description: "Enable spike quantization." },
+                    envStq: { type: "integer", description: "Quantization division." },
+                    qntRnd: { type: "number", description: "Quantization timing randomness (0 to 100)." },
+                    tuningScale: { type: "string", enum: ["pentatonic", "diatonic", "wholetone", "xenakis_dial", "5th"] },
+                    tune: { type: "boolean", description: "Quantize pitches to the selected scale." },
+                    decay: { type: "number", description: "Global voice decay (0.0 to 1.0)." },
+                    wetDry: { type: "number", description: "Global wet/dry mix (0.0 to 1.0)." },
+                    freqs: {
+                        type: "array",
+                        items: { type: "number" },
+                        minItems: 4,
+                        maxItems: 4,
+                        description: "Four base voice frequencies in hertz.",
+                    },
                     activeEngines: {
                         type: "array",
                         items: { type: "string", enum: ["pulse", "modal", "synaptic", "granular", "fm", "comb", "tape", "arpeg"] },
@@ -240,7 +259,7 @@ export async function executeTool(
             }
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const ssnnArgs = args as any;
-            
+
             // Loop through all properties in args and apply them if they are not columns
             for (const key of Object.keys(ssnnArgs)) {
                 if (key !== 'columns' && ssnnArgs[key] !== undefined) {

@@ -1,4 +1,4 @@
-import { SSNNState, SSNNEngineType } from '../../types/ssnn';
+import { SSNNState } from '../../types/ssnn';
 import { SSNN_NEURONS_PER_LAYER, SSNN_LAYERS } from './engine';
 
 // Helper to map index to frequencies in various musical scales
@@ -51,6 +51,8 @@ export class SSNNSynthManager {
     private recordBuffer: AudioBuffer | null = null;
     private recordBufferSamples = 44100 * 2; // 2 seconds default
     private isRecording = false;
+    private activeVoiceEvents = 0;
+    private readonly maxVoiceEvents = 24;
 
     constructor(ctx: AudioContext, outputNode: GainNode, initialState: SSNNState) {
         this.ctx = ctx;
@@ -63,9 +65,13 @@ export class SSNNSynthManager {
 
     public updateState(newState: Partial<SSNNState>) {
         const oldScale = this.state.tuningScale;
+        const oldBufferLength = this.state.buffLen;
         this.state = { ...this.state, ...newState };
         if (oldScale !== this.state.tuningScale) {
             this.updateScale();
+        }
+        if (oldBufferLength !== this.state.buffLen) {
+            this.initializeRecordBuffer();
         }
     }
 
@@ -122,7 +128,9 @@ export class SSNNSynthManager {
      * @param intensity Firing strength/membrane potential (0.0 to 1.0)
      * @param bpm The current BPM of the session for quantization calculations
      */
-    public triggerSpike(neuronIndex: number, intensity = 1.0, bpm = 128) {
+    public triggerSpike(neuronIndex: number, intensity = 1.0, bpm = 128, scheduledTime?: number): boolean {
+        if (this.activeVoiceEvents >= this.maxVoiceEvents) return false;
+
         const layer = Math.floor(neuronIndex / SSNN_NEURONS_PER_LAYER);
         const col = neuronIndex % SSNN_NEURONS_PER_LAYER;
         
@@ -132,7 +140,7 @@ export class SSNNSynthManager {
         // Check if this engine is active globally
         const engine = colSettings?.activeEngine || 'pulse';
         if (!this.state.activeEngines.includes(engine)) {
-            return; // Skip if engine is not enabled in activeEngines list
+            return false; // Skip if engine is not enabled in activeEngines list
         }
 
         // 1. Determine base pitch/frequency
@@ -160,13 +168,13 @@ export class SSNNSynthManager {
 
         // 2. Quantization logic
         const now = this.ctx.currentTime;
-        let triggerTime = now;
+        let triggerTime = Math.max(now, scheduledTime ?? now);
         if (this.state.spikeQ) {
             const division = this.state.envStq || 16;
             const stepSec = 240.0 / (bpm * division);
             
             // Snap to the next quantized division
-            let scheduled = Math.ceil(now / stepSec) * stepSec;
+            let scheduled = Math.ceil(triggerTime / stepSec) * stepSec;
 
             // Apply metronome quantization randomness
             if (this.state.qntRnd > 0) {
@@ -203,6 +211,15 @@ export class SSNNSynthManager {
                 this.triggerPulseEngine(baseFreq, layerVol, pan, intensity, triggerTime);
                 break;
         }
+
+        this.activeVoiceEvents += 1;
+        const releaseSeconds = engine === 'tape'
+            ? Math.max(0.15, this.state.decayFact * 1.5)
+            : Math.max(0.12, this.state.decay * 0.55);
+        window.setTimeout(() => {
+            this.activeVoiceEvents = Math.max(0, this.activeVoiceEvents - 1);
+        }, Math.ceil((triggerTime - now + releaseSeconds + 0.08) * 1000));
+        return true;
     }
 
     private applyArpeggiatorPattern(freq: number, col: number, layer: number): number {
@@ -503,6 +520,16 @@ export class SSNNSynthManager {
 
         exciter.start(time);
         exciter.stop(time + 0.05);
+        window.setTimeout(() => {
+            try {
+                exciter.disconnect();
+                delayNode.disconnect();
+                lpFilter.disconnect();
+                feedbackGain.disconnect();
+                mainGain.disconnect();
+                panner?.disconnect();
+            } catch { /* nodes may already be disconnected */ }
+        }, Math.ceil((time - this.ctx.currentTime + decayTime + 0.1) * 1000));
     }
 
     /**
@@ -513,12 +540,16 @@ export class SSNNSynthManager {
 
         const duration = this.recordBuffer.duration;
         const loopTime = Math.max(0.1, this.state.decayFact * 1.5);
-        const startOffset = ((layerIndex * 0.03) % 1.0) * (duration - loopTime);
+        const playableDuration = Math.max(0.02, Math.min(loopTime, duration));
+        const startOffset = ((layerIndex * 0.03) % 1.0) * Math.max(0, duration - playableDuration);
 
         const source = this.ctx.createBufferSource();
         const mainGain = this.ctx.createGain();
 
         source.buffer = this.recordBuffer;
+        source.loop = loopTime > playableDuration;
+        source.loopStart = startOffset;
+        source.loopEnd = Math.min(duration, startOffset + playableDuration);
         
         const speed = freq / 220.0;
         source.playbackRate.setValueAtTime(speed, time);
@@ -538,9 +569,11 @@ export class SSNNSynthManager {
         }
 
         try {
-            source.start(time, startOffset, loopTime);
+            source.start(time, startOffset);
+            source.stop(time + loopTime);
         } catch {
-            source.start(time, 0, loopTime);
+            source.start(time, 0);
+            source.stop(time + loopTime);
         }
     }
 }

@@ -1,4 +1,4 @@
-import { SSNNPreset, SSNNState } from '../../types/ssnn';
+import { SSNNPreset } from '../../types/ssnn';
 import { createDefaultSSNNState } from './engine';
 
 // Factory Preset 1: Clean/Default state

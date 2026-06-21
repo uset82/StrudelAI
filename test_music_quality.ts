@@ -23,6 +23,7 @@ import {
     buildMusicBrief,
 } from './src/lib/music-agent';
 import { cleanStrudelCode } from './src/lib/music/codeExtractor';
+import { tryRuleBasedUpdate } from './src/lib/agent/runtime';
 import type { SonicSessionState, InstrumentType } from './src/types/sonic';
 
 const hasTrack = (value: string | null) => typeof value === 'string' && value.trim().length > 0;
@@ -319,6 +320,37 @@ const makeTrack = (
     volume: 1,
     ...overrides,
 });
+
+const controlState: SonicSessionState = {
+    bpm: 120,
+    scale: 'C minor',
+    isPlaying: true,
+    tracks: {
+        drums: makeTrack('drums', "expr:s('RolandTR909_bd*4')"),
+        bass: makeTrack('bass', "expr:note(m('c1 ~ c1 ~')).s('sine')"),
+        melody: makeTrack('melody', "expr:note(m('c4 eb4 g4 ~')).s('square')"),
+        voice: makeTrack('voice', "expr:note(m('c4 ~')).s('sine')"),
+        fx: makeTrack('fx', "expr:s('pink').gain(0.1)"),
+    },
+};
+const stoppedByChat = tryRuleBasedUpdate('stop playback', controlState);
+assert.equal(stoppedByChat.changed, true, 'chat stop command should produce a state change');
+assert.equal(stoppedByChat.newState.isPlaying, false, 'chat stop command must preserve stopped state through the API patch');
+
+const mutedByChat = tryRuleBasedUpdate('mute bass', controlState);
+assert.equal(mutedByChat.newState.tracks.bass.muted, true, 'chat mute command should mutate mixer state instead of regenerating music');
+
+const balancedByChat = tryRuleBasedUpdate('balance the sound', controlState);
+assert.equal(balancedByChat.newState.tracks.drums.volume, 0.82);
+assert.equal(balancedByChat.newState.tracks.fx.volume, 0.35);
+assert.ok(balancedByChat.newState.tracks.bass.volume < balancedByChat.newState.tracks.drums.volume, 'balanced mix should leave kick headroom over bass');
+
+const ssnnTauByChat = tryRuleBasedUpdate('set SSNN tau to 7', controlState);
+assert.equal(ssnnTauByChat.newState.ssnn?.tau, 7, 'chat should control individual SSNN parameters');
+
+const stableSsnnByChat = tryRuleBasedUpdate('make the SSNN stable and less jittery', controlState);
+assert.equal(stableSsnnByChat.newState.ssnn?.qntRnd, 0, 'stable SSNN command should remove quantization jitter');
+assert.equal(stableSsnnByChat.newState.ssnn?.updateRate, 2, 'stable SSNN command should cap neural update load');
 
 const displayedCode = buildStrudelCode({
     bpm: 120,

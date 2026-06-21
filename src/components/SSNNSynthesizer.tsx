@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { SSNNState, SSNNPreset, SSNNEngineType } from '../types/ssnn';
-import { SSNNEngine, SSNN_LAYERS, SSNN_NEURONS_PER_LAYER, SSNN_TOTAL_NEURONS, createDefaultSSNNState } from '../lib/ssnn/engine';
+import { SSNNEngine, SSNN_LAYERS, SSNN_NEURONS_PER_LAYER, createDefaultSSNNState } from '../lib/ssnn/engine';
 import { SSNNSynthManager } from '../lib/ssnn/dsp';
 import { SSNNAudioAnalyser } from '../lib/ssnn/fft';
 import { loadAllPresets, savePreset } from '../lib/ssnn/presets';
@@ -49,11 +49,14 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, ssnnState, onStateChang
     const recorderNodeRef = useRef<ScriptProcessorNode | null>(null);
     const mainOutputGainRef = useRef<GainNode | null>(null);
     const animationFrameRef = useRef<number | null>(null);
+    const simulationTimerRef = useRef<number | null>(null);
     const waveCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const gridCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const spikeCountRef = useRef<HTMLSpanElement | null>(null);
     const feedbackRecorderRef = useRef<ScriptProcessorNode | null>(null);
     const learningFrameCounterRef = useRef<number>(0);
+    const lastAudioTriggerRef = useRef<number>(0);
+    const fallbackNeuronCursorRef = useRef<number>(0);
 
     // Load presets on mount
     useEffect(() => {
@@ -73,7 +76,14 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, ssnnState, onStateChang
             // Output gain
             const output = ctx.createGain();
             output.gain.value = state.mgain;
-            output.connect(ctx.destination);
+            const limiter = ctx.createDynamicsCompressor();
+            limiter.threshold.value = -12;
+            limiter.knee.value = 18;
+            limiter.ratio.value = 8;
+            limiter.attack.value = 0.004;
+            limiter.release.value = 0.18;
+            output.connect(limiter);
+            limiter.connect(ctx.destination);
             mainOutputGainRef.current = output;
 
             // Neural engine
@@ -98,7 +108,12 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, ssnnState, onStateChang
                 }
             };
             output.connect(feedbackRecorder);
-            feedbackRecorder.connect(ctx.destination);
+            // Keep the recorder alive without routing a second copy of the SSNN
+            // mix to the speakers.
+            const silentRecorderSink = ctx.createGain();
+            silentRecorderSink.gain.value = 0;
+            feedbackRecorder.connect(silentRecorderSink);
+            silentRecorderSink.connect(ctx.destination);
             feedbackRecorderRef.current = feedbackRecorder;
 
             console.log('[SSNNSynthesizer] Web Audio & LIF Engine successfully initialized.');
@@ -124,6 +139,9 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, ssnnState, onStateChang
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
             }
+            if (simulationTimerRef.current !== null) {
+                window.clearInterval(simulationTimerRef.current);
+            }
             if (microphoneSourceRef.current) {
                 try { microphoneSourceRef.current.disconnect(); } catch {}
             }
@@ -142,17 +160,23 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, ssnnState, onStateChang
         };
     }, []);
 
-    // 3. Spiking Simulation & Learning Loop (60Hz requestAnimationFrame)
+    // 3. Fixed-rate neural/audio clock plus a separate visual loop. Audio
+    // scheduling must not inherit requestAnimationFrame jitter or tab repaint
+    // stalls, otherwise spikes arrive as audible bursts.
     useEffect(() => {
         if (!isPlaying || !engineRef.current || !synthRef.current) {
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
                 animationFrameRef.current = null;
             }
+            if (simulationTimerRef.current !== null) {
+                window.clearInterval(simulationTimerRef.current);
+                simulationTimerRef.current = null;
+            }
             return;
         }
 
-        const runLoop = () => {
+        const runSimulation = () => {
             const engine = engineRef.current;
             const synth = synthRef.current;
             const analyser = analyserRef.current;
@@ -162,7 +186,8 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, ssnnState, onStateChang
             let externalInput: Float32Array | undefined = undefined;
 
             // A. If SpecListen is enabled, capture microphone spectral profile
-            if (state.specListen && analyser) {
+            const liveState = engine.getState();
+            if (liveState.specListen && analyser) {
                 const spectrum = analyser.analyze();
                 externalInput = spectrum; // feed as input currents into the first layer
                 
@@ -175,12 +200,14 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, ssnnState, onStateChang
 
             // B. Step SNN model based on updateRate parameter
             // We scale updates inside the frame block
-            const stepsCount = Math.max(1, Math.round(state.updateRate));
-            let spikesThisFrame: number[] = [];
+            // Cap work per tick so an AI command cannot accidentally freeze the
+            // main thread by setting a very high update rate.
+            const stepsCount = Math.max(1, Math.min(8, Math.round(liveState.updateRate)));
+            const spikesThisFrame: number[] = [];
 
             for (let i = 0; i < stepsCount; i++) {
                 const stepSpikes = engine.step(externalInput);
-                spikesThisFrame = [...spikesThisFrame, ...stepSpikes];
+                spikesThisFrame.push(...stepSpikes);
             }
 
             // C. Trigger sound events for fired spikes (limited to prevent Web Audio thread from choking)
@@ -188,6 +215,8 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, ssnnState, onStateChang
             const spikesByLayer: { [key: number]: number[] } = {};
             spikesThisFrame.forEach(idx => {
                 const layer = Math.floor(idx / 30); // 30 neurons per layer
+                const route = liveState.columns[layer % 4];
+                if (!route || route.gain <= 0.001 || !liveState.activeEngines.includes(route.activeEngine)) return;
                 if (!spikesByLayer[layer]) spikesByLayer[layer] = [];
                 spikesByLayer[layer].push(idx);
             });
@@ -196,46 +225,74 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, ssnnState, onStateChang
             const layers = Object.keys(spikesByLayer).map(Number);
             
             // Round-robin selection across layers until we hit the polyphony limit
-            const maxVoicesPerFrame = 12;
+            const maxVoicesPerTick = 3;
             let added = true;
-            while (selectedSpikes.length < maxVoicesPerFrame && added) {
+            while (selectedSpikes.length < maxVoicesPerTick && added) {
                 added = false;
                 for (const layer of layers) {
-                    if (spikesByLayer[layer].length > 0 && selectedSpikes.length < maxVoicesPerFrame) {
+                    if (spikesByLayer[layer].length > 0 && selectedSpikes.length < maxVoicesPerTick) {
                         const list = spikesByLayer[layer];
-                        const randIdx = Math.floor(Math.random() * list.length);
-                        selectedSpikes.push(list.splice(randIdx, 1)[0]);
+                        // Deterministic round-robin selection sounds steadier
+                        // than random voice selection and avoids pitch chatter.
+                        selectedSpikes.push(list.shift() as number);
                         added = true;
                     }
                 }
             }
 
-            selectedSpikes.forEach(neuronIdx => {
-                synth.triggerSpike(neuronIdx, 1.0, sessionBpm);
+            const audioNow = audioContextRef.current?.currentTime ?? 0;
+            if (selectedSpikes.length === 0 && audioNow - lastAudioTriggerRef.current >= 0.12) {
+                // A quiet neural frame should not terminate the instrument. Seed
+                // a low-rate voice on an audible routed column until activity
+                // resumes naturally.
+                const activeColumnIndexes = liveState.columns
+                    .map((column, index) => ({ column, index }))
+                    .filter(({ column }) => column.gain > 0.001 && liveState.activeEngines.includes(column.activeEngine))
+                    .map(({ index }) => index);
+                if (activeColumnIndexes.length > 0) {
+                    const cursor = fallbackNeuronCursorRef.current++;
+                    const layerModulo = activeColumnIndexes[cursor % activeColumnIndexes.length];
+                    const layer = layerModulo + 4 * (Math.floor(cursor / activeColumnIndexes.length) % 8);
+                    selectedSpikes.push(layer * SSNN_NEURONS_PER_LAYER + (cursor % SSNN_NEURONS_PER_LAYER));
+                }
+            }
+
+            selectedSpikes.forEach((neuronIdx, index) => {
+                const scheduled = audioNow + 0.035 + index * 0.006;
+                if (synth.triggerSpike(neuronIdx, 0.72, sessionBpm, scheduled)) {
+                    lastAudioTriggerRef.current = scheduled;
+                }
             });
 
-            // D. Draw wave canvas (Middle Panel 2)
-            drawWaveformCanvas();
-
-            // E. Draw SNN Visualizer Grid on Canvas (Middle Panel 1)
-            drawGridCanvas();
-
-            // F. Directly update the spikes count counter without React re-render overhead
+            // Directly update the spike counter without a React render.
             if (spikeCountRef.current) {
                 spikeCountRef.current.textContent = String(spikesThisFrame.length);
             }
-
-            animationFrameRef.current = requestAnimationFrame(runLoop);
         };
 
-        animationFrameRef.current = requestAnimationFrame(runLoop);
+        let lastPaint = 0;
+        const renderLoop = (timestamp: number) => {
+            if (timestamp - lastPaint >= 33) {
+                lastPaint = timestamp;
+                drawWaveformCanvas();
+                drawGridCanvas();
+            }
+            animationFrameRef.current = requestAnimationFrame(renderLoop);
+        };
+
+        runSimulation();
+        simulationTimerRef.current = window.setInterval(runSimulation, 40);
+        animationFrameRef.current = requestAnimationFrame(renderLoop);
 
         return () => {
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
             }
+            if (simulationTimerRef.current !== null) {
+                window.clearInterval(simulationTimerRef.current);
+                simulationTimerRef.current = null;
+            }
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isPlaying, state.specListen, state.updateRate, sessionBpm]);
 
     // Handle micro/audio source connection on SpecListen toggles
@@ -288,7 +345,9 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, ssnnState, onStateChang
     // Sync volume with gain node
     useEffect(() => {
         if (mainOutputGainRef.current) {
-            mainOutputGainRef.current.gain.setValueAtTime(state.mgain, audioContextRef.current?.currentTime || 0);
+            const now = audioContextRef.current?.currentTime || 0;
+            mainOutputGainRef.current.gain.cancelScheduledValues(now);
+            mainOutputGainRef.current.gain.setTargetAtTime(state.mgain, now, 0.025);
         }
     }, [state.mgain]);
 
@@ -319,6 +378,7 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, ssnnState, onStateChang
 
         const data = buffer.getChannelData(0);
         const bufferLen = data.length;
+        const liveState = engine.getState();
 
         // Render 32 layers of horizontal offset slices
         const rowHeight = h / SSNN_LAYERS;
@@ -341,7 +401,7 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, ssnnState, onStateChang
 
             // Draw visual waveforms slice
             ctx.beginPath();
-            ctx.strokeStyle = state.activeEngines.includes('granular') || state.activeEngines.includes('tape')
+            ctx.strokeStyle = liveState.activeEngines.includes('granular') || liveState.activeEngines.includes('tape')
                 ? 'rgba(245, 158, 11, 0.65)' // orange waveform
                 : 'rgba(6, 182, 212, 0.45)'; // cyan waveform
 
@@ -372,13 +432,14 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, ssnnState, onStateChang
             if (layerSpiked) {
                 ctx.fillStyle = '#f59e0b';
                 ctx.beginPath();
-                ctx.arc(w * 0.15 + Math.random() * w * 0.7, y, 2.5, 0, Math.PI * 2);
+                const stableLayerPosition = ((layer * 17) % SSNN_LAYERS) / (SSNN_LAYERS - 1);
+                ctx.arc(w * (0.15 + stableLayerPosition * 0.7), y, 2.5, 0, Math.PI * 2);
                 ctx.fill();
             }
         }
     };
 
-    // Draw SNN Activity Matrix Grid directly on HTML5 2D Canvas for 60Hz performance without React re-renders
+    // Draw SNN activity directly on canvas at a capped visual frame rate.
     const drawGridCanvas = () => {
         const canvas = gridCanvasRef.current;
         if (!canvas) return;
@@ -393,6 +454,7 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, ssnnState, onStateChang
 
         const engine = engineRef.current;
         if (!engine) return;
+        const liveState = engine.getState();
 
         // Draw layers
         for (let layerIdx = 0; layerIdx < SSNN_LAYERS; layerIdx++) {
@@ -416,7 +478,7 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, ssnnState, onStateChang
                 const x = 38 + colIdx * 9.2;
                 const neuronIdx = layerIdx * SSNN_NEURONS_PER_LAYER + colIdx;
                 
-                const spikeGlow = state.spikeVis ? engine.visualSpikes[neuronIdx] : 0.0;
+                const spikeGlow = liveState.spikeVis ? engine.visualSpikes[neuronIdx] : 0.0;
                 
                 if (spikeGlow > 0.05) {
                     ctx.fillStyle = `rgba(245, 158, 11, ${0.2 + spikeGlow * 0.8})`;

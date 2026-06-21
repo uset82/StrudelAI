@@ -154,7 +154,7 @@ export function tryRuleBasedUpdate(text: string, state: SonicSessionState): { ch
 
     // General SSNN controls. This deterministic parser makes the web chat path
     // useful even when the provider is unavailable and mirrors update_ssnn.
-    const ssnnContext = /\b(ssnn|spiking|neural|neuron|bernoulli|sweight|spec\s*listen|spike\s*q|wet\s*dry)\b/.test(lowered);
+    const ssnnContext = /\b(ssnn|spiking|neural|neuron|bernoulli|sweight|morph|tau|wcoef|input\s+gain|spec\s*listen|spike\s*q|wet\s*dry)\b/.test(lowered);
     if (ssnnContext) {
         const ssnn = ensureSsnn();
         const updates: string[] = [];

@@ -1,4 +1,4 @@
-import { SSNNState, SSNNEngineType } from '../../types/ssnn';
+import { SSNNState } from '../../types/ssnn';
 
 export const SSNN_LAYERS = 32;
 export const SSNN_NEURONS_PER_LAYER = 30;
@@ -191,12 +191,15 @@ export class SSNNEngine {
                 const preNeuronIdx = preOffset + pre;
                 const didSpike = this.spikes[preNeuronIdx] === 1;
 
+                if (!didSpike) {
+                    weightIdx += SSNN_NEURONS_PER_LAYER;
+                    continue;
+                }
+
                 for (let post = 0; post < SSNN_NEURONS_PER_LAYER; post++) {
                     const postNeuronIdx = postOffset + post;
-                    if (didSpike) {
-                        // Propagate spike current to the next layer
-                        layerInputs[postNeuronIdx] += this.weights[weightIdx];
-                    }
+                    // Propagate spike current to the next layer.
+                    layerInputs[postNeuronIdx] += this.weights[weightIdx];
                     weightIdx++;
                 }
             }
