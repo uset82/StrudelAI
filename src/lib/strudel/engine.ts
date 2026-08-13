@@ -929,11 +929,72 @@ async function ensureSynths() {
     try {
         // Register all available sounds and synths
         await registerSynthSounds();
-        // Alias a generic "noise" sound to the built-in pink noise so s("noise") never explodes.
-        soundAlias('pink', 'noise');
-        // Common typo/variant aliases that show up in generated code.
-        soundAlias('square', 'square*2');
-        soundAlias('supersaw', 'supersawtooth');
+
+        const safeAlias = (target: string, alias: string) => {
+            try {
+                soundAlias(target, alias);
+            } catch {
+                // Ignore if duplicate or unsupported
+            }
+        };
+
+        // Keyboards, Piano, and Tonal Keys
+        safeAlias('triangle', 'piano');
+        safeAlias('triangle', 'grand_piano');
+        safeAlias('triangle', 'acoustic_grand_piano');
+        safeAlias('triangle', 'rhodes');
+        safeAlias('triangle', 'keys');
+        safeAlias('triangle', 'keyboard');
+        safeAlias('triangle', 'electric_piano');
+        safeAlias('triangle', 'epiano');
+        safeAlias('triangle', 'vibes');
+        safeAlias('triangle', 'vibraphone');
+        safeAlias('triangle', 'marimba');
+        safeAlias('triangle', 'glockenspiel');
+
+        // Plucked, Strings, Guitars, and Leads
+        safeAlias('sawtooth', 'guitar');
+        safeAlias('sawtooth', 'acoustic_guitar');
+        safeAlias('sawtooth', 'clean_guitar');
+        safeAlias('sawtooth', 'dist_guitar');
+        safeAlias('sawtooth', 'lead');
+        safeAlias('sawtooth', 'synth');
+        safeAlias('sawtooth', 'violin');
+        safeAlias('sawtooth', 'cello');
+        safeAlias('sawtooth', 'strings');
+        safeAlias('sawtooth', 'brass');
+        safeAlias('sawtooth', 'trumpet');
+        safeAlias('sawtooth', 'horns');
+        safeAlias('sawtooth', 'sax');
+        safeAlias('sawtooth', 'saxophone');
+
+        // Pads, Flutes, Bells, Vocals, and Bass
+        safeAlias('sine', 'pad');
+        safeAlias('sine', 'flute');
+        safeAlias('sine', 'bell');
+        safeAlias('sine', 'sub');
+        safeAlias('sine', 'subbass');
+        safeAlias('sine', 'sine_bass');
+        safeAlias('sawtooth', 'voice');
+        safeAlias('sawtooth', 'choir');
+        safeAlias('sawtooth', 'vocal');
+        safeAlias('square', 'bass');
+        safeAlias('square', 'organ');
+        safeAlias('sawtooth', 'acid_bass');
+
+        // Noise & Texture
+        safeAlias('pink', 'noise');
+        safeAlias('white', 'whitenoise');
+        safeAlias('pink', 'crackle');
+        safeAlias('pink', 'vinyl');
+        safeAlias('pink', 'starfield');
+
+        // Common shorthand/syntax aliases
+        safeAlias('square', 'square*2');
+        safeAlias('supersaw', 'supersawtooth');
+        safeAlias('sawtooth', 'saw');
+        safeAlias('triangle', 'tri');
+        safeAlias('sine', 'sin');
 
         // NOTE: External sample loading from strudel.cc is DISABLED because:
         // 1. Network failures cause "Failed to fetch" errors
