@@ -309,7 +309,7 @@ export function useSonicSocket() {
             .join('|');
         const hash = `${state.bpm}:${state.isPlaying}:${trackPatterns}`;
 
-        if (hash !== lastDisplayedRef.current || currentCodeRef.current.trim() !== displayCode.trim()) {
+        if (hash !== lastDisplayedRef.current) {
             lastDisplayedRef.current = hash;
             setCurrentCode(displayCode);
         }

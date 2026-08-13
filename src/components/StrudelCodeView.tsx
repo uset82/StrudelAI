@@ -63,31 +63,29 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
     const [isUserEditing, setIsUserEditing] = useState(false);
     const [suggestion, setSuggestion] = useState<string>('');
     const [isLoadingCompletion, setIsLoadingCompletion] = useState(false);
+    const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
+    const [pasteFeedback, setPasteFeedback] = useState<string | null>(null);
     const lastRunRef = useRef<string>('');
+    const lastSyncedPropRef = useRef<string>(formatStrudelDisplayCode(code || '').trim());
     const textareaRef = useRef<HTMLTextAreaElement | null>(null);
     const userEditTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const completionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const autoRunTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Only sync code prop when user is NOT actively editing
+    // Sync code prop when an external update arrives (e.g. AI generation or preset loading)
     useEffect(() => {
-        if (isUserEditing) {
-            console.log('[StrudelCodeView] User is editing, skipping prop sync');
-            return;
-        }
-
         const incoming = formatStrudelDisplayCode(code || '').trim();
-        if (incoming && incoming !== editableCode.trim()) {
-            console.log('[StrudelCodeView] Syncing code from prop');
-            // defer state update to next tick to avoid cascading renders
-            queueMicrotask(() => {
-                setEditableCode(incoming);
-                lastRunRef.current = '';
-            });
+        if (incoming && incoming !== lastSyncedPropRef.current) {
+            lastSyncedPropRef.current = incoming;
+            if (!isUserEditing) {
+                console.log('[StrudelCodeView] Syncing external code from prop');
+                queueMicrotask(() => {
+                    setEditableCode(incoming);
+                    lastRunRef.current = '';
+                });
+            }
         }
-    }, [code, editableCode, isUserEditing]);
-
-    // removed duplicate effect
+    }, [code, isUserEditing]);
 
     // Keep the editor pinned to its workspace instead of resizing the app shell.
     const resizeTextarea = useCallback(() => {
@@ -123,6 +121,29 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
         }
         return paren === 0 && brace === 0 && bracket === 0 && !inDouble && !inSingle;
     };
+
+    const handleCodeChange = useCallback((newValue: string, triggerAutoRun = true) => {
+        setEditableCode(newValue);
+        lastSyncedPropRef.current = newValue.trim();
+        onCodeChange?.(newValue);
+        setIsUserEditing(true);
+        setSuggestion('');
+
+        if (userEditTimeoutRef.current) clearTimeout(userEditTimeoutRef.current);
+        if (autoRunTimeoutRef.current) clearTimeout(autoRunTimeoutRef.current);
+
+        userEditTimeoutRef.current = setTimeout(() => {
+            console.log('[StrudelCodeView] User stopped editing');
+            setIsUserEditing(false);
+        }, 1200);
+
+        if (triggerAutoRun) {
+            autoRunTimeoutRef.current = setTimeout(() => {
+                console.log('[StrudelCodeView] Auto-running code...');
+                onRun?.(newValue);
+            }, 800);
+        }
+    }, [onCodeChange, onRun]);
 
     useEffect(() => {
         const codeToRun = editableCode.trim();
@@ -249,8 +270,6 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
                 errorMsg = errorMsg.replace(/^Error:\s*/i, '');
 
                 setRunError(`${errorMsg}`);
-
-                // Don't re-throw - just log and show error to user
             }
         }, 500);
         return () => {
@@ -301,16 +320,12 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
         const closeParen = (fixed.match(/\)/g) || []).length;
 
         if (openParen > closeParen) {
-            // Add missing closing parentheses
             fixed += ')'.repeat(openParen - closeParen);
-            console.log('[StrudelCodeView] Added', openParen - closeParen, 'closing parentheses');
         } else if (closeParen > openParen) {
-            // Remove extra closing parentheses from the end
             const diff = closeParen - openParen;
             for (let i = 0; i < diff; i++) {
                 fixed = fixed.replace(/\)([^)]*?)$/, '$1');
             }
-            console.log('[StrudelCodeView] Removed', diff, 'extra closing parentheses');
         }
 
         // Balance square brackets
@@ -333,11 +348,10 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
         fixed = fixed.replace(/\s+\)/g, ')');
         fixed = fixed.replace(/\(\s+/g, '(');
 
-        setEditableCode(fixed);
-        onCodeChange?.(fixed);
+        handleCodeChange(fixed, true);
         setRunError(null);
         console.log('[StrudelCodeView] Auto-fixed code');
-    }, [editableCode, onCodeChange]);
+    }, [editableCode, handleCodeChange]);
 
     const editorLines = editableCode.split('\n');
     const editorLineCount = Math.max(16, editorLines.length + 4);
@@ -347,25 +361,46 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
     const highlightedCode = highlightJS(editableCode);
     const suggestionHtml = suggestion ? `<span class="bg-lime-300/10 text-lime-200/70">${escapeHtml(suggestion)}</span>` : '';
     const combinedHtml = highlightedCode + suggestionHtml;
+
     const copyCodeToClipboard = useCallback(async () => {
         try {
             await navigator.clipboard.writeText(editableCode || '');
+            setCopyFeedback('Copied!');
+            setTimeout(() => setCopyFeedback(null), 2000);
             console.log('[StrudelCodeView] Copied workspace code to clipboard');
         } catch (e) {
             console.warn('[StrudelCodeView] Copy failed', e);
         }
     }, [editableCode]);
 
+    const pasteCodeFromClipboard = useCallback(async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (text) {
+                handleCodeChange(text, true);
+                setPasteFeedback('Pasted!');
+                setTimeout(() => setPasteFeedback(null), 2000);
+                if (textareaRef.current) {
+                    textareaRef.current.focus();
+                }
+                console.log('[StrudelCodeView] Pasted clipboard text into workspace, length:', text.length);
+            }
+        } catch (e) {
+            console.warn('[StrudelCodeView] Clipboard read failed, falling back to textarea focus', e);
+            textareaRef.current?.focus();
+            setPasteFeedback('Press Ctrl+V');
+            setTimeout(() => setPasteFeedback(null), 2500);
+        }
+    }, [handleCodeChange]);
+
     const replaceWorkspaceCode = useCallback(() => {
         const next = formatStrudelDisplayCode(code || editableCode || '');
-        setEditableCode(next);
+        handleCodeChange(next, true);
         setIsUserEditing(false);
         setSuggestion('');
         lastRunRef.current = '';
-        onCodeChange?.(next);
-        onRun?.(next);
         console.log('[StrudelCodeView] Replaced workspace code from latest generated code');
-    }, [code, editableCode, onCodeChange, onRun]);
+    }, [code, editableCode, handleCodeChange]);
 
     return (
         <div className="relative flex h-full min-h-0 min-w-0 flex-col font-mono text-[13px] text-[#e6edf3] max-sm:text-base">
@@ -394,23 +429,39 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
                         <button
                             type="button"
                             onClick={replaceWorkspaceCode}
-                            className="rounded border border-cyan-300/20 bg-cyan-300/10 px-1.5 py-0.5 text-[9px] text-cyan-100 hover:bg-cyan-300/15"
+                            className="rounded border border-cyan-300/20 bg-cyan-300/10 px-1.5 py-0.5 text-[9px] text-cyan-100 transition-colors hover:bg-cyan-300/15"
                             title="Replace the editable workspace with the latest generated code"
                         >
                             Replace Workspace Code
                         </button>
                         <button
                             type="button"
+                            onClick={pasteCodeFromClipboard}
+                            className="rounded border border-cyan-400/30 bg-cyan-400/10 px-1.5 py-0.5 text-[9px] font-semibold text-cyan-200 transition-colors hover:bg-cyan-400/20 hover:text-cyan-100"
+                            title="Paste code from clipboard"
+                        >
+                            {pasteFeedback ? pasteFeedback : <span>Paste Code</span>}
+                        </button>
+                        <button
+                            type="button"
                             onClick={copyCodeToClipboard}
-                            className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[9px] text-slate-400 hover:bg-white/10 hover:text-slate-200"
+                            className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[9px] text-slate-400 transition-colors hover:bg-white/10 hover:text-slate-200"
                             title="Copy Code"
                         >
-                            Copy Code
+                            {copyFeedback ? copyFeedback : <span>Copy Code</span>}
                         </button>
                     </div>
                 </div>
 
-                <div className="relative min-h-0 min-w-0 flex-1">
+                <div 
+                    className="relative min-h-0 min-w-0 flex-1 cursor-text"
+                    onClick={(e) => {
+                        // Focus textarea if clicking anywhere inside the code area
+                        if (e.target !== textareaRef.current) {
+                            textareaRef.current?.focus();
+                        }
+                    }}
+                >
                     <div className="studio-scrollbar h-full min-h-0 w-full overflow-auto">
                         <div
                             className="relative min-w-full"
@@ -421,7 +472,7 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
                             }}
                         >
                             <div
-                                className="pointer-events-none absolute inset-y-0 left-0 z-20 w-11 border-r border-white/[0.06] pr-3 pt-3 text-right font-mono text-[11px] leading-6 text-[#3f4652] max-sm:w-9 max-sm:pr-2 max-sm:text-[10px] max-sm:leading-6"
+                                className="pointer-events-none absolute inset-y-0 left-0 z-20 w-11 border-r border-white/[0.06] pr-3 pt-3 text-right font-mono text-[11px] leading-6 text-[#3f4652] max-sm:w-9 max-sm:pr-2 max-sm:text-[10px] max-sm:leading-6 select-none"
                                 aria-hidden="true"
                             >
                                 {Array.from({ length: editorLineCount }).map((_, index) => (
@@ -443,33 +494,19 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
                                 id="strudel-code-editor"
                                 name="strudelCode"
                                 aria-label="Strudel code editor"
-                                className="absolute inset-0 z-10 h-full w-full cursor-text resize-none overflow-hidden whitespace-pre border-none bg-transparent py-3 pl-16 pr-4 font-mono text-[13px] leading-6 text-transparent caret-lime-200 outline-none selection:bg-lime-300/20 placeholder:text-[#5b6470] focus:outline-none max-sm:pl-12 max-sm:text-base max-sm:leading-6"
+                                className="absolute inset-0 z-10 h-full w-full cursor-text resize-none overflow-hidden whitespace-pre border-none bg-transparent py-3 pl-16 pr-4 font-mono text-[13px] leading-6 text-transparent caret-lime-200 outline-none selection:bg-cyan-500/35 selection:text-transparent placeholder:text-[#5b6470] focus:outline-none max-sm:pl-12 max-sm:text-base max-sm:leading-6"
                                 value={editableCode}
                                 wrap="off"
+                                onPaste={(e) => {
+                                    setIsUserEditing(true);
+                                    const text = e.clipboardData?.getData('text');
+                                    console.log('[StrudelCodeView] Native paste received, length:', text?.length || 0);
+                                }}
                                 onChange={(e) => {
                                     const newValue = e.target.value;
                                     const cursorPos = e.target.selectionStart || newValue.length;
                                     console.log('[StrudelCodeView] Text changed:', newValue.slice(0, 50));
-                                    setEditableCode(newValue);
-                                    onCodeChange?.(newValue); // Notify parent
-                                    setIsUserEditing(true);
-                                    setSuggestion(''); // Clear suggestion when typing
-
-                                    // Clear existing timeouts
-                                    if (userEditTimeoutRef.current) clearTimeout(userEditTimeoutRef.current);
-                                    if (autoRunTimeoutRef.current) clearTimeout(autoRunTimeoutRef.current);
-
-                                    // Set user as "not editing" after 1.2 seconds of inactivity
-                                    userEditTimeoutRef.current = setTimeout(() => {
-                                        console.log('[StrudelCodeView] User stopped editing');
-                                        setIsUserEditing(false);
-                                    }, 1200);
-
-                                    // Auto-run code after 800ms of inactivity
-                                    autoRunTimeoutRef.current = setTimeout(() => {
-                                        console.log('[StrudelCodeView] Auto-running code...');
-                                        onRun?.(newValue);
-                                    }, 800);
+                                    handleCodeChange(newValue, true);
 
                                     // Trigger completion after 500ms of no typing
                                     if (completionTimeoutRef.current) {
@@ -502,9 +539,7 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
                                         if (suggestion) {
                                             // Accept AI suggestion
                                             const newValue = editableCode + suggestion;
-                                            setEditableCode(newValue);
-                                            onCodeChange?.(newValue);
-                                            setSuggestion('');
+                                            handleCodeChange(newValue, true);
 
                                             // Move cursor to end
                                             setTimeout(() => {
@@ -519,8 +554,7 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
                                             const end = e.currentTarget.selectionEnd;
                                             const newValue = editableCode.substring(0, start) + '  ' + editableCode.substring(end);
 
-                                            setEditableCode(newValue);
-                                            onCodeChange?.(newValue);
+                                            handleCodeChange(newValue, true);
 
                                             // Move cursor after spaces
                                             setTimeout(() => {

@@ -83,6 +83,11 @@ textarea {
   color-scheme: dark;
 }
 
+#strudel-code-editor::selection {
+  background: rgba(34, 211, 238, 0.38);
+  color: transparent;
+}
+
 .strudel-code-highlight,
 .strudel-code-highlight * {
   tab-size: 2;
