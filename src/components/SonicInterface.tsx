@@ -2,13 +2,15 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSonicSocket } from '@/hooks/useSonicSocket';
-import { Mic, MicOff, Play, Square, Code, Layers, LayoutGrid, Sprout, Disc3, ChevronLeft, ChevronRight, GripVertical, Send, Brain } from 'lucide-react';
+import { Mic, MicOff, Play, Square, Code, Layers, LayoutGrid, Sprout, Disc3, ChevronLeft, ChevronRight, GripVertical, Send, Brain, Sparkles } from 'lucide-react';
 import { SpectrumAnalyzer } from './SpectrumAnalyzer';
 import { StrudelCodeView } from './StrudelCodeView';
 import { DJMixerView } from './DJMixerView';
 import { SynplantGarden } from './SynplantGarden';
 import { SSNNSynthesizer } from './SSNNSynthesizer';
 import { VoiceSynthesizer } from './VoiceSynthesizer';
+import { StrudelLogo } from './StrudelLogo';
+import { MainFrontUI } from './MainFrontUI';
 import { evalStrudelCode, buildArrangementCode, buildStrudelCode, setTempoBpm } from '@/lib/strudel/engine';
 import { TrackStrip } from './TrackStrip';
 import { ArrangementView, createDefaultArrangement } from './ArrangementView';
@@ -24,7 +26,7 @@ const UI_STORAGE_KEYS = {
     rightPanelCollapsed: 'aether:rightPanelCollapsed',
 } as const;
 
-type ViewMode = 'simple' | 'arrangement' | 'garden' | 'djmixer' | 'ssnn' | 'voice';
+type ViewMode = 'hub' | 'simple' | 'arrangement' | 'garden' | 'djmixer' | 'ssnn' | 'voice';
 
 const VIEW_MODE_META: Record<ViewMode, {
     label: string;
@@ -32,6 +34,12 @@ const VIEW_MODE_META: Record<ViewMode, {
     subtitle: string;
     Icon: React.ComponentType<{ className?: string }>;
 }> = {
+    hub: {
+        label: 'Hub',
+        title: 'Studio Hub',
+        subtitle: 'Overview & launchers',
+        Icon: Sparkles,
+    },
     simple: {
         label: 'Code',
         title: 'Strudel Engine',
@@ -613,12 +621,10 @@ export default function SonicInterface() {
                 <section className="order-5 flex min-w-0 flex-1 flex-col border-r border-white/10 bg-[#12161d] max-lg:w-full max-lg:border-b max-lg:border-r-0 lg:order-1 lg:h-screen lg:overflow-hidden">
                     <header className="flex min-h-16 shrink-0 items-center justify-between gap-5 border-b border-white/10 bg-[#171c24] px-5 max-lg:w-full max-lg:max-w-full max-lg:flex-wrap max-lg:gap-3 max-lg:px-3 max-lg:py-3">
                         <div className="flex min-w-0 items-center gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-cyan-300">
-                                <ActiveViewIcon className="h-4 w-4" />
-                            </div>
-                            <div className="min-w-0">
-                                <h2 className="truncate text-sm font-semibold tracking-wide text-slate-50">{activeView.title}</h2>
-                                <p className="truncate text-xs text-slate-500">{activeView.subtitle}</p>
+                            <StrudelLogo variant="compact" isPlaying={isPlaying} size="sm" />
+                            <div className="min-w-0 border-l border-white/10 pl-3 max-sm:hidden">
+                                <h2 className="truncate text-xs font-semibold tracking-wide text-slate-200">{activeView.title}</h2>
+                                <p className="truncate text-[10px] text-slate-500">{activeView.subtitle}</p>
                             </div>
                         </div>
 
@@ -683,6 +689,27 @@ export default function SonicInterface() {
                     </header>
 
                     <div className="flex min-h-0 flex-1 flex-col bg-[#11151b] max-lg:w-full max-lg:max-w-full lg:overflow-hidden">
+                        <div className={`min-h-0 flex-1 flex-col overflow-y-auto ${viewMode === 'hub' ? 'flex' : 'hidden'}`}>
+                            <MainFrontUI
+                                state={state}
+                                isConnected={isConnected}
+                                isAudioReady={isAudioReady}
+                                isThinking={isThinking}
+                                isPlaying={isPlaying}
+                                bpm={bpm || 120}
+                                onSelectView={setViewMode}
+                                onSendCommand={sendCommand}
+                                onInitAudio={handleInitClick}
+                                onTogglePlayback={() => {
+                                    resumeStrudelAudio();
+                                    togglePlayback();
+                                }}
+                                onApplyTemplate={(template) => {
+                                    sendCommand(template);
+                                }}
+                            />
+                        </div>
+
                         <div className={`min-h-0 flex-col gap-4 p-5 max-lg:w-full max-lg:max-w-full max-lg:p-3 lg:h-full ${viewMode === 'simple' ? 'flex' : 'hidden'}`}>
                             <section className="flex min-h-[320px] min-w-0 flex-col overflow-hidden rounded-md border border-white/[0.07] bg-[#090b0f] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] max-lg:h-[430px] max-lg:w-full max-lg:max-w-full max-sm:h-[390px] lg:flex-1">
                                 <div className="flex shrink-0 items-center justify-between border-b border-white/[0.07] px-3 py-2.5">
@@ -810,44 +837,6 @@ export default function SonicInterface() {
                             ? RIGHT_PANEL_COLLAPSED_WIDTH
                             : isCompactViewport
                                 ? '100%'
-                                : `min(${rightPanelWidth}px, 100vw)`,
-                    }}
-                >
-                    {shouldCollapseRightPanel ? (
-                        <button
-                            type="button"
-                            className="flex h-full w-full items-center justify-center text-slate-500 transition-colors hover:text-cyan-200"
-                            onClick={() => setIsRightPanelCollapsed(false)}
-                            aria-label="Show control panel"
-                            title="Show control panel"
-                        >
-                            <ChevronLeft className="h-6 w-6" />
-                        </button>
-                    ) : (
-                        <>
-                            <header className="order-1 shrink-0 border-b border-white/10 pb-5 max-lg:w-full max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:pt-3 max-lg:pb-4">
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="flex min-w-0 items-center gap-3">
-                                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-cyan-300/20 bg-cyan-300/10 text-cyan-200 max-sm:h-10 max-sm:w-10">
-                                            <Mic className="h-5 w-5" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <h1 className="truncate text-2xl font-semibold tracking-tight text-white max-sm:text-xl">Aether</h1>
-                                            <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500 max-sm:text-[10px]">Sonic workstation</p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsHelpOpen(true)}
-                                        className="shrink-0 rounded-md border border-white/10 px-2.5 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:border-cyan-300/30 hover:text-cyan-100 max-sm:hidden"
-                                    >
-                                        Voice guide
-                                    </button>
-                                </div>
-
-                                <div className="mt-5 grid grid-cols-3 gap-2 max-lg:mt-4 max-sm:gap-1.5">
-                                    <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 max-sm:px-2">
-                                        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">System</p>
                                         <div className="mt-1 flex items-center gap-2">
                                             <span className={`h-2 w-2 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-rose-500'}`} />
                                             <span className="text-sm font-medium text-slate-200 max-sm:text-xs">{isConnected ? 'Linked' : 'Offline'}</span>
