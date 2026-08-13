@@ -23,6 +23,8 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
         const list = loadAllPresets();
         return {
             ...list[0].state,
+            // A preset selects a sound; it must not silently start SSNN.
+            isEnabled: false,
             activePreset: 1,
             presetName: list[0].name
         };
@@ -57,6 +59,20 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
     const shockwavesRef = useRef<Array<{ x: number; y: number; radius: number; maxRadius: number; opacity: number; color: string }>>([]);
     const sparksRef = useRef<Array<{ x: number; y: number; vx: number; vy: number; size: number; opacity: number; color: string; life: number }>>([]);
 
+    const disconnectMicrophone = useCallback(() => {
+        const microphoneSource = microphoneSourceRef.current;
+        if (microphoneSource) {
+            try { microphoneSource.disconnect(); } catch {}
+            microphoneSource.mediaStream.getTracks().forEach((track) => track.stop());
+            microphoneSourceRef.current = null;
+        }
+        if (recorderNodeRef.current) {
+            try { recorderNodeRef.current.disconnect(); } catch {}
+            recorderNodeRef.current = null;
+        }
+        analyserRef.current?.cleanup();
+    }, []);
+
     const setNeuralInputLabel = (label: string) => {
         if (neuralInputLabelRef.current === label) return;
         neuralInputLabelRef.current = label;
@@ -71,7 +87,7 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
         if (mainOutputGainRef.current) {
             const now = audioContextRef.current?.currentTime || 0;
             mainOutputGainRef.current.gain.cancelScheduledValues(now);
-            mainOutputGainRef.current.gain.setTargetAtTime(isPlaying ? nextState.mgain : 0, now, 0.025);
+            mainOutputGainRef.current.gain.setTargetAtTime(isPlaying && nextState.isEnabled ? nextState.mgain : 0, now, 0.025);
         }
     }, [isPlaying]);
 
@@ -112,7 +128,8 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
 
             // Output gain
             const output = ctx.createGain();
-            output.gain.value = liveState.mgain;
+            // Keep the output silent until the SSNN has been explicitly enabled.
+            output.gain.value = 0;
             const limiter = ctx.createDynamicsCompressor();
             limiter.threshold.value = -12;
             limiter.knee.value = 18;
@@ -160,16 +177,27 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
         }
     }, []);
 
-    // Handle play state sync
+    // The main transport may only initialize SSNN after the user explicitly
+    // enables it. Merely playing a Strudel track must not start this feature.
     useEffect(() => {
-        if (isPlaying) {
+        if (isPlaying && state.isEnabled) {
             void initializeAudio().then(() => {
                 if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
                     void audioContextRef.current.resume();
                 }
             });
         }
-    }, [isPlaying, initializeAudio]);
+    }, [isPlaying, state.isEnabled, initializeAudio]);
+
+    // Stopping SSNN (or the transport) also suspends its dedicated audio
+    // context, so its ScriptProcessor and DSP graph do not continue working in
+    // the background.
+    useEffect(() => {
+        const ctx = audioContextRef.current;
+        if ((!isPlaying || !state.isEnabled) && ctx?.state === 'running') {
+            void ctx.suspend();
+        }
+    }, [isPlaying, state.isEnabled]);
 
     // Cleanup audio context on unmount
     useEffect(() => {
@@ -185,23 +213,15 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
                 workerRef.current.terminate();
                 workerRef.current = null;
             }
-            if (microphoneSourceRef.current) {
-                try { microphoneSourceRef.current.disconnect(); } catch {}
-            }
-            if (recorderNodeRef.current) {
-                try { recorderNodeRef.current.disconnect(); } catch {}
-            }
+            disconnectMicrophone();
             if (feedbackRecorderRef.current) {
                 try { feedbackRecorderRef.current.disconnect(); } catch {}
-            }
-            if (analyserRef.current) {
-                analyserRef.current.cleanup();
             }
             if (audioContextRef.current) {
                 void audioContextRef.current.close();
             }
         };
-    }, []);
+    }, [disconnectMicrophone]);
 
     // 3. Run the LIF matrix in a Worker and keep rendering/audio scheduling on
     // lightweight UI-side loops. The Worker is the real neural source; the
@@ -223,9 +243,9 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
             }
         };
 
-        if (!isPlaying || !isSsnnAudioReady || !engineRef.current || !synthRef.current) {
+        if (!state.isEnabled || !isPlaying || !isSsnnAudioReady || !engineRef.current || !synthRef.current) {
             stopLoops();
-            setNeuralInputLabel(isPlaying ? 'INITIALIZING' : 'IDLE');
+            setNeuralInputLabel(!state.isEnabled ? 'OFF' : (isPlaying ? 'INITIALIZING' : 'ARMED'));
             return;
         }
 
@@ -421,29 +441,27 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
         animationFrameRef.current = requestAnimationFrame(renderLoop);
 
         return stopLoops;
-    }, [isPlaying, isSsnnAudioReady, state.specListen, state.updateRate, sessionBpm, workstationAnalyser]);
-
+    }, [isPlaying, isSsnnAudioReady, state.isEnabled, state.specListen, state.updateRate, sessionBpm, workstationAnalyser]);
     // Handle micro/audio source connection on SpecListen toggles
     useEffect(() => {
+        let cancelled = false;
         const toggleMicInput = async () => {
-            if (!state.specListen || !audioContextRef.current || !analyserRef.current) {
-                if (microphoneSourceRef.current) {
-                    try { microphoneSourceRef.current.disconnect(); } catch {}
-                    microphoneSourceRef.current = null;
-                }
-                if (recorderNodeRef.current) {
-                    try { recorderNodeRef.current.disconnect(); } catch {}
-                    recorderNodeRef.current = null;
-                }
-                if (analyserRef.current) {
-                    analyserRef.current.cleanup();
-                }
+            if (!state.isEnabled || !state.specListen || !audioContextRef.current || !analyserRef.current) {
+                disconnectMicrophone();
                 return;
             }
 
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                if (cancelled || !stateRef.current.isEnabled || !stateRef.current.specListen) {
+                    stream.getTracks().forEach((track) => track.stop());
+                    return;
+                }
                 const ctx = audioContextRef.current;
+                if (!ctx || !analyserRef.current) {
+                    stream.getTracks().forEach((track) => track.stop());
+                    return;
+                }
                 const source = ctx.createMediaStreamSource(stream);
                 microphoneSourceRef.current = source;
                 analyserRef.current.setup(ctx, source);
@@ -463,12 +481,15 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
                 console.log('[SSNNSynthesizer] Microphone source connected for FFT learning & recording.');
             } catch (e) {
                 console.warn('[SSNNSynthesizer] Microphone access denied or unavailable:', e);
-                setState(prev => ({ ...prev, specListen: false }));
+                commitState({ ...stateRef.current, specListen: false });
             }
         };
 
         void toggleMicInput();
-    }, [state.specListen]);
+        return () => {
+            cancelled = true;
+        };
+    }, [commitState, disconnectMicrophone, isSsnnAudioReady, state.isEnabled, state.specListen]);
 
     // Sync transport and master volume with a short ramp so stop/start commands
     // do not leave a resonator ringing or introduce a click.
@@ -476,9 +497,9 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
         if (mainOutputGainRef.current) {
             const now = audioContextRef.current?.currentTime || 0;
             mainOutputGainRef.current.gain.cancelScheduledValues(now);
-            mainOutputGainRef.current.gain.setTargetAtTime(isPlaying ? state.mgain : 0, now, 0.025);
+            mainOutputGainRef.current.gain.setTargetAtTime(isPlaying && state.isEnabled ? state.mgain : 0, now, 0.025);
         }
-    }, [isPlaying, state.mgain]);
+    }, [isPlaying, state.isEnabled, state.mgain]);
 
     // Sync parameters to engine & synth refs
     useEffect(() => {
@@ -707,10 +728,26 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
         }
     };
 
+    const toggleSsnnRun = async () => {
+        const next = { ...stateRef.current, isEnabled: !stateRef.current.isEnabled };
+        commitState(next);
+
+        if (next.isEnabled && isPlaying) {
+            await ensureAudioContextActive();
+        }
+
+        setInfoText(next.isEnabled
+            ? (isPlaying ? 'SSNN running' : 'SSNN armed — start playback to run it')
+            : 'SSNN stopped');
+    };
+
     // 5. Preset operations
     const applyPreset = (preset: SSNNPreset) => {
         const next = {
             ...preset.state,
+            // Presets change the sound configuration, not the user's current
+            // decision to run SSNN.
+            isEnabled: stateRef.current.isEnabled,
             activePreset: preset.id,
             presetName: preset.name
         };
@@ -723,7 +760,7 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
         const newPreset: SSNNPreset = {
             id: state.activePreset,
             name: customName,
-            state: { ...state }
+            state: { ...state, isEnabled: false }
         };
         savePreset(newPreset);
         
@@ -739,7 +776,7 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
         const newPreset: SSNNPreset = {
             id: nextId,
             name: `${state.presetName}_dup`,
-            state: { ...state }
+            state: { ...state, isEnabled: false }
         };
         savePreset(newPreset);
         
@@ -830,10 +867,7 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
     };
 
     return (
-        <div 
-            onClick={ensureAudioContextActive}
-            className="flex flex-col h-full min-h-0 bg-[#12151b] text-slate-200 select-none overflow-y-scroll studio-scrollbar max-lg:h-auto"
-        >
+        <div className="flex flex-col h-full min-h-0 bg-[#12151b] text-slate-200 select-none overflow-y-scroll studio-scrollbar max-lg:h-auto">
             {/* Header / Info bar */}
             <header className="flex min-h-[62px] shrink-0 items-center justify-between gap-4 overflow-hidden border-b border-white/5 bg-[#171c24] px-4 py-2.5">
                 <div className="flex min-w-0 items-center gap-3">
@@ -845,6 +879,17 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
                 </div>
                 
                 <div className="flex min-w-0 shrink-0 items-center gap-2 text-xs">
+                    <button
+                        type="button"
+                        onClick={() => { void toggleSsnnRun(); }}
+                        aria-pressed={state.isEnabled}
+                        className={`shrink-0 rounded-lg border px-3 py-1.5 text-[11px] font-bold transition-colors ${state.isEnabled
+                            ? 'border-rose-400/70 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20'
+                            : 'border-amber-400/60 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20'
+                        }`}
+                    >
+                        {state.isEnabled ? 'Stop SSNN' : 'Run SSNN'}
+                    </button>
                     {infoText && (
                         <div className="w-[min(360px,28vw)] truncate text-right text-[11px] text-amber-500/80 font-mono italic max-xl:hidden mr-1" title={infoText}>
                             {infoText}

@@ -9,6 +9,10 @@ export interface SSNNColumnSettings {
 }
 
 export interface SSNNState {
+    // SSNN has an independent run switch. It must never start from the main
+    // transport alone; the user explicitly enables it first.
+    isEnabled: boolean;
+
     // SNN Network Parameters
     specListen: boolean;
     morph: number;       // 0.0 to 1.0 (random weights to learned weights)

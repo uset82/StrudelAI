@@ -6,6 +6,7 @@ export const SSNN_TOTAL_NEURONS = SSNN_LAYERS * SSNN_NEURONS_PER_LAYER; // 960
 
 export function createDefaultSSNNState(): SSNNState {
     return {
+        isEnabled: false,
         specListen: false,
         morph: 0.0,
         sweight: 0.0,

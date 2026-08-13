@@ -159,6 +159,14 @@ export function tryRuleBasedUpdate(text: string, state: SonicSessionState): { ch
     if (ssnnContext) {
         const ssnn = ensureSsnn();
         const updates: string[] = [];
+        const ssnnName = '(?:ssnn|spiking(?:\\s+and\\s+sounding)?\\s+neural(?:\\s+network)?|neural\\s+network)';
+        const startsSsnn = new RegExp(`\\b(?:start|run|enable|activate|turn\\s+on)\\s+(?:the\\s+)?${ssnnName}\\b`).test(lowered);
+        const stopsSsnn = new RegExp(`\\b(?:stop|disable|deactivate|turn\\s+off)\\s+(?:the\\s+)?${ssnnName}\\b`).test(lowered);
+        if (startsSsnn || stopsSsnn) {
+            ssnn.isEnabled = startsSsnn && !stopsSsnn;
+            updates.push(`SSNN=${ssnn.isEnabled ? 'running' : 'stopped'}`);
+        }
+
         const parameterSpecs: Array<{ key: keyof typeof ssnn; aliases: string; min: number; max: number }> = [
             { key: 'morph', aliases: 'morph', min: 0, max: 1 },
             { key: 'sweight', aliases: 'sweight|connection weight', min: -1, max: 1 },

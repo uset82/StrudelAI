@@ -29,6 +29,7 @@ import { cleanStrudelCode } from './src/lib/music/codeExtractor';
 import { tryRuleBasedUpdate } from './src/lib/agent/runtime';
 import { mapFftDecibelsToSsnnBands } from './src/lib/ssnn/fft';
 import { getSsnnOutputCharacter } from './src/lib/ssnn/dsp';
+import { createDefaultSSNNState } from './src/lib/ssnn/engine';
 import type { SonicSessionState, InstrumentType } from './src/types/sonic';
 
 const hasTrack = (value: string | null) => typeof value === 'string' && value.trim().length > 0;
@@ -365,6 +366,14 @@ assert.ok(balancedByChat.newState.tracks.bass.volume < balancedByChat.newState.t
 
 const ssnnTauByChat = tryRuleBasedUpdate('set SSNN tau to 7', controlState);
 assert.equal(ssnnTauByChat.newState.ssnn?.tau, 7, 'chat should control individual SSNN parameters');
+assert.equal(ssnnTauByChat.newState.ssnn?.isEnabled, false, 'SSNN parameter changes must not start the feature');
+
+assert.equal(createDefaultSSNNState().isEnabled, false, 'SSNN must be off until the user explicitly runs it');
+const startedSsnnByChat = tryRuleBasedUpdate('start SSNN', controlState);
+assert.equal(startedSsnnByChat.newState.ssnn?.isEnabled, true, 'an explicit SSNN start command should enable the feature');
+const stoppedSsnnByChat = tryRuleBasedUpdate('stop SSNN', startedSsnnByChat.newState);
+assert.equal(stoppedSsnnByChat.newState.ssnn?.isEnabled, false, 'an explicit SSNN stop command should disable the feature without stopping the main transport');
+assert.equal(stoppedSsnnByChat.newState.isPlaying, true, 'stopping SSNN must not stop normal music playback');
 
 const stableSsnnByChat = tryRuleBasedUpdate('make the SSNN stable and less jittery', controlState);
 assert.equal(stableSsnnByChat.newState.ssnn?.qntRnd, 0, 'stable SSNN command should remove quantization jitter');

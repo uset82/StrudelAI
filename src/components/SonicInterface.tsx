@@ -592,6 +592,11 @@ export default function SonicInterface() {
     const trackEntries = state?.tracks ? Object.entries(state.tracks) : [];
     const activeTrackCount = trackEntries.filter(([, track]) => Boolean(track.pattern?.trim()) && !track.muted).length;
     const isPlaying = Boolean(state?.isPlaying);
+    // Keep the panel mounted only while it is open or the user has explicitly
+    // chosen to run SSNN. This keeps its worker and audio graph out of normal
+    // music playback, while an intentionally running SSNN can continue when
+    // the user changes views.
+    const shouldMountSsnn = viewMode === 'ssnn' || Boolean(state?.ssnn?.isEnabled);
     const bpm = state?.bpm ?? 0;
     const shouldCollapseRightPanel = isRightPanelCollapsed && !isCompactViewport;
 
@@ -718,15 +723,17 @@ export default function SonicInterface() {
                             <DJMixerView bpm={bpm || 120} />
                         </div>
 
-                        <div className={`min-h-[620px] overflow-hidden lg:h-full lg:min-h-0 ${viewMode === 'ssnn' ? '' : 'hidden'}`}>
-                            <SSNNSynthesizer
-                                sessionBpm={bpm || 128}
-                                isPlaying={isPlaying}
-                                workstationAnalyser={analyser}
-                                ssnnState={state?.ssnn}
-                                onStateChange={setSsnnState}
-                            />
-                        </div>
+                        {shouldMountSsnn && (
+                            <div className={`min-h-[620px] overflow-hidden lg:h-full lg:min-h-0 ${viewMode === 'ssnn' ? '' : 'hidden'}`}>
+                                <SSNNSynthesizer
+                                    sessionBpm={bpm || 128}
+                                    isPlaying={isPlaying}
+                                    workstationAnalyser={analyser}
+                                    ssnnState={state?.ssnn}
+                                    onStateChange={setSsnnState}
+                                />
+                            </div>
+                        )}
 
                         <div className={`min-h-[620px] overflow-hidden lg:h-full lg:min-h-0 ${viewMode === 'voice' ? '' : 'hidden'}`}>
                             <VoiceSynthesizer />

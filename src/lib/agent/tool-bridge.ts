@@ -102,10 +102,11 @@ export const AGENT_TOOLS: ChatCompletionTool[] = [
         type: "function",
         function: {
             name: "update_ssnn",
-            description: "Updates parameters, engines, arpeggiator patterns, or routing configurations of the Spiking and Sounding Neural Network (SSNN).",
+            description: "Updates explicitly requested SSNN run state, parameters, engines, arpeggiator patterns, or routing configurations. SSNN remains off unless the user explicitly starts it.",
             parameters: {
                 type: "object",
                 properties: {
+                    isEnabled: { type: "boolean", description: "Run or stop SSNN with the main transport. Change only for an explicit SSNN start/stop request." },
                     specListen: { type: "boolean", description: "Enable continuous FFT spectral listening." },
                     morph: { type: "number", description: "Weight morphing interpolation (0.0 to 1.0, random to learned)." },
                     sweight: { type: "number", description: "Contrast scaling coefficient (-1.0 to 1.0)." },
