@@ -1011,4 +1011,19 @@ const valid8And16StepTrackMap = {
 const valResultValid = validateGeneratedTracks(valid8And16StepTrackMap, 'play some techno');
 assert.equal(valResultValid.valid, true, `Standard step counts should pass validation: ${JSON.stringify(valResultValid.issues)}`);
 
+// Artist & Band prompt routing tests
+assert.equal(detectGenre('BLINK182'), 'punk', 'BLINK182 should route to punk');
+assert.equal(detectGenre('blink 182'), 'punk', 'blink 182 should route to punk');
+assert.equal(detectGenre('green day'), 'punk', 'green day should route to punk');
+assert.equal(detectGenre('nirvana'), 'rock', 'nirvana should route to rock');
+assert.equal(detectGenre('metallica'), 'metal', 'metallica should route to metal');
+assert.equal(detectGenre('daft punk'), 'techno', 'daft punk should route to techno');
+assert.equal(isPureChatGreeting('BLINK182'), false, 'BLINK182 is music intent, not pure chat greeting');
+
+const blinkResp = buildDeterministicMusicResponse('BLINK182') as Extract<AgentUpdateResponse, { type: 'update_tracks' }>;
+assert.ok(blinkResp, 'BLINK182 should produce a response');
+assert.equal(blinkResp.bpm, 176, 'Blink-182 should use punk tempo (176 BPM)');
+assert.ok(hasTrack(blinkResp.tracks.drums), 'Blink-182 needs drums');
+assert.ok(hasTrack(blinkResp.tracks.melody), 'Blink-182 needs guitar chords');
+
 console.log('Music quality regression tests passed.');

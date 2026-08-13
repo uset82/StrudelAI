@@ -977,27 +977,27 @@ export const GENRE_TEMPLATES: Record<GenreKey, GenreTemplate> = {
 };
 
 const GENRE_PATTERNS: Array<[GenreKey, RegExp]> = [
-    ['breakbeat_90s', /\b(90s\s+breakbeat|old\s+school\s+breakbeat|rave\s+breakbeat|big\s+beat)\b/i],
-    ['dnb', /\b(dnb|drum\s*(?:and|&)\s*bass|jungle|breakbeat)\b/i],
+    ['breakbeat_90s', /\b(90s\s+breakbeat|old\s+school\s+breakbeat|rave\s+breakbeat|big\s+beat|the\s+prodigy|prodigy|fatboy\s+slim|chemical\s+brothers)\b/i],
+    ['dnb', /\b(dnb|drum\s*(?:and|&)\s*bass|jungle|breakbeat|pendulum|noisia)\b/i],
     ['spacesynth', /\b(koto[-\s]*style\s+spacesynth|spacesynth|space\s+synth|synthwave|spacewave|chiptune|8-?bit|retrowave|vaporwave)\b/i],
     ['cinematic_electronic', /\b(cinematic\s+electronic|relay\s+and\s+capacitor|capacitor\s+sounds?|relay\s+sounds?|electroacoustic\s+cinematic)\b/i],
-    ['pop_funk', /\b(michael\s+jackson|mj|pop\s*funk|dance\s*pop\s*funk|rnb|r&b|soul|motown)\b/i],
+    ['pop_funk', /\b(michael\s+jackson|mj|pop\s*funk|dance\s*pop\s*funk|rnb|r&b|soul|motown|prince|bruno\s*mars)\b/i],
     ['italo_80s', /\b(italo|italo\s*disco|80s\s*techno|techno\s+italo\s+80s|italo\s+80s)\b/i],
-    ['hiphop', /\b(hip\s*hop|hip-hop|rap|boom\s*bap|trap|eminem|eminen|slim\s+shady|lo-?fi|lofi|drill)\b/i],
-    ['rock', /\b(rockl?|rokc|rocl|rokk|guitar|riff|power\s*chords?|distorted\s*guitar|grunge|hard\s*rock|folk|acoustic|indie|alternative)\b/i],
-    ['metal', /\b(metal|metall|metla|heavy\s*metal|chug|double\s*kick)\b/i],
-    ['punk', /\b(punk|pnuk|pop\s*punk)\b/i],
-    ['techno', /\b(techno|tekno|tehno|rave|industrial|tech house)\b/i],
-    ['jazz', /\b(jazz|jaz|jazzy|swing|blues|bossa(?:\s*nova)?)\b/i],
-    ['funk', /\b(funk|fnuk|funky|groove|disco|nu-?disco)\b/i],
-    ['latin', /\b(latin|salsa|cumbia|reggaeton|bachata)\b/i],
-    ['reggae', /\b(reggae|dub(?!\s*step)|ska)\b/i],
-    ['trance', /\b(trance|uplifting|euphoric|edm|progressive|big room|festival|dubstep|bass\s*music)\b/i],
+    ['hiphop', /\b(hip\s*hop|hip-hop|rap|boom\s*bap|trap|eminem|eminen|slim\s+shady|lo-?fi|lofi|drill|tupac|2pac|biggie|notorious\s+big|dr\s+dre|snoop\s+dogg|kanye|travis\s+scott|drake|kendrick(?:\s+lamar)?|j\s*cole)\b/i],
+    ['punk', /\b(punk|pnuk|pop\s*punk|blink[-\s]*182|blink182|green\s*day|sum\s*41|nofx|ramones|the\s*offspring|offspring|fall\s*out\s*boy|paramore|my\s*chemical\s*romance|mcr|good\s*charlotte|bad\s*religion|sex\s*pistols|clash)\b/i],
+    ['metal', /\b(metal|metall|metla|heavy\s*metal|chug|double\s*kick|metallica|iron\s*maiden|megadeth|slayer|black\s*sabbath|pantera|slipknot|avenged\s*sevenfold|judas\s*priest|system\s+of\s+a\s+down|soad|rammstein)\b/i],
+    ['rock', /\b(rockl?|rokc|rocl|rokk|guitar|riff|power\s*chords?|distorted\s*guitar|grunge|hard\s*rock|folk|acoustic|indie|alternative|nirvana|foo\s*fighters|ac\/?dc|led\s*zeppelin|queen|the\s*beatles|beatles|arctic\s*monkeys|radiohead|weezer|red\s*hot\s*chili\s*peppers|rhcp|oasis|pink\s*floyd|rolling\s*stones|deep\s*purple)\b/i],
+    ['techno', /\b(techno|tekno|tehno|rave|industrial|tech house|daft\s*punk|kraftwerk|deadmau5|justice)\b/i],
+    ['jazz', /\b(jazz|jaz|jazzy|swing|blues|bossa(?:\s*nova)?|miles\s*davis|coltrane)\b/i],
+    ['funk', /\b(funk|fnuk|funky|groove|disco|nu-?disco|earth\s*wind\s*(?:and|&)\s*fire|chic|parliament|funkadelic)\b/i],
+    ['latin', /\b(latin|salsa|cumbia|reggaeton|bachata|bad\s*bunny|j\s*balvin|daddy\s*yankee)\b/i],
+    ['reggae', /\b(reggae|dub(?!\s*step)|ska|bob\s*marley)\b/i],
+    ['trance', /\b(trance|uplifting|euphoric|edm|progressive|big room|festival|dubstep|bass\s*music|tiesto|tiësto|armin\s+van\s+buuren|skrillex|calvin\s*harris|david\s*guetta|avicii)\b/i],
     ['acid', /\b(acid|303|squelchy)\b/i],
     ['minimal', /\b(minimal|hypnotic)\b/i],
-    ['ambient', /\b(ambient|atmospheric|chill|relax|calm|peaceful|dreamy|ethereal|soundscape|drone|meditation)\b/i],
+    ['ambient', /\b(ambient|atmospheric|chill|relax|calm|peaceful|dreamy|ethereal|soundscape|drone|meditation|brian\s*eno)\b/i],
     ['house', /\b(house|hous|deep\s*house|groovy)\b/i],
-    ['pop', /\b(pop|catchy|radio)\b/i],
+    ['pop', /\b(pop|catchy|radio|taylor\s*swift|dua\s*lipa|billie\s*eilish|lady\s*gaga)\b/i],
 ];
 
 export function detectGenre(prompt: string): GenreKey | null {
@@ -1077,21 +1077,30 @@ export function detectSpecificSong(prompt: string): GenreKey | null {
     return null;
 }
 
-// detectArtistOrConcept: new helper (added for phase 2.1) to catch producer/artist names like Tiësto
-// and abstract concepts (UFO etc). Returns a GenreKey so existing routing works.
-// Assumption: Tiësto-style maps to 'trance' (sensible default as Tiesto is iconic for uplifting trance/EDM);
-// other EDM producers default to trance for distinct output vs generic; UFO concepts default to 'ambient'.
-// This is called from detectGenre.
+// detectArtistOrConcept: helper to catch producer/artist/band names and abstract concepts.
+// Returns a GenreKey so existing routing works.
 export function detectArtistOrConcept(prompt: string): GenreKey | null {
     const p = prompt.toLowerCase();
-    // Tiësto / Tiesto and close variants -> trance for uplifting EDM traits
+    // Tiësto / EDM producers
     if (/\b(tiesto|tiësto|tiesto-style|tiesto style|tiësto style)\b/.test(p)) return 'trance';
     if (/\b(koto[-\s]*style|koto)\b.*\b(space\s*synth|spacesynth|synthwave)\b/.test(p)) return 'spacesynth';
     if (/\b(relay|capacitor)\b.*\b(cinematic|electronic|music|sound)\b|\b(cinematic|electronic)\b.*\b(relay|capacitor)\b/.test(p)) return 'cinematic_electronic';
-    // Additional EDM/trance/house producers and aliases (8+ for coverage)
-    if (/\b(armin van buuren|armin vanbuuren|above & beyond|aboveandbeyond|above and beyond|david guetta|calvin harris|martin garrix|skrillex|zedd|alesso|hardwell)\b/.test(p)) return 'trance';
-    // Abstract / concept keywords (UFO communication, alien signals, cosmic etc) -> ambient
-    // for sparse atmospheric / fx-heavy output
+    if (/\b(armin van buuren|armin vanbuuren|above & beyond|aboveandbeyond|above and beyond|david guetta|calvin harris|martin garrix|skrillex|zedd|alesso|hardwell|avicii)\b/.test(p)) return 'trance';
+    if (/\b(daft\s*punk|kraftwerk|deadmau5|justice|the\s*prodigy|prodigy|fatboy\s*slim|chemical\s*brothers)\b/.test(p)) return 'techno';
+
+    // Pop-Punk / Punk bands
+    if (/\b(blink[-\s]*182|blink182|green\s*day|sum\s*41|nofx|ramones|the\s*offspring|offspring|fall\s*out\s*boy|paramore|my\s*chemical\s*romance|mcr|good\s*charlotte|bad\s*religion|sex\s*pistols|the\s*clash)\b/.test(p)) return 'punk';
+
+    // Rock / Alternative bands
+    if (/\b(nirvana|foo\s*fighters|ac\/?dc|led\s*zeppelin|queen|the\s*beatles|beatles|arctic\s*monkeys|radiohead|weezer|red\s*hot\s*chili\s*peppers|rhcp|oasis|pink\s*floyd|rolling\s*stones|deep\s*purple)\b/.test(p)) return 'rock';
+
+    // Metal bands
+    if (/\b(metallica|iron\s*maiden|megadeth|slayer|black\s*sabbath|pantera|slipknot|avenged\s*sevenfold|judas\s*priest|system\s+of\s+a\s+down|soad|rammstein)\b/.test(p)) return 'metal';
+
+    // Hip-hop / Rap artists
+    if (/\b(eminem|eminen|slim\s+shady|tupac|2pac|biggie|notorious\s+big|dr\s+dre|snoop\s+dogg|kanye|travis\s+scott|drake|kendrick(?:\s+lamar)?|j\s*cole)\b/.test(p)) return 'hiphop';
+
+    // Abstract / concept keywords
     if (/\b(ufo|alien|cosmic|space.*(signal|communicat|transmission)| (signal|communicat|transmission).*space|extraterrestrial|otherworldly|alien signal|cosmic signal|ufo communication)\b/.test(p)) return 'ambient';
     return null;
 }
@@ -1104,8 +1113,28 @@ export function getTemplateForPrompt(prompt: string, currentCode?: string): Genr
     if (isMichaelJacksonPrompt(prompt)) {
         return GENRE_TEMPLATES.pop_funk;
     }
-    if (/\bdrums?\b/i.test(prompt) && /\bblink\s*-?\s*182\b|\bblink182\b/i.test(prompt)) {
-        return GENRE_TEMPLATES.pop_punk_drums;
+    if (/\bblink\s*-?\s*182\b|\bblink182\b/i.test(prompt)) {
+        if (isDrumOnlyPrompt(prompt)) {
+            return {
+                id: 'clean_drums',
+                aliases: ['blink 182 drums', 'pop punk drums'],
+                intentTags: ['drums', 'punk', 'fast'],
+                bpm: 176,
+                key: 'N/A',
+                scale: 'N/A',
+                thought: 'Blink-182 fast punk drum groove at 176 BPM with kick, snare, and driving hats.',
+                tracks: tracks({
+                    drums: "stack(s('RolandTR909_bd*4').gain(0.96), s('~ RolandTR909_sd ~ RolandTR909_sd').gain(0.84).hpf(500), s('RolandTR909_hh*16').gain(0.24).hpf(6500))",
+                    bass: 'silence',
+                    melody: 'silence',
+                    voice: 'silence',
+                    fx: 'silence',
+                }),
+                requiredTracks: ['drums'],
+                qualityNotes: ['Fast punk drums only'],
+            };
+        }
+        return GENRE_TEMPLATES.punk;
     }
     if (/\b(?:triple\s*tap|triple|three\s*hit|3\s*hit)\b/i.test(prompt) && isDrumOnlyPrompt(prompt)) return GENRE_TEMPLATES.triple_tap_drums;
     if (isDoubleTapDrumPrompt(prompt)) return GENRE_TEMPLATES.double_tap_drums;
@@ -1132,7 +1161,7 @@ export function shouldUseDeterministicTemplate(prompt: string) {
     if (detectSpecificSong(prompt)) return true;
     if (isMichaelJacksonPrompt(prompt)) return true;
     if (isDrumOnlyPrompt(prompt)) return true;
-    if (/\bdrums?\b/i.test(prompt) && /\bblink\s*-?\s*182\b|\bblink182\b/i.test(prompt)) return true;
+    if (/\bblink\s*-?\s*182\b|\bblink182\b/i.test(prompt)) return true;
     if (isRepairPrompt(prompt) || isHumanizePrompt(prompt)) return true;
     return Boolean(detectGenre(prompt)) && isBroadMusicRequest(prompt) && !/\b(add|only|mute|remove|delete|just|change\s+the|make\s+the\s+drums|make\s+the\s+bass)\b/i.test(prompt);
 }
