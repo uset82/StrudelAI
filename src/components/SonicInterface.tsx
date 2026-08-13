@@ -191,8 +191,8 @@ export default function SonicInterface() {
     const logRef = useRef<HTMLDivElement | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
 
-    // View mode: 'simple' (tracks), 'arrangement' (Ableton-style), 'garden' (Synplant), or 'djmixer' (DJ mode)
-    const [viewMode, setViewMode] = useState<ViewMode>('simple');
+    // View mode: 'hub' (Front UI), 'simple' (tracks), 'arrangement' (Ableton-style), 'garden' (Synplant), 'djmixer', 'ssnn', or 'voice'
+    const [viewMode, setViewMode] = useState<ViewMode>('hub');
     const [arrangement, setArrangement] = useState<ArrangementState>(() => createDefaultArrangement());
     const [isHelpOpen, setIsHelpOpen] = useState(false);
     const [isCompactViewport, setIsCompactViewport] = useState(false);
@@ -613,6 +613,79 @@ export default function SonicInterface() {
     const shouldMountSsnn = viewMode === 'ssnn' || Boolean(state?.ssnn?.isEnabled);
     const bpm = state?.bpm ?? 0;
     const shouldCollapseRightPanel = isRightPanelCollapsed && !isCompactViewport;
+
+    if (viewMode === 'hub') {
+        return (
+            <div className="flex h-screen w-full flex-col overflow-hidden bg-[#090b10] text-slate-100 selection:bg-cyan-400/20 selection:text-cyan-50">
+                {/* Global Top Nav */}
+                <header className="flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-white/10 bg-[#0e1218] px-4 sm:px-6">
+                    <div className="flex items-center gap-3">
+                        <StrudelLogo variant="full" isPlaying={isPlaying} size="md" />
+                    </div>
+
+                    <div className="flex items-center justify-center overflow-x-auto studio-scrollbar">
+                        <div className="flex rounded-lg border border-white/10 bg-[#06080c] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                            {(Object.entries(VIEW_MODE_META) as Array<[ViewMode, typeof activeView]>).map(([mode, meta]) => {
+                                const Icon = meta.Icon;
+                                const active = viewMode === mode;
+                                return (
+                                    <button
+                                        key={mode}
+                                        type="button"
+                                        onClick={() => setViewMode(mode)}
+                                        className={`flex h-8 shrink-0 items-center gap-2 rounded-md px-3 text-xs font-medium transition-colors ${
+                                            active
+                                                ? 'bg-slate-100 text-slate-950 shadow-sm font-bold'
+                                                : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-200'
+                                        }`}
+                                        aria-pressed={active}
+                                    >
+                                        <Icon className="h-3.5 w-3.5" />
+                                        {meta.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-slate-400 max-sm:hidden">
+                            <span className={`h-2 w-2 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-rose-500'}`} />
+                            <span>{isConnected ? 'Linked' : 'Offline'}</span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setViewMode('simple')}
+                            className="flex items-center gap-2 rounded-lg bg-cyan-400 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-cyan-300 transition-colors shadow-[0_0_14px_rgba(34,211,238,0.25)]"
+                        >
+                            <Code className="h-3.5 w-3.5" />
+                            <span>Studio DAW</span>
+                        </button>
+                    </div>
+                </header>
+
+                {/* Main Front UI Body */}
+                <MainFrontUI
+                    state={state}
+                    isConnected={isConnected}
+                    isAudioReady={isAudioReady}
+                    isThinking={isThinking}
+                    isPlaying={isPlaying}
+                    bpm={bpm || 120}
+                    onSelectView={setViewMode}
+                    onSendCommand={sendCommand}
+                    onInitAudio={handleInitClick}
+                    onTogglePlayback={() => {
+                        resumeStrudelAudio();
+                        togglePlayback();
+                    }}
+                    onApplyTemplate={(template) => {
+                        sendCommand(template);
+                    }}
+                />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-dvh w-full overflow-x-hidden bg-[#101216] text-slate-200 selection:bg-cyan-400/20 selection:text-cyan-50 lg:h-screen lg:overflow-hidden">
