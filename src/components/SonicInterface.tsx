@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSonicSocket } from '@/hooks/useSonicSocket';
-import { Mic, MicOff, Play, Square, Code, Layers, LayoutGrid, Sprout, Disc3, ChevronLeft, ChevronRight, GripVertical, Send, Brain, Sparkles } from 'lucide-react';
+import { Mic, MicOff, Play, Square, Code, Layers, LayoutGrid, Sprout, Disc3, ChevronLeft, ChevronRight, GripVertical, Send, Brain, Sparkles, X } from 'lucide-react';
 import { SpectrumAnalyzer } from './SpectrumAnalyzer';
 import { StrudelCodeView } from './StrudelCodeView';
 import { DJMixerView } from './DJMixerView';
@@ -975,10 +975,7 @@ export default function SonicInterface() {
 
                             <button
                                 type="button"
-                                onClick={() => {
-                                    inputRef.current?.scrollIntoView({ behavior: 'smooth' });
-                                    inputRef.current?.focus();
-                                }}
+                                onClick={() => setIsMobileAssistantOpen(true)}
                                 className="relative flex items-center gap-1.5 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-2.5 py-1.5 text-xs font-bold text-cyan-200 hover:bg-cyan-400/20 transition-all min-h-[38px]"
                                 aria-label="Open AI Assistant"
                             >
@@ -1074,7 +1071,7 @@ export default function SonicInterface() {
                                 </div>
                             </section>
 
-                            <section className="flex h-[32%] min-h-[220px] min-w-0 flex-col overflow-hidden rounded-lg border border-white/10 bg-[#0e1218] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] max-lg:h-[180px] max-lg:min-h-0 max-lg:w-full max-lg:max-w-full max-lg:flex-none max-sm:h-[150px]">
+                            <section className="flex h-[32%] min-h-[220px] min-w-0 flex-col overflow-hidden rounded-lg border border-white/10 bg-[#0e128] shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] max-lg:h-[180px] max-lg:min-h-0 max-lg:w-full max-lg:max-w-full max-lg:flex-none max-sm:h-[150px]">
                                 <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
                                     <div>
                                         <h3 className="text-sm font-semibold text-slate-100">Frequency Spectrum</h3>
@@ -1169,8 +1166,9 @@ export default function SonicInterface() {
                     </div>
                 </div>
 
+                {/* Desktop Aside Control Panel */}
                 <aside
-                    className={`relative order-1 flex shrink-0 flex-col border-l border-white/10 bg-[#0b0e12] max-lg:contents lg:order-3 lg:h-screen lg:min-h-0 ${isResizingRightPanel ? 'transition-none' : 'transition-[width] duration-200 ease-out'} ${shouldCollapseRightPanel ? 'overflow-hidden p-0' : 'p-5 lg:overflow-hidden'}`}
+                    className={`relative hidden lg:flex shrink-0 flex-col border-l border-white/10 bg-[#0b0e12] lg:order-3 lg:h-screen lg:min-h-0 ${isResizingRightPanel ? 'transition-none' : 'transition-[width] duration-200 ease-out'} ${shouldCollapseRightPanel ? 'overflow-hidden p-0' : 'p-5 lg:overflow-hidden'}`}
                     style={{
                         width: shouldCollapseRightPanel
                             ? RIGHT_PANEL_COLLAPSED_WIDTH
@@ -1190,332 +1188,101 @@ export default function SonicInterface() {
                             <ChevronLeft className="h-6 w-6" />
                         </button>
                     ) : (
-                        <>
-                            <header className="order-1 shrink-0 border-b border-white/10 pb-5 max-lg:w-full max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:pt-3 max-lg:pb-4">
-                                <div className="flex items-start justify-between gap-4">
-                                    <StrudelLogo variant="full" isPlaying={isPlaying} size="md" />
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsHelpOpen(true)}
-                                        className="shrink-0 rounded-md border border-white/10 px-2.5 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:border-cyan-300/30 hover:text-cyan-100 max-sm:hidden"
-                                    >
-                                        Voice guide
-                                    </button>
-                                </div>
-
-                                <div className="mt-5 grid grid-cols-3 gap-2 max-lg:mt-4 max-sm:gap-1.5">
-                                    <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 max-sm:px-2">
-                                        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">System</p>
-                                        <div className="mt-1 flex items-center gap-2">
-                                            <span className={`h-2 w-2 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-rose-500'}`} />
-                                            <span className="text-sm font-medium text-slate-200 max-sm:text-xs">{isConnected ? 'Linked' : 'Offline'}</span>
-                                        </div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            resumeStrudelAudio();
-                                            togglePlayback();
-                                        }}
-                                        className={`rounded-lg border px-3 py-2 text-left transition-colors max-sm:px-2 ${isPlaying
-                                            ? 'border-cyan-300/40 bg-cyan-300/10 text-cyan-100'
-                                            : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-cyan-300/30 hover:text-cyan-100'
-                                            }`}
-                                        aria-label={isPlaying ? 'Stop playback' : 'Start playback'}
-                                    >
-                                        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">Transport</p>
-                                        <div className="mt-1 flex items-center gap-2 text-sm font-medium max-sm:text-xs">
-                                            {isPlaying ? <Square className="h-3.5 w-3.5 fill-current" /> : <Play className="h-3.5 w-3.5 fill-current" />}
-                                            {isPlaying ? 'Playing' : 'Idle'}
-                                        </div>
-                                    </button>
-                                    <div
-                                        className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 max-sm:px-2"
-                                        onWheel={(e) => {
-                                            if (state?.bpm) {
-                                                const delta = e.deltaY > 0 ? -5 : 5;
-                                                setBpm(Math.max(60, Math.min(240, state.bpm + delta)));
-                                            }
-                                        }}
-                                        title="Scroll to change BPM"
-                                    >
-                                        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">Tempo</p>
-                                        <p className="mt-1 text-sm font-semibold tabular-nums text-slate-100 max-sm:text-xs">{bpm} BPM</p>
-                                    </div>
-                                </div>
-
-                                <button
-                                    type="button"
-                                    onClick={testAudio}
-                                    className="mt-3 text-xs font-medium text-slate-500 transition-colors hover:text-cyan-200"
-                                >
-                                    Test system audio
-                                </button>
-                            </header>
-
-                            {!isAudioReady && (
-                                <section className="order-2 shrink-0 border-b border-white/10 py-4 max-lg:w-full max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4">
-                                    <div className="rounded-lg border border-cyan-300/20 bg-cyan-300/10 p-4 max-sm:p-3">
-                                        <div className="flex items-start gap-3">
-                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cyan-300/15 text-cyan-100 max-sm:h-9 max-sm:w-9">
-                                                <Mic className="h-5 w-5" />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <h2 className="text-sm font-semibold text-white">Start audio engine</h2>
-                                                <p className="mt-1 text-sm leading-5 text-slate-400 max-sm:text-xs">Enable playback, voice input, and live code evaluation.</p>
-                                            </div>
-                                        </div>
-                                        <div className="mt-4 grid grid-cols-[1fr_auto] gap-2 max-sm:grid-cols-1">
-                                            <button
-                                                type="button"
-                                                onClick={handleInitClick}
-                                                className="min-h-11 rounded-lg bg-cyan-300 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-cyan-200"
-                                            >
-                                                Initialize session
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={testAudio}
-                                                className="min-h-11 rounded-lg border border-white/10 px-3 py-2.5 text-xs font-medium text-slate-400 transition-colors hover:text-cyan-100"
-                                            >
-                                                Test
-                                            </button>
-                                        </div>
-                                    </div>
-                                </section>
-                            )}
-
-                            <section className="order-4 flex min-h-0 flex-1 flex-col py-5 max-lg:min-h-[430px] max-lg:w-full max-lg:flex-none max-lg:border-b max-lg:border-white/10 max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4">
-                                <div className="mb-3 flex items-center justify-between gap-3">
-                                    <h2 className="text-sm font-semibold text-slate-100">Chat</h2>
-                                    <span className="text-xs text-slate-500">{chatMessages.length > 0 ? `${chatMessages.length} messages` : 'Ready'}</span>
-                                </div>
-
-                                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-cyan-300/25 bg-[#07090c] shadow-[0_0_34px_rgba(34,211,238,0.05)] max-lg:min-h-[360px] max-sm:min-h-[340px]">
-                                    <div
-                                        ref={logRef}
-                                        className="studio-scrollbar min-h-0 flex-1 overflow-y-auto p-3"
-                                    >
-                                        <div className="flex flex-col gap-3">
-                                            {chatMessages.length === 0 && !isThinking && (
-                                                <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.025] px-4 py-6 text-sm leading-6 text-slate-500">
-                                                    Ask for a groove, remix a track, or paste Strudel code.
-                                                </div>
-                                            )}
-
-                                            {chatMessages.map((message, i) => {
-                                                const isUser = message.role === 'user';
-                                                const isAssistant = message.role === 'assistant';
-                                                const isError = message.role === 'error';
-                                                return (
-                                                    <div
-                                                        key={`${message.label}-${i}`}
-                                                        className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
-                                                    >
-                                                        <div className={`max-w-[88%] rounded-lg border px-3 py-2 text-sm leading-6 ${isUser
-                                                            ? 'border-cyan-300/35 bg-cyan-300/12 text-cyan-50'
-                                                            : isAssistant
-                                                                ? 'border-white/10 bg-white/[0.04] text-slate-100'
-                                                                : isError
-                                                                    ? 'border-rose-300/30 bg-rose-400/10 text-rose-100'
-                                                                    : 'border-white/8 bg-white/[0.025] text-slate-400'
-                                                            }`}
-                                                        >
-                                                            <div className={`mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${isUser
-                                                                ? 'text-cyan-200/70'
-                                                                : isAssistant
-                                                                    ? 'text-violet-200/80'
-                                                                    : isError
-                                                                        ? 'text-rose-200/80'
-                                                                        : 'text-slate-600'
-                                                                }`}
-                                                            >
-                                                                {message.label}
-                                                            </div>
-                                                            <div className="whitespace-pre-wrap break-words">{message.body}</div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-
-                                            {isThinking && (
-                                                <div className="flex justify-start">
-                                                    <div className="max-w-[88%] animate-pulse rounded-lg border border-violet-300/20 bg-violet-300/10 px-3 py-2 text-sm leading-6 text-violet-100">
-                                                        <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-violet-200/80">Aether</div>
-                                                        Thinking...
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="shrink-0 border-t border-white/10 p-3">
-                                        <form
-                                            onSubmit={(e) => {
-                                                e.preventDefault();
-                                                const inputEl = document.getElementById('command-input') as HTMLInputElement;
-                                                if (inputEl) {
-                                                    const value = inputEl.value.trim();
-                                                    if (value) {
-                                                        sendCommand(value);
-                                                        inputEl.value = '';
-                                                    }
-                                                }
-                                            }}
-                                            className={`group relative flex items-center gap-2 rounded-lg border bg-[#10151b] pl-3 pr-2 py-2 transition-colors ${isAudioReady ? 'border-cyan-300/25 focus-within:border-cyan-200/50' : 'border-white/10 focus-within:border-cyan-300/35'}`}
-                                        >
-                                            <button
-                                                type="button"
-                                                onClick={() => toggleRecording()}
-                                                disabled={!isAudioReady}
-                                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${isRecording
-                                                    ? 'bg-rose-500/15 text-rose-300'
-                                                    : 'bg-white/[0.04] text-cyan-200 hover:bg-cyan-300/10'
-                                                    } ${!isAudioReady ? 'cursor-not-allowed opacity-50' : ''}`}
-                                                aria-label={isRecording ? 'Stop listening' : 'Start voice input'}
-                                            >
-                                                {isRecording ? <MicOff className="h-4.5 w-4.5" /> : <Mic className="h-4.5 w-4.5" />}
-                                            </button>
-
-                                            <div className="relative min-w-0 flex-1 flex items-center">
-                                                <input
-                                                    ref={inputRef}
-                                                    id="command-input"
-                                                    name="command"
-                                                    type="text"
-                                                    autoComplete="off"
-                                                    aria-label="Chat command input"
-                                                    aria-describedby="command-hint"
-                                                    className="w-full border-none bg-transparent py-1.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none max-sm:text-base"
-                                                    placeholder={isAudioReady ? 'Describe a pattern...' : 'Type a prompt...'}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            // Handle Enter here and suppress the native form submit,
-                                                            // so one key press produces exactly one request.
-                                                            e.preventDefault();
-                                                            console.log('[Input] Enter pressed, sending:', e.currentTarget.value);
-                                                            const value = e.currentTarget.value.trim();
-                                                            if (value) {
-                                                                sendCommand(value);
-                                                                e.currentTarget.value = '';
-                                                            }
-                                                        }
-                                                    }}
-                                                    onFocus={() => console.log('[Input] Focused')}
-                                                    onChange={(e) => console.log('[Input] Changed:', e.target.value)}
-                                                    onClick={() => console.log('[Input] Clicked')}
-                                                />
-                                                {isRecording && (
-                                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-medium text-rose-300 animate-pulse">
-                                                        Listening
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            <div className="flex items-center gap-2 shrink-0">
-                                                <div id="command-hint" className="pointer-events-none hidden rounded bg-white/[0.04] px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-slate-500 group-focus-within:block max-sm:hidden">
-                                                    Enter
-                                                </div>
-                                                <button
-                                                    type="submit"
-                                                    className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-300 text-slate-950 hover:bg-cyan-200 transition-colors shrink-0"
-                                                    aria-label="Send prompt"
-                                                >
-                                                    <Send className="h-4 w-4" />
-                                                </button>
-                                            </div>
-                                        </form>
-                                        {speechError && (
-                                            <p className="mt-3 text-xs font-medium text-rose-300">{speechError}</p>
-                                        )}
-                                        {isAudioReady && !speechError && (
-                                            <p className="mt-3 text-center text-xs text-slate-500">Audio engine ready</p>
-                                        )}
-                                    </div>
-                                </div>
-                            </section>
-
-                            <section className={`order-3 shrink-0 border-b border-white/10 py-4 max-lg:w-full max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:py-4 ${!isAudioReady ? 'lg:hidden' : ''}`}>
-                                <div className="mb-3 flex items-center justify-between gap-3">
-                                    <h2 className="text-sm font-semibold text-slate-100">Mixer Channels</h2>
-                                    <span className="text-xs text-slate-500">{activeTrackCount} active</span>
-                                </div>
-                                {trackEntries.length > 0 ? (
-                                    <div className="-mx-3 flex snap-x gap-3 overflow-x-auto px-3 pb-2 studio-scrollbar">
-                                        {trackEntries.map(([trackId, track]) => (
-                                            <TrackStrip
-                                                key={trackId}
-                                                track={track}
-                                                onMute={toggleMute}
-                                                onSolo={toggleSoloTrack}
-                                                onVolumeChange={setVolume}
-                                                onTrackFx={setTrackFx}
-                                            />
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.025] px-3 py-4 text-sm text-slate-500">
-                                        Start the audio session to populate channel controls.
-                                    </div>
-                                )}
-                            </section>
-
-                            {isHelpOpen && (
-                                <div className="absolute inset-0 z-50 overflow-y-auto bg-[#0b0e12]/95 p-6 backdrop-blur-xl">
-                                    <div className="mx-auto max-w-2xl">
-                                        <div className="mb-6 flex items-center justify-between gap-4">
-                                            <div>
-                                                <h2 className="text-xl font-semibold text-white">Voice Effects Guide</h2>
-                                                <p className="text-sm text-slate-500">Useful phrases and mapped sound treatments.</p>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => setIsHelpOpen(false)}
-                                                className="rounded-md border border-white/10 px-3 py-2 text-xs font-medium uppercase tracking-[0.12em] text-slate-400 transition-colors hover:text-white"
-                                            >
-                                                Close
-                                            </button>
-                                        </div>
-
-                                        <div className="space-y-5 text-sm leading-6 text-slate-300">
-                                            <section className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
-                                                <h3 className="mb-2 font-semibold text-slate-100">Voice Synthesis</h3>
-                                                <ul className="space-y-2">
-                                                    <li><strong className="text-white">Formant vowels:</strong> Add vowel sounds with .vowel(&quot;a e i o u&quot;).</li>
-                                                    <li><strong className="text-white">Robot voice:</strong> Combine crush and vowel shaping.</li>
-                                                    <li><strong className="text-white">Vocoder:</strong> Use moving band filters for synthetic voice color.</li>
-                                                </ul>
-                                            </section>
-
-                                            <section className="rounded-lg border border-white/10 bg-white/[0.03] p-4">
-                                                <h3 className="mb-2 font-semibold text-slate-100">Effects</h3>
-                                                <ul className="space-y-2">
-                                                    <li><strong className="text-white">Filters:</strong> Low pass, high pass, and band pass movements.</li>
-                                                    <li><strong className="text-white">Distortion:</strong> Bit crush, lo-fi, and drive treatments.</li>
-                                                    <li><strong className="text-white">Spatial:</strong> Reverb, delay, and panning changes.</li>
-                                                    <li><strong className="text-white">Modulation:</strong> Phaser, chorus, and tremolo.</li>
-                                                </ul>
-                                            </section>
-
-                                            <section>
-                                                <h3 className="mb-3 font-semibold text-slate-100">Style Presets</h3>
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    {['Robot Voice', 'Space Pad', 'Acid Bass', 'Lo-Fi Drums'].map((preset) => (
-                                                        <div key={preset} className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
-                                                            <strong className="block text-slate-100">{preset}</strong>
-                                                            <span className="text-xs text-slate-500">Ready voice command</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </section>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </>
+                        renderControlPanelContent(false)
                     )}
                 </aside>
             </div>
+
+            {/* Mobile Bottom Navigation Dock (iPhone & Android) */}
+            <nav
+                aria-label="Mobile Studio Navigation"
+                className="fixed bottom-0 inset-x-0 z-40 flex items-center justify-around border-t border-white/10 bg-[#0a0d13]/95 backdrop-blur-xl px-1 pt-1.5 pb-safe lg:hidden shadow-[0_-4px_24px_rgba(0,0,0,0.7)]"
+            >
+                {(Object.entries(VIEW_MODE_META) as Array<[ViewMode, typeof activeView]>).map(([mode, meta]) => {
+                    const Icon = meta.Icon;
+                    const active = viewMode === mode && !isMobileAssistantOpen;
+                    return (
+                        <button
+                            key={mode}
+                            type="button"
+                            onClick={() => {
+                                setIsMobileAssistantOpen(false);
+                                setViewMode(mode);
+                            }}
+                            className={`flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1 px-0.5 transition-all touch-target ${
+                                active
+                                    ? 'text-cyan-300 font-bold'
+                                    : 'text-slate-500 hover:text-slate-300'
+                            }`}
+                            aria-label={meta.label}
+                            aria-pressed={active}
+                        >
+                            <Icon className={`h-4.5 w-4.5 ${active ? 'text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]' : ''}`} />
+                            <span className="text-[10px] font-medium tracking-tight truncate max-w-[50px]">{meta.label}</span>
+                        </button>
+                    );
+                })}
+
+                {/* AI Assistant Mobile Trigger Button */}
+                <button
+                    type="button"
+                    onClick={() => setIsMobileAssistantOpen((prev) => !prev)}
+                    className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1 px-0.5 transition-all touch-target ${
+                        isMobileAssistantOpen
+                            ? 'text-violet-300 font-bold'
+                            : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                    aria-label="AI Assistant"
+                    aria-pressed={isMobileAssistantOpen}
+                >
+                    {isThinking && (
+                        <span className="absolute top-1 right-2 h-2 w-2 rounded-full bg-violet-400 animate-ping" />
+                    )}
+                    <Sparkles className={`h-4.5 w-4.5 ${isMobileAssistantOpen ? 'text-violet-300 drop-shadow-[0_0_8px_rgba(196,181,253,0.7)]' : isThinking ? 'text-violet-400 animate-pulse' : ''}`} />
+                    <span className="text-[10px] font-medium tracking-tight">AI Agent</span>
+                </button>
+            </nav>
+
+            {/* Mobile Slide-Up AI Sheet (iPhone & Android) */}
+            {isMobileAssistantOpen && (
+                <div className="fixed inset-0 z-50 flex flex-col justify-end lg:hidden">
+                    {/* Backdrop */}
+                    <div
+                        className="fixed inset-0 bg-black/80 backdrop-blur-sm"
+                        onClick={() => setIsMobileAssistantOpen(false)}
+                        aria-hidden="true"
+                    />
+
+                    {/* Sheet Container */}
+                    <div className="relative z-50 flex max-h-[85vh] w-full flex-col rounded-t-3xl border-t border-cyan-400/30 bg-[#0c1017] shadow-[0_-10px_35px_rgba(0,0,0,0.85)] pb-safe">
+                        {/* Drag Handle & Close Header */}
+                        <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
+                            <div className="flex items-center gap-2">
+                                <Sparkles className="h-4 w-4 text-cyan-400 animate-pulse" />
+                                <span className="text-sm font-bold text-white">Aether Music Agent</span>
+                                {isThinking && (
+                                    <span className="rounded-full bg-violet-500/20 border border-violet-400/30 px-2 py-0.5 text-[10px] font-semibold text-violet-300 animate-pulse">
+                                        Thinking...
+                                    </span>
+                                )}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsMobileAssistantOpen(false)}
+                                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-slate-300 hover:bg-white/20 transition-colors"
+                                aria-label="Close Assistant"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        {/* Sheet Content */}
+                        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto studio-scrollbar p-3">
+                            {renderControlPanelContent(true)}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
