@@ -603,7 +603,6 @@ export default function SonicInterface() {
     }, [endResizeRightPanel, isResizingRightPanel, updateResizeRightPanelFromClientX]);
 
     const activeView = VIEW_MODE_META[viewMode];
-    const ActiveViewIcon = activeView.Icon;
     const trackEntries = state?.tracks ? Object.entries(state.tracks) : [];
     const activeTrackCount = trackEntries.filter(([, track]) => Boolean(track.pattern?.trim()) && !track.muted).length;
     const isPlaying = Boolean(state?.isPlaying);
@@ -837,6 +836,36 @@ export default function SonicInterface() {
                             ? RIGHT_PANEL_COLLAPSED_WIDTH
                             : isCompactViewport
                                 ? '100%'
+                                : `min(${rightPanelWidth}px, 100vw)`,
+                    }}
+                >
+                    {shouldCollapseRightPanel ? (
+                        <button
+                            type="button"
+                            className="flex h-full w-full items-center justify-center text-slate-500 transition-colors hover:text-cyan-200"
+                            onClick={() => setIsRightPanelCollapsed(false)}
+                            aria-label="Show control panel"
+                            title="Show control panel"
+                        >
+                            <ChevronLeft className="h-6 w-6" />
+                        </button>
+                    ) : (
+                        <>
+                            <header className="order-1 shrink-0 border-b border-white/10 pb-5 max-lg:w-full max-lg:bg-[#0b0e12] max-lg:px-3 max-lg:pt-3 max-lg:pb-4">
+                                <div className="flex items-start justify-between gap-4">
+                                    <StrudelLogo variant="full" isPlaying={isPlaying} size="md" />
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsHelpOpen(true)}
+                                        className="shrink-0 rounded-md border border-white/10 px-2.5 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:border-cyan-300/30 hover:text-cyan-100 max-sm:hidden"
+                                    >
+                                        Voice guide
+                                    </button>
+                                </div>
+
+                                <div className="mt-5 grid grid-cols-3 gap-2 max-lg:mt-4 max-sm:gap-1.5">
+                                    <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 max-sm:px-2">
+                                        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">System</p>
                                         <div className="mt-1 flex items-center gap-2">
                                             <span className={`h-2 w-2 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-rose-500'}`} />
                                             <span className="text-sm font-medium text-slate-200 max-sm:text-xs">{isConnected ? 'Linked' : 'Offline'}</span>

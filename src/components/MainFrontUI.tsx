@@ -13,17 +13,14 @@ import {
     Disc3,
     Brain,
     Radio,
-    Sliders,
     Volume2,
     ArrowRight,
     Music,
     Zap,
-    Cpu,
-    ExternalLink,
     Flame,
     CheckCircle2
 } from 'lucide-react';
-import { SonicSessionState, InstrumentType } from '@/types/sonic';
+import { SonicSessionState } from '@/types/sonic';
 
 interface MainFrontUIProps {
     state: SonicSessionState | null;
@@ -368,7 +365,11 @@ export function MainFrontUI({
                                 </div>
                                 <button
                                     type="button"
-                                    onClick={() => handlePillClick(preset.prompt, preset.title)}
+                                    onClick={() => {
+                                        setJustTriggered(preset.title);
+                                        onApplyTemplate(preset.prompt);
+                                        setTimeout(() => setJustTriggered(null), 2500);
+                                    }}
                                     disabled={isThinking}
                                     className="mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] py-2 text-xs font-semibold text-slate-200 hover:bg-cyan-400/10 hover:border-cyan-400/40 hover:text-cyan-200 transition-all"
                                 >

@@ -13,8 +13,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Aether Sonic Workstation",
-  description: "AI-assisted Strudel music workstation",
+  title: "Strudel AI — Algorithmic Music & Neural Production Studio",
+  description: "AI-assisted live coding, generative neural synthesis, and Strudel music workstation.",
+  icons: {
+    icon: "/logo.svg",
+    shortcut: "/logo.svg",
+    apple: "/logo.svg",
+  },
 };
 
 export default function RootLayout({
