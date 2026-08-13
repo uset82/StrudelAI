@@ -615,6 +615,81 @@ export default function SonicInterface() {
     const shouldCollapseRightPanel = isRightPanelCollapsed && !isCompactViewport;
     const [isMobileAssistantOpen, setIsMobileAssistantOpen] = useState(false);
 
+    if (viewMode === 'hub') {
+        return (
+            <div className="flex h-screen w-full flex-col overflow-hidden bg-[#090b10] text-slate-100 selection:bg-cyan-400/20 selection:text-cyan-50">
+                {/* Global Top Nav for Hub */}
+                <header className="flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-white/10 bg-[#0e1218] px-4 sm:px-6">
+                    <div className="flex items-center gap-3">
+                        <StrudelLogo variant="full" isPlaying={isPlaying} size="md" />
+                    </div>
+
+                    <div className="flex items-center justify-center overflow-x-auto studio-scrollbar">
+                        <div className="flex rounded-lg border border-white/10 bg-[#06080c] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                            {(Object.entries(VIEW_MODE_META) as Array<[ViewMode, typeof activeView]>).map(([mode, meta]) => {
+                                const Icon = meta.Icon;
+                                const active = viewMode === mode;
+                                return (
+                                    <button
+                                        key={mode}
+                                        type="button"
+                                        onClick={() => setViewMode(mode)}
+                                        className={`flex h-8 shrink-0 items-center gap-2 rounded-md px-3 text-xs font-medium transition-colors ${
+                                            active
+                                                ? 'bg-slate-100 text-slate-950 shadow-sm font-bold'
+                                                : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-200'
+                                        }`}
+                                        aria-pressed={active}
+                                    >
+                                        <Icon className="h-3.5 w-3.5" />
+                                        {meta.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-slate-400 max-sm:hidden">
+                            <span className={`h-2 w-2 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-rose-500'}`} />
+                            <span>{isConnected ? 'Linked' : 'Offline'}</span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setViewMode('simple')}
+                            className="flex items-center gap-2 rounded-lg bg-cyan-400 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-cyan-300 transition-colors shadow-[0_0_14px_rgba(34,211,238,0.25)]"
+                        >
+                            <Code className="h-3.5 w-3.5" />
+                            <span>Open Studio DAW</span>
+                        </button>
+                    </div>
+                </header>
+
+                {/* Main Front UI Body - 100% full width and responsive */}
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                    <MainFrontUI
+                        state={state}
+                        isConnected={isConnected}
+                        isAudioReady={isAudioReady}
+                        isThinking={isThinking}
+                        isPlaying={isPlaying}
+                        bpm={bpm || 120}
+                        onSelectView={setViewMode}
+                        onSendCommand={sendCommand}
+                        onInitAudio={handleInitClick}
+                        onTogglePlayback={() => {
+                            resumeStrudelAudio();
+                            togglePlayback();
+                        }}
+                        onApplyTemplate={(template) => {
+                            sendCommand(template);
+                        }}
+                    />
+                </div>
+            </div>
+        );
+    }
+
     const renderControlPanelContent = (isMobileSheet: boolean = false) => (
         <>
             <header className="order-1 shrink-0 border-b border-white/10 pb-4 max-lg:w-full max-lg:bg-[#0b0e12]">
@@ -1025,27 +1100,6 @@ export default function SonicInterface() {
                     </header>
 
                     <div className="flex min-h-0 flex-1 flex-col bg-[#11151b] max-lg:w-full max-lg:max-w-full lg:overflow-hidden">
-                        <div className={`min-h-0 flex-1 flex-col overflow-y-auto ${viewMode === 'hub' ? 'flex' : 'hidden'}`}>
-                            <MainFrontUI
-                                state={state}
-                                isConnected={isConnected}
-                                isAudioReady={isAudioReady}
-                                isThinking={isThinking}
-                                isPlaying={isPlaying}
-                                bpm={bpm || 120}
-                                onSelectView={setViewMode}
-                                onSendCommand={sendCommand}
-                                onInitAudio={handleInitClick}
-                                onTogglePlayback={() => {
-                                    resumeStrudelAudio();
-                                    togglePlayback();
-                                }}
-                                onApplyTemplate={(template) => {
-                                    sendCommand(template);
-                                }}
-                            />
-                        </div>
-
                         <div className={`min-h-0 flex-col gap-4 p-5 max-lg:w-full max-lg:max-w-full max-lg:p-3 lg:h-full ${viewMode === 'simple' ? 'flex' : 'hidden'}`}>
                             <section className="flex min-h-[320px] min-w-0 flex-col overflow-hidden rounded-md border border-white/[0.07] bg-[#090b0f] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] max-lg:h-[430px] max-lg:w-full max-lg:max-w-full max-sm:h-[390px] lg:flex-1">
                                 <div className="flex shrink-0 items-center justify-between border-b border-white/[0.07] px-3 py-2.5">
