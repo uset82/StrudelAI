@@ -57,7 +57,7 @@ const normalizePrompt = (prompt: string) =>
         .replace(/[“”]/g, '"')
         .trim();
 
-const MUSIC_SIGNALS = /\b(rock|jazz|lo-?fi|trap|edm|drill|ambient|disco|funk|metal|house|techno|pop|dnb|folk|classical|synthwave|punk|latin|reggae|dubstep|rnb|r&b|soul|blues|chiptune|8-?bit|acoustic|indie|guitar|piano|synth|bass|drums?|vocals?|voice|violin|trumpet|organ|saxophone|flute|horns?|brass|strings?|pad|lead|pluck|kick|snare|hats?|hi-?hat|clap|cymbal|beat|beats|track|tracks|sound|sounds|music|song|songs|loop|loops|drop|rhythm|riff|chords?|arpeggio|tempo|bpm|fast|slow|chill|dark|happy|sad|heavy|calm|relaxing|mellow|energetic|clean|distort|reverb|delay|filter|lpf|hpf|mute|solo|volume|play|start|stop|generate|make|create|build|change|add|remove|faster|slower|heavier|softer)\b/i;
+const MUSIC_SIGNALS = /\b(rockl?|rokc|rocl|jazz|jaz|lo-?fi|trap|edm|drill|ambient|disco|funk|fnuk|metal|metall|metla|house|hous|techno|tekno|tehno|pop|dnb|folk|classical|synthwave|punk|pnuk|latin|reggae|dubstep|rnb|r&b|soul|blues|chiptune|8-?bit|acoustic|indie|guitar|piano|synth|bass|drums?|vocals?|voice|violin|trumpet|organ|saxophone|flute|horns?|brass|strings?|pad|lead|pluck|kick|snare|hats?|hi-?hat|clap|cymbal|beat|beats|track|tracks|sound|sounds|music|song|songs|loop|loops|drop|rhythm|riff|chords?|arpeggio|tempo|bpm|fast|slow|chill|dark|happy|sad|heavy|calm|relaxing|mellow|energetic|clean|distort|reverb|delay|filter|lpf|hpf|mute|solo|volume|play|start|stop|generate|make|create|build|change|add|remove|faster|slower|heavier|softer)\b/i;
 
 const GREETING_PATTERNS = [
     /^(hi|hello|hey|yo|sup|hiya|howdy|hola|greetings)(\s+(there|buddy|friend|aether|bot|assistant|everyone|all|man|dude))?[!?. ,]*$/,
