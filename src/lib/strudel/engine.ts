@@ -375,6 +375,18 @@ function sanitizeCodeForEval(code: string) {
         }
     );
 
+    // Extract CPM/BPM if present before stripping comments and helpers
+    const cpmMatch = code.match(/setcpm\s*\(\s*([\d.]+)(?:\s*\/\s*4)?\s*\)/i) ||
+                     code.match(/\bcpm\s*\(\s*([\d.]+)\s*\)/i) ||
+                     code.match(/(?:tempo|bpm)\s*[:=]\s*([\d.]+)/i);
+    if (cpmMatch && cpmMatch[1]) {
+        const parsed = parseFloat(cpmMatch[1]);
+        if (!isNaN(parsed) && parsed > 20 && parsed < 500) {
+            const bpmVal = (parsed <= 100 && code.includes('/4')) ? parsed * 4 : parsed;
+            setTempoBpm(bpmVal);
+        }
+    }
+
     // Strip comments (both // and /* */)
     cleaned = cleaned.replace(/\/\*[\s\S]*?\*\//g, '');
     cleaned = cleaned.replace(/\/\/.*/g, '');
@@ -389,18 +401,18 @@ function sanitizeCodeForEval(code: string) {
         cleaned = cleaned.replace(/^\s*return\b\s*/, '');
     }
 
-    // Strip forbidden / brittle helpers
+    // Strip forbidden / brittle helpers and optional semicolons
     cleaned = cleaned.replace(/\.analyze\([^)]*\)/gi, '');
-    cleaned = cleaned.replace(/\banalyze\([^)]*\)/gi, '');
+    cleaned = cleaned.replace(/\banalyze\([^)]*\)\s*;?/gi, '');
     cleaned = cleaned.replace(/\.cpm\([^)]*\)/gi, '');
-    cleaned = cleaned.replace(/\bcpm\([^)]*\)/gi, '');
-    cleaned = cleaned.replace(/setcpm\([^)]*\)/gi, '');
+    cleaned = cleaned.replace(/\bcpm\([^)]*\)\s*;?/gi, '');
+    cleaned = cleaned.replace(/setcpm\([^)]*\)\s*;?/gi, '');
     cleaned = cleaned.replace(/\.bank\([^)]*\)/gi, '');
 
+    // Clean leading/trailing semicolons and commas
+    cleaned = cleaned.replace(/^[\s;,]+/, '').replace(/[\s;,]+$/, '');
+
     // Remove dangling commas that can be left behind after stripping functions
-    // We use a safer lookahead that ensures we don't match inside strings (heuristic)
-    // But for now, let's just trust the AI/route.ts to have done a decent job, 
-    // and only fix obvious trailing commas at the end of the string.
     cleaned = cleaned.replace(/,\s*$/, '');
 
     // Balance parentheses - common AI generation issue
@@ -419,6 +431,9 @@ function sanitizeCodeForEval(code: string) {
         cleaned += ')';
         openCount--;
     }
+
+    // Clean leading/trailing semicolons again after balancing
+    cleaned = cleaned.replace(/^[\s;,]+/, '').replace(/[\s;,]+$/, '');
 
     // Replace missing-sample calls with synth fallbacks only when sample libraries are unavailable.
     if (!drumSamplesLoaded) {
@@ -1077,14 +1092,38 @@ export async function updateAudioLayer(layerId: string, code: string) {
         audioLayers.set(layerId, code);
     }
 
+    if (typeof window !== 'undefined' && !isInitialized) {
+        try {
+            await initAudio();
+        } catch (e) {
+            console.warn('[updateAudioLayer] Auto-init audio failed:', e);
+        }
+    }
+
     await evaluateLayers();
+
+    if (typeof window !== 'undefined') {
+        // @ts-expect-error - accessing window
+        const scheduler = window.__strudelScheduler__;
+        if (scheduler && !scheduler.started) {
+            scheduler.start();
+        }
+    }
 }
 
 /**
  * Internal function to combine and run all active layers
  */
 async function evaluateLayers() {
-    if (typeof window === 'undefined' || !isInitialized) return;
+    if (typeof window === 'undefined') return;
+    if (!isInitialized) {
+        try {
+            await initAudio();
+        } catch (e) {
+            console.warn('[evaluateLayers] Auto-init audio failed:', e);
+        }
+    }
+    if (!isInitialized) return;
 
     // Combine all layers using stack(), applying transition sweep if active
     const layerEntries = Array.from(audioLayers.entries());

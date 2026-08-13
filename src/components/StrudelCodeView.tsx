@@ -126,10 +126,16 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
 
     useEffect(() => {
         const codeToRun = editableCode.trim();
-        if (!codeToRun || !isConnected) return;
+        if (!codeToRun) return;
         let active = true;
         const fixCommonSyntaxIssues = (code: string): string => {
             let fixed = code;
+
+            // Strip comments and setcpm before evaluation
+            fixed = fixed.replace(/\/\*[\s\S]*?\*\//g, '');
+            fixed = fixed.replace(/\/\/.*/g, '');
+            fixed = fixed.replace(/setcpm\s*\([^)]*\)\s*;?/gi, '');
+            fixed = fixed.replace(/\bcpm\s*\([^)]*\)\s*;?/gi, '');
 
             // Remove trailing commas before closing parentheses/brackets
             fixed = fixed.replace(/,(\s*[\)\]])/g, '$1');
@@ -145,15 +151,28 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
                 return `m("${content}")`;
             });
 
+            // Clean leading/trailing semicolons
+            fixed = fixed.replace(/^[\s;,]+/, '').replace(/[\s;,]+$/, '');
+
             return fixed;
         };
 
         const validateSyntax = (code: string): { valid: boolean; error?: string } => {
             // Declare Strudel globals as function parameters to prevent "undefined" errors
-            const strudelGlobals = 'note, m, s, n, stack, silence, sound, sample, seq, cat, sine, saw, tri, square, pink, noise, cosine, rand';
+            const strudelGlobals = 'note, m, s, n, stack, silence, sound, sample, seq, cat, sine, saw, tri, square, pink, noise, cosine, rand, setcpm, cpm';
             try {
+                const cleaned = code
+                    .replace(/\/\*[\s\S]*?\*\//g, '')
+                    .replace(/\/\/.*/g, '')
+                    .replace(/setcpm\s*\([^)]*\)\s*;?/gi, '')
+                    .replace(/\bcpm\s*\([^)]*\)\s*;?/gi, '')
+                    .replace(/^[\s;,]+/, '')
+                    .replace(/[\s;,]+$/, '');
+
+                if (!cleaned) return { valid: true };
+
                 // Wrap code as return expression with Strudel globals defined
-                new Function(strudelGlobals, `return ${code}`);
+                new Function(strudelGlobals, `return (${cleaned})`);
                 return { valid: true };
             } catch (err) {
                 const message = err instanceof Error ? err.message : String(err);
@@ -238,7 +257,7 @@ export function StrudelCodeView({ code, isConnected, onCodeChange, onRun }: Stru
             active = false;
             clearTimeout(timer);
         };
-    }, [editableCode, isConnected]);
+    }, [editableCode]);
 
     // Fetch AI completion
     const fetchCompletion = useCallback(async (text: string, cursorPos: number) => {
