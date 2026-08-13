@@ -6,7 +6,7 @@ import { SSNNEngine, SSNN_LAYERS, SSNN_NEURONS_PER_LAYER, createDefaultSSNNState
 import { SSNNSynthManager } from '../lib/ssnn/dsp';
 import { SSNNAudioAnalyser } from '../lib/ssnn/fft';
 import { loadAllPresets, savePreset } from '../lib/ssnn/presets';
-import { Brain, Save, FileAudio, RefreshCw } from 'lucide-react';
+import { Brain, Save, FileAudio, RefreshCw, Square, Play, VolumeX } from 'lucide-react';
 
 interface SSNNSynthesizerProps {
     sessionBpm: number;
@@ -728,17 +728,37 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
         }
     };
 
-    const toggleSsnnRun = async () => {
-        const next = { ...stateRef.current, isEnabled: !stateRef.current.isEnabled };
+    const stopSsnn = useCallback(() => {
+        const next = { ...stateRef.current, isEnabled: false };
         commitState(next);
-
-        if (next.isEnabled && isPlaying) {
-            await ensureAudioContextActive();
+        if (mainOutputGainRef.current) {
+            try {
+                const now = audioContextRef.current?.currentTime || 0;
+                mainOutputGainRef.current.gain.cancelScheduledValues(now);
+                mainOutputGainRef.current.gain.setValueAtTime(0, now);
+            } catch {}
         }
+        if (workerRef.current) {
+            workerRef.current.postMessage({ type: 'STOP' });
+        }
+        if (audioContextRef.current && audioContextRef.current.state === 'running') {
+            void audioContextRef.current.suspend();
+        }
+        disconnectMicrophone();
+        setInfoText('SSNN stopped');
+    }, [commitState, disconnectMicrophone]);
 
-        setInfoText(next.isEnabled
-            ? (isPlaying ? 'SSNN running' : 'SSNN armed — start playback to run it')
-            : 'SSNN stopped');
+    const toggleSsnnRun = async () => {
+        if (stateRef.current.isEnabled) {
+            stopSsnn();
+        } else {
+            const next = { ...stateRef.current, isEnabled: true };
+            commitState(next);
+            if (isPlaying) {
+                await ensureAudioContextActive();
+            }
+            setInfoText(isPlaying ? 'SSNN running' : 'SSNN armed — start playback to run it');
+        }
     };
 
     // 5. Preset operations
@@ -879,16 +899,39 @@ export function SSNNSynthesizer({ sessionBpm, isPlaying, workstationAnalyser, ss
                 </div>
                 
                 <div className="flex min-w-0 shrink-0 items-center gap-2 text-xs">
+                    {state.isEnabled ? (
+                        <button
+                            type="button"
+                            onClick={() => { stopSsnn(); }}
+                            aria-label="Stop SSNN"
+                            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-rose-400/80 bg-rose-500/25 px-3.5 py-1.5 text-xs font-bold text-rose-100 shadow-[0_0_12px_rgba(244,63,94,0.3)] hover:bg-rose-500/35 transition-all"
+                        >
+                            <Square className="h-3 w-3 fill-current text-rose-200" />
+                            STOP SSNN
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => { void toggleSsnnRun(); }}
+                            aria-label="Run SSNN"
+                            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-amber-400/70 bg-amber-500/15 px-3.5 py-1.5 text-xs font-bold text-amber-200 hover:bg-amber-500/25 transition-all"
+                        >
+                            <Play className="h-3 w-3 fill-current text-amber-300" />
+                            RUN SSNN
+                        </button>
+                    )}
+
                     <button
                         type="button"
-                        onClick={() => { void toggleSsnnRun(); }}
-                        aria-pressed={state.isEnabled}
-                        className={`shrink-0 rounded-lg border px-3 py-1.5 text-[11px] font-bold transition-colors ${state.isEnabled
-                            ? 'border-rose-400/70 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20'
-                            : 'border-amber-400/60 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20'
-                        }`}
+                        onClick={() => {
+                            stopSsnn();
+                            handleParameterChange('mgain', 0);
+                        }}
+                        className="flex shrink-0 items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-medium text-slate-400 hover:bg-white/[0.08] hover:text-slate-200 transition-colors"
+                        title="Mute SSNN output immediately"
                     >
-                        {state.isEnabled ? 'Stop SSNN' : 'Run SSNN'}
+                        <VolumeX className="h-3.5 w-3.5" />
+                        Mute
                     </button>
                     {infoText && (
                         <div className="w-[min(360px,28vw)] truncate text-right text-[11px] text-amber-500/80 font-mono italic max-xl:hidden mr-1" title={infoText}>

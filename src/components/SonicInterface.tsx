@@ -296,6 +296,13 @@ export default function SonicInterface() {
         };
     }, []);
 
+    // When switching to the Garden tab, automatically ensure SSNN is stopped so it doesn't sound over the garden
+    useEffect(() => {
+        if (viewMode === 'garden' && state?.ssnn?.isEnabled) {
+            setSsnnState({ isEnabled: false });
+        }
+    }, [viewMode, state?.ssnn?.isEnabled, setSsnnState]);
+
     // Sync arrangement playback with audio
     useEffect(() => {
         if (viewMode !== 'arrangement' || !isAudioReady) return;
@@ -640,6 +647,21 @@ export default function SonicInterface() {
                         </div>
 
                         <div className="flex items-center gap-3 max-lg:hidden">
+                            {state?.ssnn?.isEnabled && (
+                                <div className="flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-200">
+                                    <div className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+                                    <span className="font-semibold text-[11px] uppercase tracking-wider">SSNN Active</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSsnnState({ isEnabled: false })}
+                                        className="flex items-center gap-1 rounded bg-rose-500/25 px-2 py-0.5 text-[10px] font-bold text-rose-100 hover:bg-rose-500/40 transition-colors"
+                                        title="Stop SSNN sound"
+                                    >
+                                        <Square className="h-2.5 w-2.5 fill-current" />
+                                        Stop
+                                    </button>
+                                </div>
+                            )}
                             <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">
                                 <div className={`h-2 w-2 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-rose-500'}`} />
                                 <span className="text-xs font-medium text-slate-400">{isConnected ? 'Linked' : 'Offline'}</span>
@@ -1010,6 +1032,9 @@ export default function SonicInterface() {
                                                     placeholder={isAudioReady ? 'Describe a pattern...' : 'Type a prompt...'}
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter') {
+                                                            // Handle Enter here and suppress the native form submit,
+                                                            // so one key press produces exactly one request.
+                                                            e.preventDefault();
                                                             console.log('[Input] Enter pressed, sending:', e.currentTarget.value);
                                                             const value = e.currentTarget.value.trim();
                                                             if (value) {

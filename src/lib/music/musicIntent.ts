@@ -57,19 +57,29 @@ const normalizePrompt = (prompt: string) =>
         .replace(/[“”]/g, '"')
         .trim();
 
+const MUSIC_SIGNALS = /\b(rock|jazz|lo-?fi|trap|edm|drill|ambient|disco|funk|metal|house|techno|pop|dnb|folk|classical|synthwave|punk|latin|reggae|dubstep|rnb|r&b|soul|blues|chiptune|8-?bit|acoustic|indie|guitar|piano|synth|bass|drums?|vocals?|voice|violin|trumpet|organ|saxophone|flute|horns?|brass|strings?|pad|lead|pluck|kick|snare|hats?|hi-?hat|clap|cymbal|beat|beats|track|tracks|sound|sounds|music|song|songs|loop|loops|drop|rhythm|riff|chords?|arpeggio|tempo|bpm|fast|slow|chill|dark|happy|sad|heavy|calm|relaxing|mellow|energetic|clean|distort|reverb|delay|filter|lpf|hpf|mute|solo|volume|play|start|stop|generate|make|create|build|change|add|remove|faster|slower|heavier|softer)\b/i;
+
+const GREETING_PATTERNS = [
+    /^(hi|hello|hey|yo|sup|hiya|howdy|hola|greetings)(\s+(there|buddy|friend|aether|bot|assistant|everyone|all|man|dude))?[!?. ,]*$/,
+    /^(hi|hello|hey|yo|sup|hiya)?\s*(good\s+(morning|afternoon|evening|day|night))[!?. ,]*$/,
+    /^(hi|hello|hey|yo|sup|hiya)?\s*(what'?s up|how'?s it going|how are you|how are ya|how do you do|how's everything|how are you doing)[!?. ,]*$/,
+    /^(thanks?|thank you|thx|cheers|appreciate it|nice one|thank you so much)[!?. ,]*$/,
+    /^(ok|okay|got it|understood|sure thing|no problem|alright|all right|yep|yeah|cool|nice|awesome|great|sweet|dope|lit|sure)[!?. ,]*$/,
+    /^(help|what can you do|who are you|what is this)[!?. ,]*$/,
+    /^(really\??|what\??|huh\??|why\??)$/,
+    /^\?+$/,
+];
+
 export function isPureChatGreeting(prompt: string): boolean {
     const p = normalizePrompt(prompt);
-    // Direct short greetings (allow optional follow words like "there", "buddy")
-    if (/^(hi|hello|hey|yo|sup|hiya|howdy)(\s+\w{1,8})?[!?. ,]*$/.test(p)) return true;
-    if (/^good (morning|afternoon|evening|day)[!?. ,]*$/.test(p)) return true;
-    if (/^(what'?s up|how'?s it going|how are you|how are ya)[!?. ,]*$/.test(p)) return true;
-    // Thanks / reactions that don't request music
-    if (/^(thanks?|thank you|cheers|appreciate it|nice one)[!?. ,]*$/.test(p)) return true;
-    // Very short neutral/positive without music keywords
-    if (/^(cool|nice|awesome|sweet|dope|lit|okay|ok|alright|got it|understood|sure|yeah|yep)[!?. ,]*$/.test(p)) return true;
-    // Pure very short messages (under ~6 chars, no numbers or obvious music hints)
-    if (p.length <= 6 && !/[0-9]/.test(p) && !/(drum|beat|bass|melody|track|play|make|create|sound|music|loop|drop)/i.test(p)) {
-        return true;
+    if (!p) return false;
+
+    // Musical terms and recognized styles always express musical intent and must not be intercepted
+    if (MUSIC_SIGNALS.test(p)) return false;
+    if (detectGenre(p)) return false;
+
+    for (const pattern of GREETING_PATTERNS) {
+        if (pattern.test(p)) return true;
     }
     return false;
 }

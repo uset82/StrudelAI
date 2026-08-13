@@ -10,7 +10,7 @@ import {
     isDrumOnlyPrompt,
     AgentUpdateResponse,
 } from './src/lib/music/genreTemplates';
-import { buildMusicContext, routeMusicIntent } from './src/lib/music/musicIntent';
+import { buildMusicContext, isPureChatGreeting, routeMusicIntent } from './src/lib/music/musicIntent';
 import { STRUDEL_TRAINING_CORPUS, formatTrainingExamplesForPrompt, getRelevantTrainingExamples } from './src/lib/music/trainingCorpus';
 import { validateGeneratedTracks } from './src/lib/music/strudelValidation';
 import { buildStrudelCode, buildArrangementCode, formatStrudelDisplayCode } from './src/lib/strudel/engine';
@@ -87,6 +87,22 @@ assert.equal(detectGenre('techno italo 80s'), 'italo_80s');
 assert.equal(detectGenre('play some michael jackson'), 'pop_funk');
 assert.equal(detectGenre('something like eminem'), 'hiphop');
 assert.equal(detectGenre('something like eminen'), 'hiphop');
+assert.equal(isPureChatGreeting('rock'), false, 'a one-word genre must not be mistaken for small-talk');
+assert.equal(isPureChatGreeting('techno'), false, 'short recognized genres must reach music generation');
+assert.equal(isPureChatGreeting('jazz'), false, 'jazz must not be mistaken for small-talk');
+assert.equal(isPureChatGreeting('lofi'), false, 'lofi must not be mistaken for small-talk');
+assert.equal(isPureChatGreeting('disco'), false, 'disco must not be mistaken for small-talk');
+assert.equal(isPureChatGreeting('drill'), false, 'drill must not be mistaken for small-talk');
+assert.equal(isPureChatGreeting('piano'), false, 'instrument prompt must not be mistaken for small-talk');
+assert.equal(isPureChatGreeting('synth'), false, 'synth prompt must not be mistaken for small-talk');
+assert.equal(isPureChatGreeting('chill'), false, 'mood prompt must not be mistaken for small-talk');
+assert.equal(isPureChatGreeting('dark'), false, 'mood prompt must not be mistaken for small-talk');
+assert.equal(isPureChatGreeting('hi'), true, 'hi is a greeting');
+assert.equal(isPureChatGreeting('hello'), true, 'hello is a greeting');
+assert.equal(isPureChatGreeting('hey there'), true, 'hey there is a greeting');
+assert.equal(isPureChatGreeting('what\'s up'), true, 'what is up is conversational');
+assert.equal(isPureChatGreeting('thanks'), true, 'thanks is conversational');
+assert.equal(isPureChatGreeting('?'), true, 'a standalone question mark remains conversational');
 // 2.6 strengthened tests for artist/concept detection (tiesto, ufo)
 assert.equal(detectGenre('play some tiesto'), 'trance');
 assert.equal(detectGenre('tiësto style'), 'trance');
@@ -515,6 +531,13 @@ assert.ok(hasTrack(localRockPipeline.tracks.bass), 'local pipeline rock needs ba
 assert.ok(hasTrack(localRockPipeline.tracks.melody), 'local pipeline rock needs guitar-like melody');
 assert.notEqual(localRockPipeline.tracks.melody, GENRE_TEMPLATES.rock.tracks.melody, 'local pipeline should not only copy the rock template melody');
 assert.match(localRockPipeline.tracks.melody || '', /distort|sawtooth|square/i, 'local rock pipeline should sound guitar-like');
+
+const oneWordRockPipeline = buildLocalMusicAgentPipeline({ prompt: 'rock', enableOpenRouter: false });
+assert.equal(oneWordRockPipeline.brief.genre, 'rock', 'a one-word rock request should keep its genre through the pipeline');
+assert.ok(hasTrack(oneWordRockPipeline.tracks.drums), 'a one-word rock request should generate drums');
+assert.ok(hasTrack(oneWordRockPipeline.tracks.bass), 'a one-word rock request should generate bass');
+assert.ok(hasTrack(oneWordRockPipeline.tracks.melody), 'a one-word rock request should generate a guitar-like part');
+assert.doesNotMatch(oneWordRockPipeline.thought, /what kind of music/i, 'a one-word genre request must not receive the generic chat reply');
 
 const hardRockContext = buildMusicContext({
     currentState: {
