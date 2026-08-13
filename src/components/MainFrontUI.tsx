@@ -170,31 +170,31 @@ export function MainFrontUI({
         : 0;
 
     return (
-        <div className="flex flex-col min-h-0 flex-1 overflow-y-auto studio-scrollbar bg-[#090b10] text-slate-100 p-4 sm:p-6 lg:p-8 select-none">
+        <div className="flex flex-col min-h-0 flex-1 overflow-y-auto studio-scrollbar bg-[#090b10] text-slate-100 p-3 sm:p-6 lg:p-8 select-none pb-24 lg:pb-8">
             {/* Top Brand Banner & Hero */}
-            <div className="max-w-6xl mx-auto w-full flex flex-col gap-8 pb-12">
+            <div className="max-w-6xl mx-auto w-full flex flex-col gap-6 sm:gap-8">
                 
                 {/* 1. Hero Section */}
-                <header className="relative flex flex-col items-center justify-center pt-4 pb-2 text-center">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[260px] bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+                <header className="relative flex flex-col items-center justify-center pt-2 sm:pt-4 pb-2 text-center">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] sm:w-[420px] h-[200px] sm:h-[260px] bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
                     
                     <StrudelLogo variant="hero" isPlaying={isPlaying} size="lg" />
 
                     {/* Quick System Status Pills */}
-                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs">
-                        <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-slate-400">
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs">
+                        <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2.5 sm:px-3 py-1 text-slate-400">
                             <span className={`h-2 w-2 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-rose-500'}`} />
                             <span>{isConnected ? 'Socket Linked' : 'Standalone'}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-slate-400">
+                        <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2.5 sm:px-3 py-1 text-slate-400">
                             <span className={`h-2 w-2 rounded-full ${isAudioReady ? 'bg-cyan-400' : 'bg-amber-400'}`} />
-                            <span>{isAudioReady ? 'Audio Engine Active' : 'Audio Suspended'}</span>
+                            <span>{isAudioReady ? 'Audio Active' : 'Audio Suspended'}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-cyan-300 tabular-nums font-mono">
+                        <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2.5 sm:px-3 py-1 text-cyan-300 tabular-nums font-mono">
                             <span>{bpm || 120} BPM</span>
                         </div>
                         {activeTracksCount > 0 && (
-                            <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-emerald-300 font-mono">
+                            <div className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2.5 sm:px-3 py-1 text-emerald-300 font-mono">
                                 <span>{activeTracksCount} Active Tracks</span>
                             </div>
                         )}
@@ -202,38 +202,38 @@ export function MainFrontUI({
                 </header>
 
                 {/* 2. Interactive AI Prompt Bar */}
-                <section className="relative flex flex-col gap-3 rounded-2xl border border-white/10 bg-[#12161f] p-4 sm:p-5 shadow-[0_4px_28px_rgba(0,0,0,0.5)]">
-                    <div className="flex items-center justify-between gap-3 text-xs text-slate-400">
+                <section className="relative flex flex-col gap-3 rounded-2xl border border-white/10 bg-[#12161f] p-3.5 sm:p-5 shadow-[0_4px_28px_rgba(0,0,0,0.5)]">
+                    <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
                         <div className="flex items-center gap-2 font-medium">
-                            <Sparkles className="h-4 w-4 text-cyan-400 animate-pulse" />
+                            <Sparkles className="h-4 w-4 text-cyan-400 shrink-0 animate-pulse" />
                             <span className="text-slate-200">AI Prompt Generator</span>
-                            <span className="text-slate-500">· Type any genre, instrument, BPM, or music vibe</span>
+                            <span className="text-slate-500 hidden sm:inline">· Type any genre, instrument, BPM, or music vibe</span>
                         </div>
                         {!isAudioReady && (
                             <button
                                 type="button"
                                 onClick={onInitAudio}
-                                className="flex items-center gap-1.5 rounded-md bg-cyan-400/10 border border-cyan-400/30 px-2.5 py-1 text-[11px] font-bold text-cyan-300 hover:bg-cyan-400/20 transition-colors"
+                                className="flex items-center gap-1.5 rounded-md bg-cyan-400/10 border border-cyan-400/30 px-2.5 py-1 text-[11px] font-bold text-cyan-300 hover:bg-cyan-400/20 transition-colors shrink-0"
                             >
                                 <Volume2 className="h-3.5 w-3.5" />
-                                Initialize Audio
+                                <span>Init Audio</span>
                             </button>
                         )}
                     </div>
 
-                    <form onSubmit={handleSubmit} className="relative flex items-center gap-2">
+                    <form onSubmit={handleSubmit} className="relative flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                         <input
                             type="text"
                             value={inputPrompt}
                             onChange={(e) => setInputPrompt(e.target.value)}
-                            placeholder="e.g. 'Acid techno beat with 303 baseline', 'warm lofi chords', 'make it faster'..."
+                            placeholder="e.g. 'Acid techno 303', 'warm lofi chords', 'rock beat'..."
                             disabled={isThinking}
-                            className="w-full rounded-xl border border-white/10 bg-[#090b0f] px-4 py-3.5 text-sm text-slate-100 placeholder-slate-500 focus:border-cyan-400/60 focus:outline-none focus:ring-1 focus:ring-cyan-400/40 transition-all font-sans"
+                            className="w-full rounded-xl border border-white/10 bg-[#090b0f] px-3.5 sm:px-4 py-3 sm:py-3.5 text-base sm:text-sm text-slate-100 placeholder-slate-500 focus:border-cyan-400/60 focus:outline-none focus:ring-1 focus:ring-cyan-400/40 transition-all font-sans"
                         />
                         <button
                             type="submit"
                             disabled={isThinking || !inputPrompt.trim()}
-                            className={`flex shrink-0 items-center gap-2 rounded-xl px-5 py-3.5 text-sm font-bold transition-all ${
+                            className={`flex shrink-0 items-center justify-center gap-2 rounded-xl px-5 py-3 sm:py-3.5 text-sm font-bold transition-all min-h-[44px] ${
                                 isThinking
                                     ? 'bg-cyan-500/50 text-slate-900 cursor-wait'
                                     : inputPrompt.trim()
@@ -255,9 +255,9 @@ export function MainFrontUI({
                         </button>
                     </form>
 
-                    {/* Quick 1-Click Genre Pills */}
-                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                        <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mr-1">Quick Starters:</span>
+                    {/* Quick 1-Click Genre Pills - Mobile Scrollable Carousel */}
+                    <div className="flex items-center gap-1.5 pt-1 overflow-x-auto studio-scrollbar pb-1 -mx-1 px-1">
+                        <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider shrink-0 mr-1">Starters:</span>
                         {GENRE_PILLS.map((pill) => {
                             const PillIcon = pill.icon;
                             const isSelected = justTriggered === pill.label;
@@ -267,7 +267,7 @@ export function MainFrontUI({
                                     type="button"
                                     onClick={() => handlePillClick(pill.prompt, pill.label)}
                                     disabled={isThinking}
-                                    className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-all ${pill.color} ${
+                                    className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-all ${pill.color} ${
                                         isSelected ? 'ring-2 ring-cyan-400 scale-95' : ''
                                     }`}
                                 >

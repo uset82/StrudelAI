@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -12,6 +12,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+  themeColor: "#090b10",
+};
+
 export const metadata: Metadata = {
   title: "Strudel AI — Algorithmic Music & Neural Production Studio",
   description: "AI-assisted live coding, generative neural synthesis, and Strudel music workstation.",
@@ -19,6 +27,11 @@ export const metadata: Metadata = {
     icon: "/logo.svg",
     shortcut: "/logo.svg",
     apple: "/logo.svg",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Strudel AI",
   },
 };
 

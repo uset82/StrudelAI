@@ -28,6 +28,8 @@ body {
   height: 100%;
   width: 100%;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -36,6 +38,33 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   -webkit-text-size-adjust: 100%;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Safe Area Inset Helpers */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+.bottom-safe {
+  bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Touch-optimized target sizes */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
 }
 
 /* Keep Next.js dev tools anchored to the viewport on tall/mobile layouts */

@@ -613,94 +613,321 @@ export default function SonicInterface() {
     const shouldMountSsnn = viewMode === 'ssnn' || Boolean(state?.ssnn?.isEnabled);
     const bpm = state?.bpm ?? 0;
     const shouldCollapseRightPanel = isRightPanelCollapsed && !isCompactViewport;
+    const [isMobileAssistantOpen, setIsMobileAssistantOpen] = useState(false);
 
-    if (viewMode === 'hub') {
-        return (
-            <div className="flex h-screen w-full flex-col overflow-hidden bg-[#090b10] text-slate-100 selection:bg-cyan-400/20 selection:text-cyan-50">
-                {/* Global Top Nav */}
-                <header className="flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-white/10 bg-[#0e1218] px-4 sm:px-6">
-                    <div className="flex items-center gap-3">
-                        <StrudelLogo variant="full" isPlaying={isPlaying} size="md" />
+    const renderControlPanelContent = (isMobileSheet: boolean = false) => (
+        <>
+            <header className="order-1 shrink-0 border-b border-white/10 pb-4 max-lg:w-full max-lg:bg-[#0b0e12]">
+                <div className="flex items-start justify-between gap-4">
+                    <StrudelLogo variant="full" isPlaying={isPlaying} size={isMobileSheet ? 'sm' : 'md'} />
+                    <button
+                        type="button"
+                        onClick={() => setIsHelpOpen(true)}
+                        className="shrink-0 rounded-md border border-white/10 px-2.5 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:border-cyan-300/30 hover:text-cyan-100"
+                    >
+                        Voice guide
+                    </button>
+                </div>
+
+                <div className="mt-4 grid grid-cols-3 gap-2 max-sm:gap-1.5">
+                    <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 max-sm:px-2">
+                        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">System</p>
+                        <div className="mt-1 flex items-center gap-2">
+                            <span className={`h-2 w-2 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-rose-500'}`} />
+                            <span className="text-sm font-medium text-slate-200 max-sm:text-xs">{isConnected ? 'Linked' : 'Offline'}</span>
+                        </div>
                     </div>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            resumeStrudelAudio();
+                            togglePlayback();
+                        }}
+                        className={`rounded-lg border px-3 py-2 text-left transition-colors max-sm:px-2 ${isPlaying
+                            ? 'border-cyan-300/40 bg-cyan-300/10 text-cyan-100'
+                            : 'border-white/10 bg-white/[0.03] text-slate-300 hover:border-cyan-300/30 hover:text-cyan-100'
+                            }`}
+                        aria-label={isPlaying ? 'Stop playback' : 'Start playback'}
+                    >
+                        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">Transport</p>
+                        <div className="mt-1 flex items-center gap-2 text-sm font-medium max-sm:text-xs">
+                            {isPlaying ? <Square className="h-3.5 w-3.5 fill-current" /> : <Play className="h-3.5 w-3.5 fill-current" />}
+                            {isPlaying ? 'Playing' : 'Idle'}
+                        </div>
+                    </button>
+                    <div
+                        className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 max-sm:px-2"
+                        onWheel={(e) => {
+                            if (state?.bpm) {
+                                const delta = e.deltaY > 0 ? -5 : 5;
+                                setBpm(Math.max(60, Math.min(240, state.bpm + delta)));
+                            }
+                        }}
+                        title="Scroll to change BPM"
+                    >
+                        <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">Tempo</p>
+                        <p className="mt-1 text-sm font-semibold tabular-nums text-slate-100 max-sm:text-xs">{bpm} BPM</p>
+                    </div>
+                </div>
 
-                    <div className="flex items-center justify-center overflow-x-auto studio-scrollbar">
-                        <div className="flex rounded-lg border border-white/10 bg-[#06080c] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                            {(Object.entries(VIEW_MODE_META) as Array<[ViewMode, typeof activeView]>).map(([mode, meta]) => {
-                                const Icon = meta.Icon;
-                                const active = viewMode === mode;
+                <button
+                    type="button"
+                    onClick={testAudio}
+                    className="mt-2.5 text-xs font-medium text-slate-500 transition-colors hover:text-cyan-200"
+                >
+                    Test system audio
+                </button>
+            </header>
+
+            {!isAudioReady && (
+                <section className="order-2 shrink-0 border-b border-white/10 py-3 max-lg:w-full max-lg:bg-[#0b0e12]">
+                    <div className="rounded-lg border border-cyan-300/20 bg-cyan-300/10 p-3.5 max-sm:p-3">
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-300/15 text-cyan-100">
+                                <Mic className="h-4.5 w-4.5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <h2 className="text-xs font-semibold text-white">Start audio engine</h2>
+                                <p className="mt-0.5 text-xs leading-4 text-slate-400">Enable playback, voice input, and synthesis.</p>
+                            </div>
+                        </div>
+                        <div className="mt-3 grid grid-cols-[1fr_auto] gap-2 max-sm:grid-cols-1">
+                            <button
+                                type="button"
+                                onClick={handleInitClick}
+                                className="min-h-10 rounded-lg bg-cyan-300 px-3.5 py-2 text-xs font-bold text-slate-950 transition-colors hover:bg-cyan-200"
+                            >
+                                Initialize Audio
+                            </button>
+                            <button
+                                type="button"
+                                onClick={testAudio}
+                                className="min-h-10 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-slate-400 transition-colors hover:text-cyan-100"
+                            >
+                                Test
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            )}
+
+            <section className={`order-4 flex min-h-0 flex-1 flex-col py-3 max-lg:w-full max-lg:bg-[#0b0e12] ${isMobileSheet ? 'min-h-[280px]' : ''}`}>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                    <h2 className="text-xs font-semibold text-slate-200">Chat & Prompts</h2>
+                    <span className="text-[11px] text-slate-500">{chatMessages.length > 0 ? `${chatMessages.length} msgs` : 'Ready'}</span>
+                </div>
+
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-cyan-300/25 bg-[#07090c] shadow-[0_0_34px_rgba(34,211,238,0.05)]">
+                    <div
+                        ref={logRef}
+                        className="studio-scrollbar min-h-0 flex-1 overflow-y-auto p-3"
+                    >
+                        <div className="flex flex-col gap-2.5">
+                            {chatMessages.length === 0 && !isThinking && (
+                                <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.025] px-3 py-4 text-xs leading-5 text-slate-500">
+                                    Ask for a groove, genre, remix a track, or prompt in natural language.
+                                </div>
+                            )}
+
+                            {chatMessages.map((message, i) => {
+                                const isUser = message.role === 'user';
+                                const isAssistant = message.role === 'assistant';
+                                const isError = message.role === 'error';
                                 return (
-                                    <button
-                                        key={mode}
-                                        type="button"
-                                        onClick={() => setViewMode(mode)}
-                                        className={`flex h-8 shrink-0 items-center gap-2 rounded-md px-3 text-xs font-medium transition-colors ${
-                                            active
-                                                ? 'bg-slate-100 text-slate-950 shadow-sm font-bold'
-                                                : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-200'
-                                        }`}
-                                        aria-pressed={active}
+                                    <div
+                                        key={`${message.label}-${i}`}
+                                        className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
                                     >
-                                        <Icon className="h-3.5 w-3.5" />
-                                        {meta.label}
-                                    </button>
+                                        <div className={`max-w-[90%] rounded-lg border px-3 py-2 text-xs leading-5 ${isUser
+                                            ? 'border-cyan-300/35 bg-cyan-300/12 text-cyan-50'
+                                            : isAssistant
+                                                ? 'border-white/10 bg-white/[0.04] text-slate-100'
+                                                : isError
+                                                    ? 'border-rose-300/30 bg-rose-400/10 text-rose-100'
+                                                    : 'border-white/8 bg-white/[0.025] text-slate-400'
+                                            }`}
+                                        >
+                                            <div className={`mb-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] ${isUser
+                                                ? 'text-cyan-200/70'
+                                                : isAssistant
+                                                    ? 'text-violet-200/80'
+                                                    : isError
+                                                        ? 'text-rose-200/80'
+                                                        : 'text-slate-600'
+                                                }`}
+                                            >
+                                                {message.label}
+                                            </div>
+                                            <div className="whitespace-pre-wrap break-words">{message.body}</div>
+                                        </div>
+                                    </div>
                                 );
                             })}
+
+                            {isThinking && (
+                                <div className="flex justify-start">
+                                    <div className="max-w-[90%] animate-pulse rounded-lg border border-violet-300/20 bg-violet-300/10 px-3 py-2 text-xs leading-5 text-violet-100">
+                                        <div className="mb-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-violet-200/80">Aether</div>
+                                        Generating music pattern...
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-slate-400 max-sm:hidden">
-                            <span className={`h-2 w-2 rounded-full ${isConnected ? 'bg-emerald-400' : 'bg-rose-500'}`} />
-                            <span>{isConnected ? 'Linked' : 'Offline'}</span>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setViewMode('simple')}
-                            className="flex items-center gap-2 rounded-lg bg-cyan-400 px-3.5 py-1.5 text-xs font-bold text-slate-950 hover:bg-cyan-300 transition-colors shadow-[0_0_14px_rgba(34,211,238,0.25)]"
+                    <div className="shrink-0 border-t border-white/10 p-2.5">
+                        <form
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                const inputEl = document.getElementById(isMobileSheet ? 'mobile-command-input' : 'command-input') as HTMLInputElement;
+                                if (inputEl) {
+                                    const value = inputEl.value.trim();
+                                    if (value) {
+                                        sendCommand(value);
+                                        inputEl.value = '';
+                                    }
+                                }
+                            }}
+                            className={`group relative flex items-center gap-2 rounded-lg border bg-[#10151b] pl-2.5 pr-1.5 py-1.5 transition-colors ${isAudioReady ? 'border-cyan-300/25 focus-within:border-cyan-200/50' : 'border-white/10 focus-within:border-cyan-300/35'}`}
                         >
-                            <Code className="h-3.5 w-3.5" />
-                            <span>Studio DAW</span>
-                        </button>
-                    </div>
-                </header>
+                            <button
+                                type="button"
+                                onClick={() => toggleRecording()}
+                                disabled={!isAudioReady}
+                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${isRecording
+                                    ? 'bg-rose-500/15 text-rose-300'
+                                    : 'bg-white/[0.04] text-cyan-200 hover:bg-cyan-300/10'
+                                    } ${!isAudioReady ? 'cursor-not-allowed opacity-50' : ''}`}
+                                aria-label={isRecording ? 'Stop listening' : 'Start voice input'}
+                            >
+                                {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                            </button>
 
-                {/* Main Front UI Body */}
-                <MainFrontUI
-                    state={state}
-                    isConnected={isConnected}
-                    isAudioReady={isAudioReady}
-                    isThinking={isThinking}
-                    isPlaying={isPlaying}
-                    bpm={bpm || 120}
-                    onSelectView={setViewMode}
-                    onSendCommand={sendCommand}
-                    onInitAudio={handleInitClick}
-                    onTogglePlayback={() => {
-                        resumeStrudelAudio();
-                        togglePlayback();
-                    }}
-                    onApplyTemplate={(template) => {
-                        sendCommand(template);
-                    }}
-                />
-            </div>
-        );
-    }
+                            <div className="relative min-w-0 flex-1 flex items-center">
+                                <input
+                                    ref={isMobileSheet ? undefined : inputRef}
+                                    id={isMobileSheet ? 'mobile-command-input' : 'command-input'}
+                                    name="command"
+                                    type="text"
+                                    autoComplete="off"
+                                    aria-label="Chat command input"
+                                    className="w-full border-none bg-transparent py-1.5 text-base sm:text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none"
+                                    placeholder={isAudioReady ? 'Type genre, BPM, or tweak...' : 'Type a prompt...'}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            const value = e.currentTarget.value.trim();
+                                            if (value) {
+                                                sendCommand(value);
+                                                e.currentTarget.value = '';
+                                            }
+                                        }
+                                    }}
+                                />
+                                {isRecording && (
+                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-rose-500/10 px-1.5 py-0.5 text-[9px] font-medium text-rose-300 animate-pulse">
+                                        Listening
+                                    </span>
+                                )}
+                            </div>
+
+                            <button
+                                type="submit"
+                                className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-300 text-slate-950 hover:bg-cyan-200 transition-colors shrink-0"
+                                aria-label="Send prompt"
+                            >
+                                <Send className="h-4 w-4" />
+                            </button>
+                        </form>
+                        {speechError && (
+                            <p className="mt-2 text-xs font-medium text-rose-300">{speechError}</p>
+                        )}
+                    </div>
+                </div>
+            </section>
+
+            <section className={`order-3 shrink-0 border-b border-white/10 py-3 max-lg:w-full max-lg:bg-[#0b0e12] ${!isAudioReady ? 'hidden' : ''}`}>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                    <h2 className="text-xs font-semibold text-slate-200">Mixer Channels</h2>
+                    <span className="text-[11px] text-slate-500">{activeTrackCount} active</span>
+                </div>
+                {trackEntries.length > 0 ? (
+                    <div className="-mx-3 flex snap-x gap-2.5 overflow-x-auto px-3 pb-1 studio-scrollbar">
+                        {trackEntries.map(([trackId, track]) => (
+                            <TrackStrip
+                                key={trackId}
+                                track={track}
+                                onMute={toggleMute}
+                                onSolo={toggleSoloTrack}
+                                onVolumeChange={setVolume}
+                                onTrackFx={setTrackFx}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="rounded-lg border border-dashed border-white/10 bg-white/[0.025] px-3 py-3 text-xs text-slate-500">
+                        Start audio session to populate tracks.
+                    </div>
+                )}
+            </section>
+
+            {isHelpOpen && (
+                <div className="absolute inset-0 z-50 overflow-y-auto bg-[#0b0e12]/95 p-5 backdrop-blur-xl">
+                    <div className="mx-auto max-w-2xl">
+                        <div className="mb-4 flex items-center justify-between gap-4">
+                            <div>
+                                <h2 className="text-lg font-semibold text-white">Voice Effects Guide</h2>
+                                <p className="text-xs text-slate-400">Useful phrases and mapped sound treatments.</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsHelpOpen(false)}
+                                className="rounded-md border border-white/10 px-2.5 py-1.5 text-xs font-medium uppercase tracking-[0.12em] text-slate-400 transition-colors hover:text-white"
+                            >
+                                Close
+                            </button>
+                        </div>
+
+                        <div className="space-y-4 text-xs leading-5 text-slate-300">
+                            <section className="rounded-lg border border-white/10 bg-white/[0.03] p-3.5">
+                                <h3 className="mb-1.5 font-semibold text-slate-100">Voice Synthesis</h3>
+                                <ul className="space-y-1.5 text-slate-300">
+                                    <li><strong className="text-white">Formant vowels:</strong> Add vowel sounds with .vowel(&quot;a e i o u&quot;).</li>
+                                    <li><strong className="text-white">Robot voice:</strong> Combine crush and vowel shaping.</li>
+                                    <li><strong className="text-white">Vocoder:</strong> Use moving band filters for synthetic voice color.</li>
+                                </ul>
+                            </section>
+
+                            <section className="rounded-lg border border-white/10 bg-white/[0.03] p-3.5">
+                                <h3 className="mb-1.5 font-semibold text-slate-100">Effects</h3>
+                                <ul className="space-y-1.5 text-slate-300">
+                                    <li><strong className="text-white">Filters:</strong> Low pass, high pass, and band pass movements.</li>
+                                    <li><strong className="text-white">Distortion:</strong> Bit crush, lo-fi, and drive treatments.</li>
+                                    <li><strong className="text-white">Spatial:</strong> Reverb, delay, and panning changes.</li>
+                                </ul>
+                            </section>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
 
     return (
-        <div className="min-h-dvh w-full overflow-x-hidden bg-[#101216] text-slate-200 selection:bg-cyan-400/20 selection:text-cyan-50 lg:h-screen lg:overflow-hidden">
-            <div className="flex min-h-dvh min-w-0 flex-col lg:h-full lg:flex-row lg:overflow-hidden">
+        <div className="min-h-dvh w-full overflow-x-hidden bg-[#101216] text-slate-200 selection:bg-cyan-400/20 selection:text-cyan-50 lg:h-screen lg:overflow-hidden flex flex-col">
+            <div className="flex min-h-dvh min-w-0 flex-1 flex-col lg:h-full lg:flex-row lg:overflow-hidden pb-16 lg:pb-0">
                 <section className="order-5 flex min-w-0 flex-1 flex-col border-r border-white/10 bg-[#12161d] max-lg:w-full max-lg:border-b max-lg:border-r-0 lg:order-1 lg:h-screen lg:overflow-hidden">
-                    <header className="flex min-h-16 shrink-0 items-center justify-between gap-5 border-b border-white/10 bg-[#171c24] px-5 max-lg:w-full max-lg:max-w-full max-lg:flex-wrap max-lg:gap-3 max-lg:px-3 max-lg:py-3">
-                        <div className="flex min-w-0 items-center gap-3">
+                    <header className="flex min-h-14 sm:min-h-16 shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-[#171c24] px-3 sm:px-5 max-lg:w-full">
+                        <div className="flex min-w-0 items-center gap-2.5">
                             <StrudelLogo variant="compact" isPlaying={isPlaying} size="sm" />
-                            <div className="min-w-0 border-l border-white/10 pl-3 max-sm:hidden">
+                            <div className="min-w-0 border-l border-white/10 pl-2.5 max-sm:hidden">
                                 <h2 className="truncate text-xs font-semibold tracking-wide text-slate-200">{activeView.title}</h2>
                                 <p className="truncate text-[10px] text-slate-500">{activeView.subtitle}</p>
                             </div>
                         </div>
 
-                        <div className="flex min-w-0 flex-1 items-center justify-center max-lg:order-3 max-lg:w-full max-lg:flex-none max-lg:justify-start max-lg:overflow-x-auto studio-scrollbar">
+                        {/* Desktop View Mode Switcher */}
+                        <div className="hidden lg:flex min-w-0 flex-1 items-center justify-center">
                             <div className="flex rounded-lg border border-white/10 bg-[#0d1117] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                                 {(Object.entries(VIEW_MODE_META) as Array<[ViewMode, typeof activeView]>).map(([mode, meta]) => {
                                     const Icon = meta.Icon;
@@ -711,7 +938,7 @@ export default function SonicInterface() {
                                             type="button"
                                             onClick={() => setViewMode(mode)}
                                             className={`flex h-8 shrink-0 items-center gap-2 rounded-md px-3 text-xs font-medium transition-colors ${active
-                                                ? 'bg-slate-100 text-slate-950 shadow-sm'
+                                                ? 'bg-slate-100 text-slate-950 shadow-sm font-bold'
                                                 : 'text-slate-500 hover:bg-white/[0.04] hover:text-slate-200'
                                                 }`}
                                             aria-pressed={active}
@@ -724,7 +951,47 @@ export default function SonicInterface() {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-3 max-lg:hidden">
+                        {/* Mobile Quick Transport & AI Toggle */}
+                        <div className="flex items-center gap-1.5 sm:gap-2 lg:hidden">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    resumeStrudelAudio();
+                                    togglePlayback();
+                                }}
+                                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-all min-h-[38px] ${isPlaying
+                                    ? 'border-cyan-300/40 bg-cyan-300/15 text-cyan-200 shadow-[0_0_10px_rgba(34,211,238,0.2)]'
+                                    : 'border-white/10 bg-white/[0.04] text-slate-300'
+                                }`}
+                                aria-label={isPlaying ? 'Pause' : 'Play'}
+                            >
+                                {isPlaying ? <Square className="h-3 w-3 fill-current text-cyan-300" /> : <Play className="h-3 w-3 fill-current text-emerald-400" />}
+                                <span>{isPlaying ? 'Stop' : 'Play'}</span>
+                            </button>
+
+                            <div className="flex items-center rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1.5 text-xs font-mono tabular-nums text-slate-300">
+                                <span>{bpm || 120}</span>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    inputRef.current?.scrollIntoView({ behavior: 'smooth' });
+                                    inputRef.current?.focus();
+                                }}
+                                className="relative flex items-center gap-1.5 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-2.5 py-1.5 text-xs font-bold text-cyan-200 hover:bg-cyan-400/20 transition-all min-h-[38px]"
+                                aria-label="Open AI Assistant"
+                            >
+                                {isThinking && (
+                                    <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
+                                )}
+                                <Sparkles className="h-3.5 w-3.5 text-cyan-300" />
+                                <span className="hidden xs:inline">AI Agent</span>
+                            </button>
+                        </div>
+
+                        {/* Desktop Right Header Controls */}
+                        <div className="hidden lg:flex items-center gap-3">
                             {state?.ssnn?.isEnabled && (
                                 <div className="flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs text-amber-200">
                                     <div className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
