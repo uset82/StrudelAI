@@ -1,8 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  --background: #101216;
-  --foreground: #e5e7eb;
+  --background: #090b10;
+  --surface-1: #0f1218;
+  --surface-2: #151922;
+  --surface-3: #1c2230;
+  --foreground: #f1f5f9;
+  --foreground-muted: #94a3b8;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  /* Pro Hardware Accents */
+  --accent-amber: #f59e0b;
+  --accent-emerald: #10b981;
+  --accent-blue: #3b82f6;
+  --accent-rose: #f43f5e;
+
+  /* Transitions.dev Motion Tokens */
+  --ease-snappy: cubic-bezier(0.2, 0, 0, 1);
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-snappy: 150ms;
+  --duration-normal: 250ms;
+  --duration-smooth: 400ms;
 }
 
 @theme inline {
@@ -14,8 +33,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #101216;
-    --foreground: #e5e7eb;
+    --background: #090b10;
+    --foreground: #f1f5f9;
   }
 }
 
@@ -36,7 +55,7 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-text-size-adjust: 100%;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -67,7 +86,7 @@ body {
   min-width: 44px;
 }
 
-/* Keep Next.js dev tools anchored to the viewport on tall/mobile layouts */
+/* Next.js portal anchor */
 nextjs-portal {
   position: fixed !important;
   inset: auto auto 12px 12px !important;
@@ -80,19 +99,16 @@ textarea {
   font: inherit;
 }
 
+/* Studio Precision Scrollbar */
 .studio-scrollbar {
-  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
+  scrollbar-color: rgba(148, 163, 184, 0.22) transparent;
   scrollbar-width: thin;
   scrollbar-gutter: stable;
 }
 
-.ssnn-canvas-shell {
-  contain: layout paint;
-}
-
 .studio-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 .studio-scrollbar::-webkit-scrollbar-track {
@@ -100,20 +116,63 @@ textarea {
 }
 
 .studio-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.28);
+  background: rgba(148, 163, 184, 0.2);
   border-radius: 999px;
 }
 
 .studio-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.45);
+  background: rgba(148, 163, 184, 0.4);
 }
 
+/* Transitions.dev Micro-Interactions */
+.tactile-interactive {
+  transition: transform var(--duration-snappy) var(--ease-snappy),
+              box-shadow var(--duration-snappy) var(--ease-snappy),
+              border-color var(--duration-snappy) var(--ease-snappy),
+              background-color var(--duration-snappy) var(--ease-snappy);
+}
+
+.tactile-interactive:hover {
+  transform: translateY(-1px);
+}
+
+.tactile-interactive:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+@keyframes viewReveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-view-reveal {
+  animation: viewReveal var(--duration-smooth) var(--ease-spring) forwards;
+}
+
+/* Border Beam Animation */
+@keyframes border-beam {
+  100% {
+    offset-distance: 100%;
+  }
+}
+
+.animate-border-beam {
+  animation: border-beam var(--duration, 10s) infinite linear;
+}
+
+/* Code Shell & Editor */
 .strudel-code-shell {
   color-scheme: dark;
 }
 
 #strudel-code-editor::selection {
-  background: rgba(34, 211, 238, 0.38);
+  background: rgba(59, 130, 246, 0.35);
   color: transparent;
 }
 
@@ -124,52 +183,54 @@ textarea {
 }
 
 .strudel-token-comment {
-  color: #7890ad;
+  color: #64748b;
   font-style: italic;
   font-weight: 400;
 }
 
 .strudel-token-string {
-  color: #b8ff55;
+  color: #34d399;
   font-weight: 500;
 }
 
 .strudel-token-number {
-  color: #c59cff;
+  color: #fbbf24;
   font-weight: 600;
 }
 
 .strudel-token-keyword {
-  color: #f7bd4f;
+  color: #f59e0b;
   font-weight: 700;
 }
 
 .strudel-token-function {
-  color: #fff45f;
+  color: #60a5fa;
   font-weight: 700;
 }
 
 .strudel-token-punctuation {
-  color: #7f8797;
+  color: #94a3b8;
 }
 
 .strudel-token-operator {
-  color: #70e6ff;
+  color: #38bdf8;
   font-weight: 500;
 }
 
+/* Hardware-grade Range Slider */
 .studio-range {
   height: 0.35rem;
   cursor: pointer;
   appearance: none;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.78);
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .studio-range::-webkit-slider-runnable-track {
   height: 0.35rem;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.78);
+  background: rgba(15, 23, 42, 0.9);
 }
 
 .studio-range::-webkit-slider-thumb {
@@ -178,123 +239,79 @@ textarea {
   margin-top: -0.25rem;
   appearance: none;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.65);
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
   background: #f8fafc;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  transition: transform 0.1s ease;
+}
+
+.studio-range::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
 }
 
 .studio-range::-moz-range-track {
   height: 0.35rem;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.78);
+  background: rgba(15, 23, 42, 0.9);
 }
 
 .studio-range::-moz-range-thumb {
   width: 0.85rem;
   height: 0.85rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.65);
+  border: 1.5px solid rgba(255, 255, 255, 0.85);
   background: #f8fafc;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
+/* Hardware Mixer Track Cards */
 .strudel-track-card {
-  --strudel-track-color: #22d3ee;
-  border-radius: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  --strudel-track-color: #3b82f6;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.55);
-  box-shadow: 0 0 18px rgba(34, 211, 238, 0.12);
+  background: rgba(15, 18, 24, 0.85);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 .strudel-track-card--drums {
-  --strudel-track-color: #f97316;
-  box-shadow: 0 0 20px rgba(249, 115, 22, 0.25);
+  --strudel-track-color: #f59e0b;
 }
 
 .strudel-track-card--bass {
-  --strudel-track-color: #6366f1;
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.22);
+  --strudel-track-color: #3b82f6;
 }
 
 .strudel-track-card--melody {
-  --strudel-track-color: #22d3ee;
-  box-shadow: 0 0 20px rgba(34, 211, 238, 0.24);
+  --strudel-track-color: #10b981;
 }
 
 .strudel-track-card--fx {
-  --strudel-track-color: #a855f7;
-  box-shadow: 0 0 20px rgba(168, 85, 247, 0.24);
+  --strudel-track-color: #8b5cf6;
 }
 
 .strudel-track-label {
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.15em;
   margin-bottom: 0.35rem;
+  font-weight: 700;
   color: var(--strudel-track-color);
 }
 
 .strudel-note-chip {
   display: inline-block;
-  padding: 0.15rem 0.6rem;
-  border-radius: 9999px;
+  padding: 0.15rem 0.55rem;
+  border-radius: 4px;
   border: 1px solid var(--strudel-track-color);
   color: var(--strudel-track-color);
-  font-size: 0.85rem;
-  animation-name: strudelPulse;
-  animation-iteration-count: infinite;
-  animation-timing-function: ease-in-out;
-  text-shadow: 0 0 18px var(--strudel-track-color);
-  opacity: 0.85;
+  font-size: 0.8rem;
+  font-family: monospace;
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 0.9;
 }
 
-.strudel-note-chip:nth-child(2n) {
-  animation-delay: 0.12s;
-}
-
-.strudel-note-chip:nth-child(3n) {
-  animation-delay: 0.2s;
-}
-
-.animate-running {
-  animation-play-state: running;
-}
-
-.animate-paused {
-  animation-play-state: paused;
-}
-
-.strudel-intensity-low .strudel-note-chip {
-  animation-duration: 0.9s;
-  transform: scale(1.02);
-}
-
-.strudel-intensity-mid .strudel-note-chip {
-  animation-duration: 0.6s;
-  transform: scale(1.08);
-  text-shadow: 0 0 24px var(--strudel-track-color);
-}
-
-.strudel-intensity-high .strudel-note-chip {
-  animation-duration: 0.35s;
-  transform: scale(1.16);
-  text-shadow: 0 0 30px var(--strudel-track-color);
-}
-
-@keyframes strudelPulse {
-  0% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-0.25rem);
-  }
-  100% {
-    transform: translateY(0);
-  }
-}
-
-/* ArrangementView Clip Styles */
+/* ArrangementView DAW Timeline */
 .clip-container {
   position: absolute;
   height: 52px;
@@ -306,7 +323,7 @@ textarea {
 
 .clip-waveform-bar {
   width: 0.25rem;
-  background-color: rgba(0, 0, 0, 0.3);
+  background-color: rgba(0, 0, 0, 0.35);
   border-radius: 0.125rem;
 }
 
@@ -316,15 +333,15 @@ textarea {
   align-items: center;
   gap: 0.5rem;
   padding: 0 0.5rem;
-  border-bottom: 1px solid #1f2937;
-  border-right: 1px solid #1f2937;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .lane-track-area {
   flex: 1;
   position: relative;
-  border-bottom: 1px solid #1f2937;
-  background-color: rgba(17, 24, 39, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: rgba(15, 18, 24, 0.4);
 }
 
 .bar-grid-line {
@@ -335,11 +352,11 @@ textarea {
 }
 
 .bar-grid-line--major {
-  border-color: #374151;
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .bar-grid-line--minor {
-  border-color: rgba(31, 41, 55, 0.5);
+  border-color: rgba(255, 255, 255, 0.04);
 }
 
 .group-header {
@@ -351,7 +368,7 @@ textarea {
 }
 
 .group-header:hover {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(255, 255, 255, 0.04);
 }
 
 .timeline-bar-number {
@@ -366,22 +383,22 @@ textarea {
 }
 
 .timeline-bar-number--major {
-  color: #9ca3af;
-  border-color: #4b5563;
+  color: #94a3b8;
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .timeline-bar-number--minor {
-  color: #4b5563;
-  border-color: #1f2937;
+  color: #475569;
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
 .loop-region {
   position: absolute;
   top: 0;
   bottom: 0;
-  background-color: rgba(6, 182, 212, 0.1);
-  border-left: 2px solid #06b6d4;
-  border-right: 2px solid #06b6d4;
+  background-color: rgba(59, 130, 246, 0.08);
+  border-left: 2px solid #3b82f6;
+  border-right: 2px solid #3b82f6;
 }
 
 .playhead {
@@ -389,7 +406,7 @@ textarea {
   top: 0;
   bottom: 0;
   width: 2px;
-  background-color: #22d3ee;
+  background-color: #f59e0b;
   z-index: 30;
   pointer-events: none;
 }
@@ -400,15 +417,15 @@ textarea {
   left: -0.5rem;
   width: 1rem;
   height: 1rem;
-  background-color: #22d3ee;
+  background-color: #f59e0b;
   transform: rotate(45deg);
 }
 
-/* SpectrumAnalyzer Styles */
+/* Spectrum Analyzer */
 .spectrum-canvas-container {
   width: 100%;
   height: 100%;
-  border-radius: 8px;
-  border: 0;
-  background: #0d1117;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #080a0e;
 }
